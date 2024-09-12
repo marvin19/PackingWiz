@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors'); // Might be dealing with CORS issues between frontend and backend
 const app = express();
+const mongoose = require('mongoose');
+const PackingList = require('./models/PackingList');
 
 // Middleware, parsing incoming JSON requests
 app.use(express.json());
@@ -22,3 +24,18 @@ const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
+mongoose.connect('mongodb://localhost:27017/packing-list')
+.then(async () => {
+    console.log('MongoDB connected')
+
+    // Create a new packing list
+    const newList = new PackingList({
+        name: 'Weekend Trip',
+        items: ['Toothbrush', 'Socks', 'Phone Charger']
+    });
+
+    await newList.save();
+    console.log('Packing list saved');
+})
+.catch(err => console.log('MongoDB connection error:', err));
