@@ -5,17 +5,26 @@ import PackingList from '../components/PackingList';
 import TripForm from '../components/TripForm';
 import ItemForm from '../components/ItemForm';
 
+interface Trip {
+    id: number;
+    name: string;
+    destination: string;
+    startDate: string;
+    endDate: string;
+}
+
 const TripPage: React.FC = () => {
-    const [trips, setTrips] = useState([
+    const [trips, setTrips] = useState<Trip[]>([
         {
             id: 1,
             name: 'Trip to Paris',
+            destination: 'Paris',
             startDate: '2021-07-01',
             endDate: '2021-07-05',
         },
     ]);
 
-    const [selectedTrip, setSelectedTrip] = useState<any>(null);
+    const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
     const [items, setItems] = useState([
         { id: 1, name: 'Toothbrush', category: 'Toiletries', quantity: 1 },
     ]);
@@ -23,9 +32,16 @@ const TripPage: React.FC = () => {
     const handleAddTrip = (trip: {
         name: string;
         destination: string;
-        date: string;
+        startDate: string;
+        endDate: string;
     }) => {
-        const newTrip = { ...trip, id: trips.length + 1 };
+        const newTrip: Trip = {
+            id: trips.length + 1,
+            name: trip.name,
+            destination: trip.destination,
+            startDate: trip.startDate,
+            endDate: trip.endDate,
+        };
         setTrips([...trips, newTrip]);
     };
 
@@ -44,7 +60,9 @@ const TripPage: React.FC = () => {
             <AllTripList
                 trips={trips}
                 onSelectTrip={(id) =>
-                    setSelectedTrip(trips.find((trip) => trip.id === id))
+                    setSelectedTrip(
+                        trips.find((trip) => trip.id === id) || null,
+                    )
                 }
             />
 
@@ -53,9 +71,10 @@ const TripPage: React.FC = () => {
                     <TripDetails
                         name={selectedTrip.name}
                         destination={selectedTrip.destination}
-                        date={selectedTrip.date}
-                        daysGone={2} // TODO calculate days gone instead of hardcoding
-                        weather={'Sunny'} // TODO get weather data based on either average for destination or current weather if available
+                        startDate={selectedTrip.startDate}
+                        endDate={selectedTrip.endDate}
+                        daysGone={2} // TODO: Calculate days gone
+                        weather={'Sunny'} // TODO: Fetch weather data
                     />
                     <PackingList items={items} />
                     <ItemForm onAddItem={handleAddItem} />

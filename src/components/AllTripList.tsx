@@ -4,7 +4,8 @@ interface Trip {
     id: number;
     name: string;
     destination: string;
-    date: string;
+    startDate: string;
+    endDate: string;
 }
 
 interface AllTripListProps {
@@ -20,7 +21,7 @@ const AllTripList: React.FC<AllTripListProps> = ({ trips, onSelectTrip }) => {
                 {trips.map((trip) => (
                     <li key={trip.id} onClick={() => onSelectTrip(trip.id)}>
                         <strong>{trip.name}</strong> - {trip.destination} (
-                        {trip.date})
+                        {trip.startDate})
                     </li>
                 ))}
             </ul>

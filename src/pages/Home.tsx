@@ -1,5 +1,4 @@
 import React from 'react';
-import AllTripList from '../components/AllTripList';
 import { Link } from 'react-router-dom';
 
 const Home: React.FC = () => {

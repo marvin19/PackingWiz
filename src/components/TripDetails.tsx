@@ -1,7 +1,8 @@
 interface TripDetailsProps {
     name: string;
     destination: string;
-    date: string;
+    startDate: string;
+    endDate: string;
     daysGone: number;
     weather: string;
 }
@@ -9,7 +10,8 @@ interface TripDetailsProps {
 const TripDetails = ({
     name,
     destination,
-    date,
+    startDate,
+    endDate,
     daysGone,
     weather,
 }: TripDetailsProps): JSX.Element => {
@@ -23,7 +25,10 @@ const TripDetails = ({
                 <strong>Destination:</strong> {destination}
             </p>
             <p>
-                <strong>Date:</strong> {date}
+                <strong>Start date:</strong> {startDate}
+            </p>
+            <p>
+                <strong>End date:</strong> {endDate}
             </p>
             <p>
                 <strong>Days Gone:</strong> {daysGone}

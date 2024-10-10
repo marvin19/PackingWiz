@@ -1,9 +1,8 @@
-import React from 'react';
-
 interface Item {
     id: number;
     name: string;
-    packed: boolean;
+    category: string;
+    packed?: boolean;
     quantity: number;
 }
 

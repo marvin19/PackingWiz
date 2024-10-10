@@ -4,21 +4,24 @@ interface TripFormProps {
     onAddTrip: (trip: {
         name: string;
         destination: string;
-        date: string;
+        startDate: string;
+        endDate: string;
     }) => void;
 }
 
 const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
     const [name, setName] = useState('');
     const [destination, setDestination] = useState('');
-    const [date, setDate] = useState('');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        onAddTrip({ name, destination, date });
+        onAddTrip({ name, destination, startDate, endDate });
         setName('');
         setDestination('');
-        setDate('');
+        setStartDate('');
+        setEndDate('');
     };
 
     return (
@@ -38,11 +41,18 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
                 onChange={(e) => setDestination(e.target.value)}
                 required
             />
-            <label>Date:</label>
+            <label>Start Date:</label>
             <input
                 type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+            />
+            <label>End Date:</label>
+            <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
                 required
             />
             <button type="submit">Add Trip</button>
