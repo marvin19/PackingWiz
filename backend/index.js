@@ -14,9 +14,9 @@ app.get('/', (req, res) => {
     res.send('Hello from Express!');
 });
 
-// Define API routes 
+// Define API routes
 app.get('/api/packing-list', (req, res) => {
-    res.json({message: 'Your packing list API is working'});
+    res.json({ message: 'Your packing list API is working' });
 });
 
 // Start the server
@@ -25,17 +25,18 @@ app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
 
-mongoose.connect('mongodb://localhost:27017/packing-list')
-.then(async () => {
-    console.log('MongoDB connected')
+mongoose
+    .connect('mongodb://localhost:27017/packing-list')
+    .then(async () => {
+        console.log('MongoDB connected');
 
-    // Create a new packing list
-    const newList = new PackingList({
-        name: 'Weekend Trip',
-        items: ['Toothbrush', 'Socks', 'Phone Charger']
-    });
+        // Create a new packing list
+        const newList = new PackingList({
+            name: 'Weekend Trip',
+            items: ['Toothbrush', 'Socks', 'Phone Charger'],
+        });
 
-    await newList.save();
-    console.log('Packing list saved');
-})
-.catch(err => console.log('MongoDB connection error:', err));
+        await newList.save();
+        console.log('Packing list saved');
+    })
+    .catch((err) => console.log('MongoDB connection error:', err));

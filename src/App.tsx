@@ -1,14 +1,13 @@
-import './App.css'
-import Home from './pages/Home'
-import TripPage from './pages/TripPage'
+import './App.css';
+import Home from './pages/Home';
+import TripPage from './pages/TripPage';
 
 function App() {
-
-  return (
-    <>
-    <TripPage />
-    </>
-  )
+    return (
+        <>
+            <TripPage />
+        </>
+    );
 }
 
-export default App
+export default App;
