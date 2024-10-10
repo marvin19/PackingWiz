@@ -6,7 +6,7 @@
     "scripts": {
         "dev": "vite",
         "build": "tsc -b && vite build",
-        "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0 && echo '🎉\\x1b[32mLinting passed successfully!\\x1b[0m 🎉'",
+        "lint": "eslint . --report-unused-disable-directives --max-warnings 0 && echo '🎉\\x1b[32mLinting passed successfully!\\x1b[0m 🎉'",
         "preview": "vite preview",
         "prepare": "husky install"
     },
