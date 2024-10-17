@@ -125,7 +125,21 @@ app.put('/api/packing-list/:id/items', async (req, res) => {
     }
 });
 
-// TODO: DELETE: Remove an item from a specific packing list's items array
+// DELETE: Remove an item from a specific packing list's items array
+app.delete('/api/packing-list/:id'),
+    async (req, res) => {
+        try {
+            const packingList = await PAckingList.findByIdAndDelete(
+                req.params.id,
+            );
+            if (!packingList) {
+                return res.status(404).json;
+            }
+            res.json({ message: 'Packinglist deleted' });
+        } catch (error) {
+            res.status(500).json({ message: 'Failed to delete packing list' });
+        }
+    };
 
 // DELETE: Delete a packing list by ID
 app.delete('/api/packing-list/:id', async (req, res) => {

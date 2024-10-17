@@ -79,6 +79,18 @@ const TripPage: React.FC = () => {
         }
     };
 
+    const handleDeleteTrip = async (id: string) => {
+        try {
+            // Make DELETE request to the backend
+            await Axios.delete(`${LOCALHOST_URL}/${id}`);
+
+            // Update the frontend state by filtering out the deleted trip
+            setTrips(trips.filter((trip) => trip.id !== id));
+        } catch (error) {
+            console.error('Error deleting trip', error);
+        }
+    };
+
     // Handle selecting a trip and fetching its items
     const handleSelectTrip = async (id: string) => {
         const selected = trips.find((trip) => trip.id === id) || null;
@@ -141,6 +153,7 @@ const TripPage: React.FC = () => {
             <AllTripList
                 trips={trips}
                 onSelectTrip={(id) => handleSelectTrip(id)}
+                onDeleteTrip={handleDeleteTrip}
             />
             {selectedTrip && (
                 <div>

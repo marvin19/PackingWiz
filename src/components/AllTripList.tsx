@@ -12,9 +12,14 @@ interface Trip {
 interface AllTripListProps {
     trips: Trip[];
     onSelectTrip: (id: string) => void;
+    onDeleteTrip: (id: string) => void;
 }
 
-const AllTripList: React.FC<AllTripListProps> = ({ trips, onSelectTrip }) => {
+const AllTripList: React.FC<AllTripListProps> = ({
+    trips,
+    onSelectTrip,
+    onDeleteTrip,
+}) => {
     console.log('Trips:', trips);
 
     return (
@@ -25,7 +30,9 @@ const AllTripList: React.FC<AllTripListProps> = ({ trips, onSelectTrip }) => {
                     <li key={trip.id} onClick={() => onSelectTrip(trip.id)}>
                         <strong>{trip.name}</strong> - {trip.destination} -{' '}
                         {trip.id} ({trip.startDate})
-                        <DeleteItemButton />
+                        <DeleteItemButton
+                            onDelete={() => onDeleteTrip(trip.id)}
+                        />
                     </li>
                 ))}
             </ul>
