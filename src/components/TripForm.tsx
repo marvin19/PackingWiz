@@ -17,7 +17,25 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        onAddTrip({ name, destination, startDate, endDate });
+
+        const parsedStartDate = new Date(startDate);
+        const parsedEndDate = new Date(endDate);
+
+        // Log the data to be sent to the parent component
+        console.log({
+            name,
+            destination,
+            startDate: parsedStartDate.toISOString(),
+            endDate: parsedEndDate.toISOString(),
+        });
+
+        onAddTrip({
+            name,
+            destination,
+            startDate: parsedStartDate.toISOString(),
+            endDate: parsedEndDate.toISOString(),
+        });
+
         setName('');
         setDestination('');
         setStartDate('');

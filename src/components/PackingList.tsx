@@ -1,5 +1,7 @@
+import DeleteButton from './DeleteButton';
+
 interface Item {
-    id: number;
+    _id: string;
     name: string;
     category: string;
     packed?: boolean;
@@ -8,16 +10,21 @@ interface Item {
 
 interface PackingListProps {
     items: Item[];
+    onDeleteItem: (id: string) => void;
 }
 
-const PackingList = ({ items }: PackingListProps): JSX.Element => {
+const PackingList = ({
+    items,
+    onDeleteItem,
+}: PackingListProps): JSX.Element => {
     return (
         <div>
             <h2>PackingList</h2>
             <ul>
                 {items.map((item) => (
-                    <li key={item.id}>
+                    <li key={item._id}>
                         {item.name} - {item.category} (Qty: {item.quantity})
+                        <DeleteButton onDelete={() => onDeleteItem(item._id)} />
                     </li>
                 ))}
             </ul>
