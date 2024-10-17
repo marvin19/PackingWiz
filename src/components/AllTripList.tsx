@@ -1,4 +1,5 @@
 import React from 'react';
+import DeleteItemButton from './DeleteItemButton';
 
 interface Trip {
     id: string;
@@ -24,6 +25,7 @@ const AllTripList: React.FC<AllTripListProps> = ({ trips, onSelectTrip }) => {
                     <li key={trip.id} onClick={() => onSelectTrip(trip.id)}>
                         <strong>{trip.name}</strong> - {trip.destination} -{' '}
                         {trip.id} ({trip.startDate})
+                        <DeleteItemButton />
                     </li>
                 ))}
             </ul>
