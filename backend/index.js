@@ -23,7 +23,8 @@ mongoose
 app.get('/api/packing-list', async (req, res) => {
     try {
         const packingLists = await PackingList.find();
-        res.json(packingLists);
+        console.log('Packing Lists:', packingLists); // Log the fetched trips
+        res.json(packingLists); // This should be an array
     } catch (error) {
         res.status(500).json({ message: 'Server error' });
     }
@@ -32,12 +33,28 @@ app.get('/api/packing-list', async (req, res) => {
 // POST: Create a new packing list
 app.post('/api/packing-list', async (req, res) => {
     try {
-        const { name, items } = req.body;
-        const newList = new PackingList({ name, items });
-        await newList.save();
-        res.status(201).json(newList);
+        console.log('Received request data:', req.body); // Log incoming data
+        const { name, destination, startDate, endDate, items } = req.body;
+
+        // Check if data is missing or invalid
+        if (!name || !destination || !startDate || !endDate) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        const newTrip = new PackingList({
+            name,
+            destination,
+            startDate,
+            endDate,
+            items,
+        });
+
+        const savedTrip = await newTrip.save();
+        console.log('Trip saved successfully:', savedTrip); // Log the saved trip
+        res.status(201).json(savedTrip); // Return the newly created trip
     } catch (error) {
-        res.status(500).json({ message: 'Failed to create packing list' });
+        console.error('Error saving the trip:', error); // Log the error
+        res.status(500).json({ message: 'Error saving the trip' });
     }
 });
 
@@ -57,7 +74,7 @@ app.get('/api/packing-list/:id', async (req, res) => {
 // PUT: Update a packing list by ID
 app.put('/api/packing-list/:id', async (req, res) => {
     try {
-        const { name, items } = req.body;
+        const { name, items, quantity } = req.body;
         const packingList = await PackingList.findByIdAndUpdate(
             req.params.id,
             { name, items },
@@ -70,6 +87,45 @@ app.put('/api/packing-list/:id', async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+
+// PUT: Add an item to a specific packing list's items array
+app.put('/api/packing-list/:id/items', async (req, res) => {
+    try {
+        const { name, category, quantity } = req.body;
+
+        // Make sure the required fields are present
+        if (!name || !quantity) {
+            return res
+                .status(400)
+                .json({ message: 'Item name and quantity are required' });
+        }
+
+        // Find the packing list and push the new item to the items array
+        const updatedPackingList = await PackingList.findByIdAndUpdate(
+            req.params.id,
+            {
+                $push: {
+                    items: { name, category, quantity },
+                },
+            },
+            { new: true }, // To return the updated version
+        );
+
+        if (!updatedPackingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        // Log the updated packing list to see if the item was added
+        console.log('Updated Packing List:', updatedPackingList);
+
+        res.json(updatedPackingList); // Send the updated packing list back
+    } catch (error) {
+        console.error('Error updating packing list:', error); // Log any errors
+        res.status(500).json({ message: 'Error updating the packing list' });
+    }
+});
+
+// TODO: DELETE: Remove an item from a specific packing list's items array
 
 // DELETE: Delete a packing list by ID
 app.delete('/api/packing-list/:id', async (req, res) => {

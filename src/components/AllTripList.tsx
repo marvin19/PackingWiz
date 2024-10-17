@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface Trip {
-    id: number;
+    id: string;
     name: string;
     destination: string;
     startDate: string;
@@ -10,18 +10,20 @@ interface Trip {
 
 interface AllTripListProps {
     trips: Trip[];
-    onSelectTrip: (id: number) => void;
+    onSelectTrip: (id: string) => void;
 }
 
 const AllTripList: React.FC<AllTripListProps> = ({ trips, onSelectTrip }) => {
+    console.log('Trips:', trips);
+
     return (
         <div>
             <h2>All Trips</h2>
             <ul>
                 {trips.map((trip) => (
                     <li key={trip.id} onClick={() => onSelectTrip(trip.id)}>
-                        <strong>{trip.name}</strong> - {trip.destination} (
-                        {trip.startDate})
+                        <strong>{trip.name}</strong> - {trip.destination} -{' '}
+                        {trip.id} ({trip.startDate})
                     </li>
                 ))}
             </ul>
