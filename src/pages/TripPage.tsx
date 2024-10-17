@@ -147,6 +147,20 @@ const TripPage: React.FC = () => {
         }
     };
 
+    const handleDeleteItem = async (tripId: string, itemId: string) => {
+        console.log('handleDeleteItem', tripId, itemId);
+        try {
+            // Delete the item from the backend
+            await Axios.delete(`${LOCALHOST_URL}/${tripId}/items/${itemId}`);
+
+            // Update frontend state by removing the deleted item
+            const updatedItems = items.filter((item) => item._id !== itemId);
+            setItems(updatedItems); // Update the items state
+        } catch (error) {
+            console.error('Error deleting item:', error);
+        }
+    };
+
     return (
         <div>
             <TripForm onAddTrip={handleAddTrip} />
@@ -165,7 +179,12 @@ const TripPage: React.FC = () => {
                         daysGone={2} // TODO: Calculate days gone
                         weather={'Sunny'} // TODO: Fetch weather data
                     />
-                    <PackingList items={items} />
+                    <PackingList
+                        items={items}
+                        onDeleteItem={(id) =>
+                            handleDeleteItem(selectedTrip._id, id)
+                        }
+                    />
                     <ItemForm onAddItem={handleAddItem} />
                 </div>
             )}

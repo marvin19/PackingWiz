@@ -125,11 +125,20 @@ app.put('/api/packing-list/:id/items', async (req, res) => {
     }
 });
 
-// DELETE: Remove an item from a specific packing list's items array
-app.delete('/api/packing-list/:id'),
+// DELETE: Remove an packing list by ID
+app.delete('/api/packing-list/:tripId/items/:itemId'),
     async (req, res) => {
         try {
-            const packingList = await PAckingList.findByIdAndDelete(
+            const { tripId, itemId } = req.params;
+
+            // Make sure the required fields are present
+            if (!tripId || !itemId) {
+                return res
+                    .status(400)
+                    .json({ message: 'Trip ID and Item ID are required' });
+            }
+
+            const packingList = await PackingList.findByIdAndDelete(
                 req.params.id,
             );
             if (!packingList) {
@@ -141,37 +150,39 @@ app.delete('/api/packing-list/:id'),
         }
     };
 
-// DELETE: Delete a packing list by ID
-app.delete('/api/packing-list/:id', async (req, res) => {
+// DELETE: Remove an item from a specific packing list's items array
+app.delete('/api/packing-list/:tripId/items/:itemId', async (req, res) => {
     try {
-        const packingList = await PackingList.findByIdAndDelete(req.params.id);
-        if (!packingList) {
-            return res.status(404).json({ message: 'Packinglist not found' });
+        const { tripId, itemId } = req.params;
+        console.log('Trip ID:', tripId);
+        console.log('Item ID:', itemId);
+
+        // Find the packing list and remove the item
+        const updatedPackingList = await PackingList.findByIdAndUpdate(
+            tripId,
+            {
+                $pull: { items: { _id: itemId } },
+            },
+            { new: true },
+        );
+
+        if (!updatedPackingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
         }
-        res.json({ message: 'Packinglist deleted' });
+
+        res.json(updatedPackingList);
     } catch (error) {
-        res.status(500).json({ message: 'Failed to delete packing list' });
+        console.error('Error', error);
+        res.status(500).json({
+            message: 'Error deleting item from the packing list',
+        });
     }
 });
+
+// TODO: UPDATE item
 
 // Start the server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-
-/*mongoose
-    .connect('mongodb://localhost:27017/packing-list')
-    .then(async () => {
-        console.log('MongoDB connected');
-
-        // Create a new packing list
-        const newList = new PackingList({
-            name: 'Weekend Trip',
-            items: ['Toothbrush', 'Socks', 'Phone Charger'],
-        });
-
-        await newList.save();
-        console.log('Packing list saved');
-    })
-    .catch((err) => console.log('MongoDB connection error:', err));*/
