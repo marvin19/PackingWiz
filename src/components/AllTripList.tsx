@@ -1,5 +1,5 @@
 import React from 'react';
-import DeleteItemButton from './DeleteItemButton';
+import DeleteItemButton from './DeleteButton';
 
 interface Trip {
     id: string;
