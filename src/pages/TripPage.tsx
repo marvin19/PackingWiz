@@ -80,6 +80,9 @@ const TripPage: React.FC = () => {
     };
 
     const handleDeleteTrip = async (id: string) => {
+        console.log('Deleting trip', id);
+        console.log(`Attempting DELETE request to: ${LOCALHOST_URL}/${id}`);
+
         try {
             // Make DELETE request to the backend
             await Axios.delete(`${LOCALHOST_URL}/${id}`);

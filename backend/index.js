@@ -126,53 +126,45 @@ app.put('/api/packing-list/:id/items', async (req, res) => {
 });
 
 // DELETE: Remove an packing list by ID
-app.delete('/api/packing-list/:tripId/items/:itemId'),
-    async (req, res) => {
-        try {
-            const { tripId, itemId } = req.params;
-
-            // Make sure the required fields are present
-            if (!tripId || !itemId) {
-                return res
-                    .status(400)
-                    .json({ message: 'Trip ID and Item ID are required' });
-            }
-
-            const packingList = await PackingList.findByIdAndDelete(
-                req.params.id,
-            );
-            if (!packingList) {
-                return res.status(404).json;
-            }
-            res.json({ message: 'Packinglist deleted' });
-        } catch (error) {
-            res.status(500).json({ message: 'Failed to delete packing list' });
+app.delete('/api/packing-list/:id', async (req, res) => {
+    try {
+        const packingList = await PackingList.findByIdAndDelete(req.params.id);
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
         }
-    };
+        res.json({ message: 'Packing list deleted' });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to delete packing list' });
+    }
+});
+
+app.delete('/api/packing-list/:tripId', (req, res) => {
+    console.log(
+        'DELETE request received for adding items to trip:',
+        req.params.id,
+    );
+    res.send('DELETE request received');
+});
 
 // DELETE: Remove an item from a specific packing list's items array
 app.delete('/api/packing-list/:tripId/items/:itemId', async (req, res) => {
     try {
         const { tripId, itemId } = req.params;
-        console.log('Trip ID:', tripId);
-        console.log('Item ID:', itemId);
 
-        // Find the packing list and remove the item
+        // Find the packing list and remove the item from its items array
         const updatedPackingList = await PackingList.findByIdAndUpdate(
             tripId,
-            {
-                $pull: { items: { _id: itemId } },
-            },
-            { new: true },
+            { $pull: { items: { _id: itemId } } }, // $pull removes the item with the given _id
+            { new: true }, // Return the updated packing list
         );
 
         if (!updatedPackingList) {
             return res.status(404).json({ message: 'Packing list not found' });
         }
 
-        res.json(updatedPackingList);
+        res.json(updatedPackingList); // Return the updated packing list
     } catch (error) {
-        console.error('Error', error);
+        console.error('Error:', error);
         res.status(500).json({
             message: 'Error deleting item from the packing list',
         });
