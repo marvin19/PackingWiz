@@ -150,6 +150,7 @@ app.delete('/api/packing-list/:tripId', (req, res) => {
 app.delete('/api/packing-list/:tripId/items/:itemId', async (req, res) => {
     try {
         const { tripId, itemId } = req.params;
+        console.log('Received tripId:', tripId);
 
         // Find the packing list and remove the item from its items array
         const updatedPackingList = await PackingList.findByIdAndUpdate(
@@ -171,7 +172,41 @@ app.delete('/api/packing-list/:tripId/items/:itemId', async (req, res) => {
     }
 });
 
-// TODO: UPDATE item
+// PUT: Edit an item in a specific packing list
+app.put('/api/packing-list/:tripId/items/:itemId', async (req, res) => {
+    console.log('Route is working');
+    try {
+        const { tripId, itemId } = req.params;
+        const { name, category, quantity } = req.body;
+
+        // Update the specific item inside the items array using arrayFilters
+        const updatedPackingList = await PackingList.findOneAndUpdate(
+            { _id: tripId, 'items._id': itemId },
+            {
+                $set: {
+                    'items.$.name': name,
+                    'items.$.category': category,
+                    'items.$.quantity': quantity,
+                },
+            },
+            { new: true },
+        );
+
+        if (!updatedPackingList) {
+            return res
+                .status(404)
+                .json({ message: 'Packing list or item not found' });
+        }
+
+        res.json(updatedPackingList);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ message: 'Error editing an item:', error });
+        res.status(500).json({
+            message: 'Error editing an item in the packing list',
+        });
+    }
+});
 
 // Start the server
 const PORT = process.env.PORT || 5001;

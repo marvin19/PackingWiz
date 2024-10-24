@@ -164,6 +164,44 @@ const TripPage: React.FC = () => {
         }
     };
 
+    const handleEditItem = async (
+        tripId: string,
+        itemId: string,
+        updatedItem: Partial<Item>,
+    ) => {
+        console.log('handleEditItem', tripId, itemId);
+
+        console.log('Editing item with tripId:', tripId, 'itemId:', itemId);
+        console.log('Updated item data:', updatedItem);
+        try {
+            // Find the existing item so that we can merge it with updatedItem
+            const existingItem = items.find((item) => item._id === itemId);
+            if (!existingItem) throw new Error('Item not found');
+
+            // Merge existing item with updated values, giving priority to updatedItem
+            const completeItem = {
+                ...existingItem,
+                ...updatedItem,
+            };
+
+            // Send the complete item to the backend
+            const response = await Axios.put(
+                `${LOCALHOST_URL}/${tripId}/items/${itemId}`,
+                completeItem,
+            );
+
+            console.log('Item edited successfully:', response.data);
+
+            // Update frontend state with the new item data
+            const updatedItems = items.map((item) =>
+                item._id === itemId ? { ...item, ...updatedItem } : item,
+            );
+            setItems(updatedItems);
+        } catch (error) {
+            console.error('Error editing item:', error);
+        }
+    };
+
     return (
         <div>
             <TripForm onAddTrip={handleAddTrip} />
@@ -187,6 +225,16 @@ const TripPage: React.FC = () => {
                         onDeleteItem={(id) =>
                             handleDeleteItem(selectedTrip._id, id)
                         }
+                        onEditItem={(id, updatedItem) => {
+                            // Ensure that name, category, and quantity are defined before passing to handleEditItem
+                            const completeItem = {
+                                name: updatedItem.name || 'Default Name', // Provide a default value if undefined
+                                category:
+                                    updatedItem.category || 'Default Category', // Provide a default value if undefined
+                                quantity: updatedItem.quantity || 1, // Provide a default value if undefined
+                            };
+                            handleEditItem(selectedTrip._id, id, completeItem);
+                        }}
                     />
                     <ItemForm onAddItem={handleAddItem} />
                 </div>
