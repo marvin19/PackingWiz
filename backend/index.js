@@ -74,16 +74,24 @@ app.get('/api/packing-list/:id', async (req, res) => {
 // PUT: Update a packing list by ID
 app.put('/api/packing-list/:id', async (req, res) => {
     try {
-        const { name, items, quantity } = req.body;
-        const packingList = await PackingList.findByIdAndUpdate(
+        const { name, destination, startDate, endDate, items } = req.body;
+
+        console.log('inside backend');
+
+        // Update the packing list and check if it exists in one step
+        const updatedPackingList = await PackingList.findByIdAndUpdate(
             req.params.id,
-            { name, items },
-            { new: true },
+            { name, destination, startDate, endDate, items },
+            { new: true }, // Returns the updated document
         );
-        if (!packingList) {
-            return res.status(404).json({ message: 'Packinglist not found' });
+
+        if (!updatedPackingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
         }
+
+        res.json(updatedPackingList);
     } catch (error) {
+        console.error('Error updating packing list:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

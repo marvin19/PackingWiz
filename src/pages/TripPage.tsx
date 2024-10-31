@@ -79,6 +79,49 @@ const TripPage: React.FC = () => {
         }
     };
 
+    const handleEditTrip = async (id: string, updatedTrip: Partial<Trip>) => {
+        console.log('Editing trip:', id, 'with data:', updatedTrip);
+
+        const existingTrip = trips.find((trip) => trip.id === id);
+
+        if (!existingTrip) {
+            console.error('Trip not found');
+            return;
+        }
+
+        const completeTrip = {
+            ...existingTrip,
+            ...updatedTrip, // Merge updated fields with existing trip
+            startDate: updatedTrip.startDate
+                ? new Date(updatedTrip.startDate).toISOString()
+                : existingTrip.startDate,
+            endDate: updatedTrip.endDate
+                ? new Date(updatedTrip.endDate).toISOString()
+                : existingTrip.endDate,
+        };
+
+        try {
+            console.log('CompleteTrip', completeTrip);
+            const response = await Axios.put(
+                `${LOCALHOST_URL}/${id}`,
+                completeTrip,
+            );
+
+            console.log('Trip updated successfully:', response.data);
+
+            // Optionally, update the state directly with the updated trip
+            const updatedTrips = trips.map((trip) =>
+                trip.id === id ? { ...trip, ...response.data } : trip,
+            );
+            setTrips(updatedTrips);
+
+            // Refetch the updated trip to ensure data is up-to-date
+            await handleSelectTrip(id); // This will refetch the updated trip details and set them in state
+        } catch (error) {
+            console.error('Error editing trip:', error);
+        }
+    };
+
     const handleDeleteTrip = async (id: string) => {
         console.log('Deleting trip', id);
         console.log(`Attempting DELETE request to: ${LOCALHOST_URL}/${id}`);
@@ -97,13 +140,21 @@ const TripPage: React.FC = () => {
     // Handle selecting a trip and fetching its items
     const handleSelectTrip = async (id: string) => {
         const selected = trips.find((trip) => trip.id === id) || null;
-        setSelectedTrip(selected);
+
+        // Only update the state if the selected trip is different
+        if (selectedTrip && selectedTrip.id === id) {
+            return; // Prevent re-fetching the same trip
+        }
+
+        setSelectedTrip(selected); // Set the selected trip in state
 
         if (selected) {
             try {
-                // You might have items associated with trips in the backend
+                // Make the backend request only if the trip is selected
                 const response = await Axios.get(`${LOCALHOST_URL}/${id}`);
                 console.log('response data', response.data);
+
+                // Set the items in the state
                 const itemsWithId = response.data.items.map((item: Item) => ({
                     ...item,
                     id: item._id, // Map _id to id
@@ -209,6 +260,7 @@ const TripPage: React.FC = () => {
                 trips={trips}
                 onSelectTrip={(id) => handleSelectTrip(id)}
                 onDeleteTrip={handleDeleteTrip}
+                onEditTrip={handleEditTrip}
             />
             {selectedTrip && (
                 <div>
