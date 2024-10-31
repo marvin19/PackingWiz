@@ -30,7 +30,15 @@ const AllTripList = ({
 
     const handleEditClick = (trip: Trip) => {
         setEditingTripId(trip.id);
-        setEditedTrip({ ...trip });
+        setEditedTrip({
+            ...trip,
+            startDate: trip.startDate
+                ? new Date(trip.startDate).toISOString().split('T')[0]
+                : '',
+            endDate: trip.endDate
+                ? new Date(trip.endDate).toISOString().split('T')[0]
+                : '',
+        });
     };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
