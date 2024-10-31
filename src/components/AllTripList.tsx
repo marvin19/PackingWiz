@@ -23,9 +23,7 @@ const AllTripList = ({
     onDeleteTrip,
     onEditTrip,
 }: AllTripListProps): JSX.Element => {
-    const [editingTripId, setEditingTripId] = useState<string | null>(
-        undefined,
-    );
+    const [editingTripId, setEditingTripId] = useState<string | null>(null);
     const [editedTrip, setEditedTrip] = useState<Partial<Trip>>({});
 
     const handleEditClick = (trip: Trip) => {
@@ -65,19 +63,19 @@ const AllTripList = ({
                                 <input
                                     type="text"
                                     name="name"
-                                    value={editedTrip.name || ''}
+                                    value={editedTrip.name ?? ''}
                                     onChange={handleInputChange}
                                 />
                                 <input
                                     type="text"
                                     name="destination"
-                                    value={editedTrip.destination || ''}
+                                    value={editedTrip.destination ?? ''}
                                     onChange={handleInputChange}
                                 />
                                 <input
                                     type="date"
                                     name="startDate"
-                                    value={editedTrip.startDate || ''}
+                                    value={editedTrip.startDate ?? ''}
                                     onChange={handleInputChange}
                                 />
                                 <input
