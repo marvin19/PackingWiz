@@ -76,8 +76,6 @@ app.put('/api/packing-list/:id', async (req, res) => {
     try {
         const { name, destination, startDate, endDate, items } = req.body;
 
-        console.log('inside backend');
-
         // Update the packing list and check if it exists in one step
         const updatedPackingList = await PackingList.findByIdAndUpdate(
             req.params.id,
@@ -88,6 +86,7 @@ app.put('/api/packing-list/:id', async (req, res) => {
         if (!updatedPackingList) {
             return res.status(404).json({ message: 'Packing list not found' });
         }
+        console.log('Trip saved successfully', updatedPackingList);
 
         res.json(updatedPackingList);
     } catch (error) {
@@ -146,14 +145,6 @@ app.delete('/api/packing-list/:id', async (req, res) => {
     }
 });
 
-app.delete('/api/packing-list/:tripId', (req, res) => {
-    console.log(
-        'DELETE request received for adding items to trip:',
-        req.params.id,
-    );
-    res.send('DELETE request received');
-});
-
 // DELETE: Remove an item from a specific packing list's items array
 app.delete('/api/packing-list/:tripId/items/:itemId', async (req, res) => {
     try {
@@ -210,9 +201,74 @@ app.put('/api/packing-list/:tripId/items/:itemId', async (req, res) => {
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ message: 'Error editing an item:', error });
-        res.status(500).json({
-            message: 'Error editing an item in the packing list',
-        });
+    }
+});
+
+// GET: Get all categories for a specific packing list
+// app.get('/api/packing-list/:tripId/categories', async (req, res) => {
+//     console.log('Received tripId:', req.params.tripId); // Log to verify
+// });
+app.get('/api/packing-list/:tripId/categories', async (req, res) => {
+    try {
+        const { tripId } = req.params; // Trip ID from the route
+        const { category } = req.body; // New category from the request body
+
+        console.log('try in backend');
+
+        // Validate the packing list ID
+        console.log('trip id', tripId);
+        if (!mongoose.Types.ObjectId.isValid(tripId)) {
+            return res.status(400).json({ message: 'Invalid packing list ID' });
+        }
+
+        // Fetch the packing list from the database
+        const packingList = await PackingList.findById(tripId);
+
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        // Combine default categories with additional categories
+        const categories = packingList.categories;
+
+        res.json({ categories });
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// PUT: Add a category to a specific packing list
+app.put('/api/packing-list/:tripId/categories', async (req, res) => {
+    try {
+        const { tripId } = req.params; // Trip ID from the route
+        const { category } = req.body; // New category from the request body
+
+        // Validate Trip ID
+        if (!mongoose.Types.ObjectId.isValid(tripId)) {
+            return res.status(400).json({ message: 'Invalid packing list ID' });
+        }
+
+        // Ensure category is provided
+        if (!category) {
+            return res.status(400).json({ message: 'Category is required' });
+        }
+
+        // Update the categories array in the specified trip's packing list
+        const updatedPackingList = await PackingList.findByIdAndUpdate(
+            tripId,
+            { $addToSet: { categories: category } }, // Prevent duplicate categories
+            { new: true }, // Return the updated document
+        );
+
+        if (!updatedPackingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        res.json(updatedPackingList);
+    } catch (error) {
+        console.error('Error adding category:', error);
+        res.status(500).json({ message: 'Error adding category' });
     }
 });
 
