@@ -271,31 +271,53 @@ app.put('/api/packing-list/:id/categories', async (req, res) => {
 });
 
 // PUT: editing a category in a specific packing list
-app.put('/api/packing-list/:id/categories/:category', async (req, res) => {
-    const { id, category } = req.params;
-    const { newCategory } = req.body;
+app.put(
+    '/api/packing-list/:id/categories/:originalCategory',
+    async (req, res) => {
+        const { id, originalCategory } = req.params;
+        const { newCategory } = req.body;
 
-    try {
-        const packingList = await PackingList.findById(id);
+        try {
+            // Validate the input
+            if (!newCategory || originalCategory === newCategory) {
+                return res
+                    .status(400)
+                    .json({ message: 'Invalid category update' });
+            }
 
-        if (!packingList) {
-            return res.status(404).json({ message: 'Packing list not found' });
+            const packingList = await PackingList.findById(id);
+
+            if (!packingList) {
+                return res
+                    .status(404)
+                    .json({ message: 'Packing list not found' });
+            }
+
+            // Check for duplicate categories
+            if (
+                packingList.categories.some(
+                    (cat) => cat.toLowerCase() === newCategory.toLowerCase(),
+                )
+            ) {
+                return res
+                    .status(400)
+                    .json({ message: 'Category already exists' });
+            }
+
+            // Update the category
+            packingList.categories = packingList.categories.map((cat) =>
+                cat === originalCategory ? newCategory : cat,
+            );
+
+            await packingList.save();
+
+            res.json({ categories: packingList.categories });
+        } catch (error) {
+            console.error('Error updating category:', error);
+            res.status(500).json({ message: 'Server error' });
         }
-
-        const categoryIndex = packingList.categories.indexOf(category);
-        if (categoryIndex === -1) {
-            return res.status(400).json({ message: 'Category not found' });
-        }
-
-        packingList.categories[categoryIndex] = newCategory;
-        await packingList.save();
-
-        res.json({ categories: packingList.categories });
-    } catch (error) {
-        console.error('Error editing category:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
+    },
+);
 
 // DELETE: Remove a category from a specific packing list
 app.delete('/api/packing-list/:id/categories/:category', async (req, res) => {

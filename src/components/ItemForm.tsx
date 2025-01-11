@@ -14,37 +14,46 @@ const LOCALHOST_URL = 'http://localhost:5001/api/packing-list';
 const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
     const [name, setName] = useState('');
     const [category, setCategory] = useState('');
+    const [errorIndexes, setErrorIndexes] = useState<Record<number, string>>(
+        {},
+    );
     const [quantity, setQuantity] = useState<number>(1);
     const [categories, setCategories] = useState<string[]>([]);
+    const [tempCategories, setTempCategories] = useState<string[]>([]);
     const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
     const [isEditingCategories, setIsEditingCategories] = useState(false);
     const [newCategory, setNewCategory] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
+    const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
-    const sortCategories = (categories: string[]) => {
-        return categories.sort((a, b) => a.localeCompare(b));
-    };
+    const sortCategories = (categories: string[]) =>
+        categories.sort((a, b) => a.localeCompare(b));
 
-    // Fetch existing categories from the database on mount
+    // Fetch existing categories from the backend
     useEffect(() => {
         const fetchCategories = async () => {
             try {
                 const response = await axios.get(
                     `${LOCALHOST_URL}/${id}/categories`,
                 );
-
-                if (Array.isArray(response.data.categories)) {
-                    setCategories(sortCategories(response.data.categories));
-                }
+                const uniqueCategories: string[] = Array.from(
+                    new Set(response.data.categories),
+                );
+                setCategories(sortCategories(uniqueCategories));
             } catch (error) {
                 console.error('Error fetching categories:', error);
-                setCategories([]); // Fallback to empty array if invalid data
+                setCategories([]);
             }
         };
         fetchCategories();
     }, [id]);
+
+    useEffect(() => {
+        if (isEditingCategories) {
+            setTempCategories([...categories]);
+        }
+    }, [isEditingCategories, categories]);
 
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = e.target.value;
@@ -54,7 +63,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
             setCategory('');
         } else {
             setCategory(value);
-            setIsAddingNewCategory(false); // Reset new category state if a category is selected
+            setIsAddingNewCategory(false);
         }
     };
 
@@ -67,8 +76,11 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
     const handleAddNewCategory = async () => {
         if (newCategory.trim() === '') return;
 
-        // Frontend duplicate check
-        if (categories.includes(newCategory)) {
+        if (
+            categories.some(
+                (cat) => cat.toLowerCase() === newCategory.toLowerCase(),
+            )
+        ) {
             setErrorMessage('Category already exists');
             return;
         }
@@ -82,17 +94,63 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
             setCategory(newCategory);
             setNewCategory('');
             setIsAddingNewCategory(false);
-            setErrorMessage(null); // Clear error message on success
+            setErrorMessage(null);
         } catch (error) {
-            if (axios.isAxiosError(error) && error.response?.status === 400) {
-                // Set error message from backend
-                setErrorMessage(
-                    error.response.data.message || 'Error adding category',
-                );
-            } else {
-                setErrorMessage('Unexpected error occurred. Please try again.');
-                console.error('Error adding category:', error);
-            }
+            setErrorMessage('Unexpected error occurred. Please try again.');
+            console.error('Error adding category:', error);
+        }
+    };
+
+    const handleSaveCategory = async (
+        originalCategory: string,
+        newCategory: string,
+        index: number,
+    ) => {
+        if (originalCategory === newCategory) return;
+
+        if (
+            categories.some(
+                (cat) =>
+                    cat.toLowerCase() === newCategory.toLowerCase() &&
+                    cat !== originalCategory, // Exclude the original category
+            )
+        ) {
+            setErrorIndexes((prev) => ({
+                ...prev,
+                [index]: 'Category already exists',
+            }));
+            return;
+        }
+
+        try {
+            const response = await axios.put(
+                `${LOCALHOST_URL}/${id}/categories/${originalCategory}`,
+                { newCategory },
+            );
+
+            setCategories(sortCategories(response.data.categories));
+            setErrorIndexes((prev) => {
+                const updatedErrors = { ...prev };
+                delete updatedErrors[index];
+                return updatedErrors;
+            });
+        } catch (error) {
+            console.error('Error saving category:', error);
+        }
+    };
+
+    const handleDeleteCategory = async (categoryToDelete: string) => {
+        try {
+            await axios.delete(
+                `${LOCALHOST_URL}/${id}/categories/${categoryToDelete}`,
+            );
+
+            const updatedCategories = categories.filter(
+                (cat) => cat !== categoryToDelete,
+            );
+            setCategories(updatedCategories);
+        } catch (error) {
+            console.error('Error deleting category:', error);
         }
     };
 
@@ -102,58 +160,27 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
 
         onAddItem({ name, category, quantity: validQuantity });
 
-        // Reset form fields
         setName('');
         setCategory('');
-        setQuantity(1); // Reset to default
+        setQuantity(1);
         setNewCategory('');
     };
 
     const handleQuantityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const value = e.target.value; // Always a string
+        const value = e.target.value;
 
         if (value === '') {
-            setQuantity(0); // Temporarily allow cleared input
+            setQuantity(0);
         } else {
             const parsedValue = parseInt(value, 10);
             if (!isNaN(parsedValue)) {
-                setQuantity(Math.max(parsedValue, 1)); // Ensure minimum value of 1
+                setQuantity(Math.max(parsedValue, 1));
             }
         }
     };
 
-    const handleSaveCategory = async (
-        originalCategory: string,
-        newCategory: string,
-    ) => {
-        if (originalCategory === newCategory) return; // No changes
-
-        try {
-            const response = await axios.put(
-                `${LOCALHOST_URL}/${id}/categories/${originalCategory}`,
-                { newCategory },
-            );
-
-            setCategories(response.data.categories);
-        } catch (error) {
-            console.error('Error saving category:', error);
-        }
-    };
-
-    const handleDeleteCategory = async (categoryToDelete: string) => {
-        try {
-            const response = await axios.delete(
-                `${LOCALHOST_URL}/${id}/categories/${categoryToDelete}`,
-            );
-
-            setCategories(response.data.categories);
-        } catch (error) {
-            console.error('Error deleting category:', error);
-        }
-    };
-
     return (
-        <form onSubmit={handleSubmit}>
+        <form>
             <h2>Add New Item</h2>
             <div>
                 <label>Item name: </label>
@@ -172,94 +199,121 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                     required
                 >
                     <option value="">- Select a category -</option>
-                    {categories.map((cat) => (
-                        <option key={cat} value={cat}>
+                    {categories.map((cat, index) => (
+                        <option key={`${cat}-${index}`} value={cat}>
                             {cat}
                         </option>
                     ))}
                     <option value="add-new-category">+ Add new category</option>
                 </select>
+
                 <button
                     type="button"
-                    onClick={() => {
-                        setIsEditingCategories(true);
-                    }}
+                    onClick={() => setIsEditingCategories(true)}
                     style={{ marginLeft: '8px' }}
                 >
-                    - Edit categories
+                    Edit categories
                 </button>
-                {isEditingCategories && (
-                    <div style={{ marginTop: '16px' }}>
-                        <h3>Edit Categories</h3>
-                        {categories.map((cat, index) => (
-                            <div
-                                key={index}
-                                style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    marginBottom: '8px',
-                                }}
-                            >
-                                <input
-                                    ref={(el) => {
-                                        inputRefs.current[cat] = el;
-                                    }}
-                                    type="text"
-                                    value={categories[index]}
-                                    onChange={(e) => {
-                                        const updatedCategories = [
-                                            ...categories,
-                                        ];
-                                        updatedCategories[index] =
-                                            e.target.value;
-                                        setCategories(updatedCategories);
-                                    }}
-                                    style={{ flex: '1', marginRight: '8px' }}
-                                />
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        handleSaveCategory(
-                                            cat,
-                                            categories[index],
-                                        )
-                                    }
-                                    style={{ marginRight: '8px' }}
-                                >
-                                    Save
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => handleDeleteCategory(cat)}
-                                >
-                                    Delete
-                                </button>
-                            </div>
-                        ))}
-                        <button
-                            type="button"
-                            onClick={() => setIsEditingCategories(false)}
-                            style={{ marginTop: '8px' }}
-                        >
-                            Done
-                        </button>
-                    </div>
-                )}
-                {isAddingNewCategory && (
-                    <div style={{ marginTop: '8px' }}>
-                        <input
-                            type="text"
-                            value={newCategory}
-                            onChange={handleNewCategoryChange}
-                            placeholder="Enter new category"
-                        />
-                        <button type="button" onClick={handleAddNewCategory}>
-                            Add
-                        </button>
-                    </div>
-                )}
-                {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
             </div>
+
+            {isEditingCategories && (
+                <div style={{ marginTop: '16px' }}>
+                    <h3>Edit Categories</h3>
+                    {tempCategories.map((cat, index) => (
+                        <div
+                            key={index}
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                marginBottom: '8px',
+                                flexDirection: 'column',
+                            }}
+                        >
+                            <input
+                                ref={(el) => (inputRefs.current[index] = el)}
+                                type="text"
+                                value={tempCategories[index]}
+                                onChange={(e) => {
+                                    const updatedTempCategories = [
+                                        ...tempCategories,
+                                    ];
+                                    updatedTempCategories[index] =
+                                        e.target.value;
+                                    setTempCategories(updatedTempCategories);
+
+                                    setErrorIndexes((prev) => {
+                                        const updatedErrors = { ...prev };
+                                        delete updatedErrors[index];
+                                        return updatedErrors;
+                                    });
+                                }}
+                                style={{
+                                    border: errorIndexes[index]
+                                        ? '1px solid red'
+                                        : '1px solid #ccc',
+                                    marginBottom: '4px',
+                                }}
+                            />
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    handleSaveCategory(
+                                        categories[index],
+                                        tempCategories[index],
+                                        index,
+                                    )
+                                }
+                            >
+                                Save
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleDeleteCategory(cat)}
+                            >
+                                Delete
+                            </button>
+                            {errorIndexes[index] && (
+                                <p
+                                    style={{
+                                        color: 'red',
+                                        fontSize: '0.9rem',
+                                        marginTop: '4px',
+                                    }}
+                                >
+                                    {errorIndexes[index]}
+                                </p>
+                            )}
+                        </div>
+                    ))}
+
+                    <button
+                        type="button"
+                        onClick={() => setIsEditingCategories(false)}
+                        style={{ marginTop: '8px' }}
+                    >
+                        Done
+                    </button>
+                </div>
+            )}
+
+            {isAddingNewCategory && (
+                <div style={{ marginTop: '8px' }}>
+                    <input
+                        type="text"
+                        value={newCategory}
+                        onChange={handleNewCategoryChange}
+                        placeholder="Enter new category"
+                    />
+                    <button type="button" onClick={handleAddNewCategory}>
+                        Add
+                    </button>
+                </div>
+            )}
+
+            {errorMessage && !isEditingCategories && (
+                <p style={{ color: 'red' }}>{errorMessage}</p>
+            )}
+
             <div>
                 <label>Quantity: </label>
                 <input
@@ -270,7 +324,9 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                     min="1"
                 />
             </div>
-            <button type="submit">Add Item</button>
+            <button type="submit" onClick={handleSubmit}>
+                Add Item
+            </button>
         </form>
     );
 };
