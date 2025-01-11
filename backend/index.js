@@ -270,6 +270,56 @@ app.put('/api/packing-list/:id/categories', async (req, res) => {
     }
 });
 
+// PUT: editing a category in a specific packing list
+app.put('/api/packing-list/:id/categories/:category', async (req, res) => {
+    const { id, category } = req.params;
+    const { newCategory } = req.body;
+
+    try {
+        const packingList = await PackingList.findById(id);
+
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        const categoryIndex = packingList.categories.indexOf(category);
+        if (categoryIndex === -1) {
+            return res.status(400).json({ message: 'Category not found' });
+        }
+
+        packingList.categories[categoryIndex] = newCategory;
+        await packingList.save();
+
+        res.json({ categories: packingList.categories });
+    } catch (error) {
+        console.error('Error editing category:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// DELETE: Remove a category from a specific packing list
+app.delete('/api/packing-list/:id/categories/:category', async (req, res) => {
+    const { id, category } = req.params;
+
+    try {
+        const packingList = await PackingList.findById(id);
+
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        packingList.categories = packingList.categories.filter(
+            (cat) => cat !== category,
+        );
+        await packingList.save();
+
+        res.json({ categories: packingList.categories });
+    } catch (error) {
+        console.error('Error deleting category:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 // Start the server
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
