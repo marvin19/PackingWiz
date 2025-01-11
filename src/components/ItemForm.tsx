@@ -18,6 +18,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
     const [categories, setCategories] = useState<string[]>([]);
     const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
     const [newCategory, setNewCategory] = useState('');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     // Fetch existing categories from the database on mount
     useEffect(() => {
@@ -52,17 +53,33 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
     const handleAddNewCategory = async () => {
         if (newCategory.trim() === '') return;
 
+        // Frontend duplicate check
+        if (categories.includes(newCategory)) {
+            console.log('category already exists');
+            setErrorMessage('Category already exists');
+            return;
+        }
+
         try {
             await axios.put(`${LOCALHOST_URL}/${id}/categories`, {
                 category: newCategory,
             });
-            const addedCategory = newCategory; // Use the submitted category name
-            setCategories((prev) => [...prev, addedCategory]);
-            setCategory(addedCategory);
+
+            setCategories((prev) => [...prev, newCategory]);
+            setCategory(newCategory);
             setNewCategory('');
             setIsAddingNewCategory(false);
+            setErrorMessage(null); // Clear error message on success
         } catch (error) {
-            console.error('Error adding category:', error);
+            if (axios.isAxiosError(error) && error.response?.status === 400) {
+                // Set error message from backend
+                setErrorMessage(
+                    error.response.data.message || 'Error adding category',
+                );
+            } else {
+                setErrorMessage('Unexpected error occurred. Please try again.');
+                console.error('Error adding category:', error);
+            }
         }
     };
 
@@ -137,6 +154,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                         </button>
                     </div>
                 )}
+                {errorMessage && <p style={{ color: 'red' }}>{errorMessage}</p>}
             </div>
             <div>
                 <label>Quantity: </label>

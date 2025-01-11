@@ -213,8 +213,6 @@ app.get('/api/packing-list/:tripId/categories', async (req, res) => {
         const { tripId } = req.params; // Trip ID from the route
         const { category } = req.body; // New category from the request body
 
-        console.log('try in backend');
-
         // Validate the packing list ID
         console.log('trip id', tripId);
         if (!mongoose.Types.ObjectId.isValid(tripId)) {
@@ -239,36 +237,36 @@ app.get('/api/packing-list/:tripId/categories', async (req, res) => {
 });
 
 // PUT: Add a category to a specific packing list
-app.put('/api/packing-list/:tripId/categories', async (req, res) => {
+app.put('/api/packing-list/:id/categories', async (req, res) => {
     try {
-        const { tripId } = req.params; // Trip ID from the route
-        const { category } = req.body; // New category from the request body
+        const { id } = req.params;
+        const { category } = req.body;
 
-        // Validate Trip ID
-        if (!mongoose.Types.ObjectId.isValid(tripId)) {
-            return res.status(400).json({ message: 'Invalid packing list ID' });
-        }
-
-        // Ensure category is provided
-        if (!category) {
+        if (!category || typeof category !== 'string') {
             return res.status(400).json({ message: 'Category is required' });
         }
 
-        // Update the categories array in the specified trip's packing list
-        const updatedPackingList = await PackingList.findByIdAndUpdate(
-            tripId,
-            { $addToSet: { categories: category } }, // Prevent duplicate categories
-            { new: true }, // Return the updated document
-        );
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid packing list ID' });
+        }
 
-        if (!updatedPackingList) {
+        const packingList = await PackingList.findById(id);
+
+        if (!packingList) {
             return res.status(404).json({ message: 'Packing list not found' });
         }
 
-        res.json(updatedPackingList);
+        if (packingList.categories.includes(category)) {
+            return res.status(400).json({ message: 'Category already exists' });
+        }
+
+        packingList.categories.push(category);
+        await packingList.save();
+
+        res.json({ categories: packingList.categories });
     } catch (error) {
         console.error('Error adding category:', error);
-        res.status(500).json({ message: 'Error adding category' });
+        res.status(500).json({ message: 'Server error' });
     }
 });
 
