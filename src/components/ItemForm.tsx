@@ -20,6 +20,10 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
     const [newCategory, setNewCategory] = useState('');
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+    const sortCategories = (categories: string[]) => {
+        return categories.sort((a, b) => a.localeCompare(b));
+    };
+
     // Fetch existing categories from the database on mount
     useEffect(() => {
         const fetchCategories = async () => {
@@ -29,7 +33,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                 );
 
                 if (Array.isArray(response.data.categories)) {
-                    setCategories(response.data.categories);
+                    setCategories(sortCategories(response.data.categories));
                 }
             } catch (error) {
                 console.error('Error fetching categories:', error);
@@ -62,7 +66,6 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
 
         // Frontend duplicate check
         if (categories.includes(newCategory)) {
-            console.log('category already exists');
             setErrorMessage('Category already exists');
             return;
         }
@@ -72,7 +75,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                 category: newCategory,
             });
 
-            setCategories((prev) => [...prev, newCategory]);
+            setCategories((prev) => sortCategories([...prev, newCategory]));
             setCategory(newCategory);
             setNewCategory('');
             setIsAddingNewCategory(false);
