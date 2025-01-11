@@ -40,8 +40,15 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
     }, [id]);
 
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        setCategory(e.target.value);
-        setIsAddingNewCategory(false); // Reset new category state if a category is selected
+        const value = e.target.value;
+
+        if (value === 'add-new-category') {
+            setIsAddingNewCategory(true);
+            setCategory('');
+        } else {
+            setCategory(value);
+            setIsAddingNewCategory(false); // Reset new category state if a category is selected
+        }
     };
 
     const handleNewCategoryChange = (
@@ -124,7 +131,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
             <div>
                 <label>Category: </label>
                 <select
-                    value={category}
+                    value={isAddingNewCategory ? 'add-new-category' : category}
                     onChange={handleCategoryChange}
                     required
                 >
@@ -134,23 +141,18 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                             {cat}
                         </option>
                     ))}
-                    <option value="uncategorized">Uncategorized</option>
+                    <option value="add-new-category">+ Add new category</option>
                 </select>
-                <button
-                    type="button"
-                    onClick={() => setIsAddingNewCategory(true)}
-                >
-                    Add new category
-                </button>
                 {isAddingNewCategory && (
-                    <div style={{ display: 'inline-block', marginLeft: '8px' }}>
+                    <div style={{ marginTop: '8px' }}>
                         <input
                             type="text"
                             value={newCategory}
                             onChange={handleNewCategoryChange}
+                            placeholder="Enter new category"
                         />
                         <button type="button" onClick={handleAddNewCategory}>
-                            Add to categories
+                            Add
                         </button>
                     </div>
                 )}
