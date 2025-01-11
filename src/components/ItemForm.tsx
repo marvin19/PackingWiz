@@ -51,7 +51,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
 
     useEffect(() => {
         if (isEditingCategories) {
-            setTempCategories([...categories]);
+            setTempCategories([...categories]); // Copy original categories into tempCategories
         }
     }, [isEditingCategories, categories]);
 
@@ -108,11 +108,12 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
     ) => {
         if (originalCategory === newCategory) return;
 
+        // Validate against original categories to avoid duplicate detection issues
         if (
             categories.some(
                 (cat) =>
                     cat.toLowerCase() === newCategory.toLowerCase() &&
-                    cat !== originalCategory, // Exclude the original category
+                    cat !== originalCategory,
             )
         ) {
             setErrorIndexes((prev) => ({
@@ -128,7 +129,10 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                 { newCategory },
             );
 
-            setCategories(sortCategories(response.data.categories));
+            const uniqueCategories: string[] = Array.from(
+                new Set(response.data.categories),
+            );
+            setTempCategories(uniqueCategories); // Update tempCategories after successful save
             setErrorIndexes((prev) => {
                 const updatedErrors = { ...prev };
                 delete updatedErrors[index];
@@ -145,13 +149,18 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
                 `${LOCALHOST_URL}/${id}/categories/${categoryToDelete}`,
             );
 
-            const updatedCategories = categories.filter(
+            const updatedCategories = tempCategories.filter(
                 (cat) => cat !== categoryToDelete,
             );
-            setCategories(updatedCategories);
+            setTempCategories(updatedCategories);
         } catch (error) {
             console.error('Error deleting category:', error);
         }
+    };
+
+    const handleDoneEditing = () => {
+        setCategories(sortCategories(tempCategories)); // Sort and update main categories
+        setIsEditingCategories(false); // Exit edit mode
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -288,7 +297,7 @@ const ItemForm = ({ onAddItem, id }: ItemFormProps): JSX.Element => {
 
                     <button
                         type="button"
-                        onClick={() => setIsEditingCategories(false)}
+                        onClick={handleDoneEditing}
                         style={{ marginTop: '8px' }}
                     >
                         Done

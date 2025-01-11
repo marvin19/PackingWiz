@@ -277,20 +277,26 @@ app.put(
         const { id, originalCategory } = req.params;
         const { newCategory } = req.body;
 
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid packing list ID' });
+        }
+
         try {
-            // Validate the input
-            if (!newCategory || originalCategory === newCategory) {
-                return res
-                    .status(400)
-                    .json({ message: 'Invalid category update' });
-            }
-
             const packingList = await PackingList.findById(id);
-
             if (!packingList) {
                 return res
                     .status(404)
                     .json({ message: 'Packing list not found' });
+            }
+
+            // Check if the original category exists
+            const categoryIndex = packingList.categories.findIndex(
+                (cat) => cat.toLowerCase() === originalCategory.toLowerCase(),
+            );
+            if (categoryIndex === -1) {
+                return res
+                    .status(404)
+                    .json({ message: 'Original category not found' });
             }
 
             // Check for duplicate categories
@@ -305,16 +311,13 @@ app.put(
             }
 
             // Update the category
-            packingList.categories = packingList.categories.map((cat) =>
-                cat === originalCategory ? newCategory : cat,
-            );
-
+            packingList.categories[categoryIndex] = newCategory;
             await packingList.save();
 
             res.json({ categories: packingList.categories });
         } catch (error) {
             console.error('Error updating category:', error);
-            res.status(500).json({ message: 'Server error' });
+            res.status(500).json({ message: 'Internal server error' });
         }
     },
 );
