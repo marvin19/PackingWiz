@@ -288,7 +288,7 @@ const TripPage: React.FC = () => {
                             handleEditItem(selectedTrip._id, id, completeItem);
                         }}
                     />
-                    <ItemForm onAddItem={handleAddItem} />
+                    <ItemForm onAddItem={handleAddItem} id={selectedTrip._id} />
                 </div>
             )}
         </div>
