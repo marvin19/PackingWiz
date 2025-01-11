@@ -95,9 +95,11 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, id }) => {
                         type="button"
                         onClick={async () => {
                             try {
-                                await addCategory(newCategory);
-                                setNewCategory('');
-                                setIsAddingNewCategory(false);
+                                const addedCategory =
+                                    await addCategory(newCategory); // Add and retrieve the new category
+                                setCategory(addedCategory); // Set the new category as selected
+                                setNewCategory(''); // Clear the input field
+                                setIsAddingNewCategory(false); // Close the "Add new category" UI
                             } catch (error) {
                                 console.error(error);
                             }

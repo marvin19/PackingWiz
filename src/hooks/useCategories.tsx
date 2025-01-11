@@ -35,31 +35,33 @@ export const useCategories = (id: string) => {
         fetchCategories();
     }, [id]);
 
-    const addCategory = async (newCategory: string) => {
-        if (newCategory.trim() === '') return;
+    const addCategory = async (newCategory: string): Promise<string> => {
+        if (!newCategory.trim()) {
+            throw new Error('Category cannot be empty');
+        }
 
         if (
             categories.some(
                 (cat) => cat.toLowerCase() === newCategory.toLowerCase(),
             )
         ) {
-            setErrorMessage('Category already exists');
-            return;
+            throw new Error('Category already exists');
         }
 
         try {
-            await axios.put(`${LOCALHOST_URL}/${id}/categories`, {
-                category: newCategory,
-            });
+            const response = await axios.put(
+                `${LOCALHOST_URL}/${id}/categories`,
+                { category: newCategory },
+            );
 
-            setCategories((prev) => sortCategories([...prev, newCategory]));
-            setCategory(newCategory);
-            setNewCategory('');
-            setIsAddingNewCategory(false);
-            setErrorMessage(null);
+            const updatedCategories = response.data.categories || [];
+            setCategories(sortCategories(updatedCategories));
+
+            // Return the new category for selection
+            return newCategory;
         } catch (error) {
-            setErrorMessage('Unexpected error occurred. Please try again.');
             console.error('Error adding category:', error);
+            throw new Error('Error adding category');
         }
     };
 
