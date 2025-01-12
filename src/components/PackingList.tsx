@@ -1,6 +1,6 @@
 import DeleteButton from './DeleteButton';
 import EditButton from './EditButton';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Item {
     _id: string;
@@ -12,12 +12,14 @@ interface Item {
 
 interface PackingListProps {
     items: Item[];
+    updatedCategory: string | null;
     onDeleteItem: (id: string) => void;
     onEditItem: (id: string, updatedItem: Partial<Item>) => void;
 }
 
 const PackingList = ({
     items,
+    updatedCategory,
     onDeleteItem,
     onEditItem,
 }: PackingListProps): JSX.Element => {

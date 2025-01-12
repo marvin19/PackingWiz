@@ -27,6 +27,7 @@ const TripPage: React.FC = () => {
     const [trips, setTrips] = useState<Trip[]>([]);
     const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
     const [items, setItems] = useState<Item[]>([]);
+    const [updatedCategory, setUpdatedCategory] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchTrips = async () => {
@@ -253,16 +254,35 @@ const TripPage: React.FC = () => {
         }
     };
 
-    const handleCategoryUpdate = (original: string, updated: string) => {
+    const handleCategoryUpdate = async (original: string, updated: string) => {
         console.log('Updating items with new category:', { original, updated });
 
-        const updatedItems = items.map((item) =>
-            item.category === original ? { ...item, category: updated } : item,
-        );
+        try {
+            // Update the backend with the new category
+            await Axios.patch(
+                `${LOCALHOST_URL}/${selectedTrip?._id}/categories`,
+                {
+                    oldCategory: original,
+                    newCategory: updated,
+                },
+            );
 
-        console.log('updating a category: ', updated);
+            // Fetch the updated items from the backend
+            if (selectedTrip) {
+                const response = await Axios.get(
+                    `${LOCALHOST_URL}/${selectedTrip._id}`,
+                );
+                const itemsWithId = response.data.items.map((item: Item) => ({
+                    ...item,
+                    id: item._id, // Map _id to id
+                }));
+                setItems(itemsWithId);
+            }
 
-        setItems(updatedItems);
+            setUpdatedCategory(updated); // Update the state with the new category
+        } catch (error) {
+            console.error('Error updating category:', error);
+        }
     };
 
     const handleCategoryDeleted = (deletedCategory: string) => {
@@ -298,6 +318,7 @@ const TripPage: React.FC = () => {
                     />
                     <PackingList
                         items={items}
+                        updatedCategory={updatedCategory} // Pass the updated category to PackingList
                         onDeleteItem={(id) =>
                             handleDeleteItem(selectedTrip._id, id)
                         }
