@@ -260,6 +260,20 @@ const TripPage: React.FC = () => {
             item.category === original ? { ...item, category: updated } : item,
         );
 
+        console.log('updating a category: ', updated);
+
+        setItems(updatedItems);
+    };
+
+    const handleCategoryDeleted = (deletedCategory: string) => {
+        console.log('Category deleted:', deletedCategory);
+
+        const updatedItems = items.map((item) =>
+            item.category === deletedCategory
+                ? { ...item, category: 'Uncategorized' } // Assign "Uncategorized"
+                : item,
+        );
+
         setItems(updatedItems);
     };
 
@@ -301,7 +315,8 @@ const TripPage: React.FC = () => {
                     <ItemForm
                         onAddItem={handleAddItem}
                         id={selectedTrip._id}
-                        onCategoryUpdate={handleCategoryUpdate} // Pass the handler as a prop
+                        onCategoryUpdate={handleCategoryUpdate}
+                        handleCategoryDeleted={handleCategoryDeleted}
                     />
                 </div>
             )}

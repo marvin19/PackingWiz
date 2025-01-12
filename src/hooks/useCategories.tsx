@@ -75,30 +75,29 @@ export const useCategories = (id: string) => {
         index: number,
         onCategoryUpdate: (original: string, updated: string) => void,
     ) => {
-        console.log('Saving category:', { originalCategory, newCategory });
-
-        if (originalCategory === newCategory) {
-            console.log('No changes to save.');
-            return;
-        }
-
         try {
-            const response = await axios.put(
+            console.log('Saving category:', { originalCategory, newCategory });
+
+            // Step 1: Update the category name
+            await axios.put(
                 `${LOCALHOST_URL}/${id}/categories/${encodeURIComponent(
                     originalCategory,
                 )}`,
                 { newCategory },
             );
 
-            const updatedCategories = response.data.categories || [];
-            setCategories(sortCategories(updatedCategories));
-            setTempCategories(sortCategories(updatedCategories));
+            // Step 2: Update items associated with the old category
+            await axios.patch(`${LOCALHOST_URL}/${id}/categories`, {
+                oldCategory: originalCategory,
+                newCategory,
+            });
 
-            console.log('Updated categories:', updatedCategories);
+            console.log('Category and items updated successfully');
 
-            // Call the callback to update parent state
+            // Step 3: Notify the parent about the update
             onCategoryUpdate(originalCategory, newCategory);
 
+            // Step 4: Clear errors if any
             setErrorIndexes((prev) => {
                 const updatedErrors = { ...prev };
                 delete updatedErrors[index];
@@ -109,7 +108,10 @@ export const useCategories = (id: string) => {
         }
     };
 
-    const deleteCategory = async (categoryToDelete: string) => {
+    const deleteCategory = async (
+        categoryToDelete: string,
+        onCategoryDeleted: (deletedCategory: string) => void,
+    ) => {
         try {
             await axios.delete(
                 `${LOCALHOST_URL}/${id}/categories/${categoryToDelete}`,
@@ -119,6 +121,10 @@ export const useCategories = (id: string) => {
                 (cat) => cat !== categoryToDelete,
             );
             setTempCategories(updatedCategories);
+            setCategories(updatedCategories);
+
+            // Notify the parent about the deleted category
+            onCategoryDeleted(categoryToDelete);
         } catch (error) {
             console.error('Error deleting category:', error);
         }

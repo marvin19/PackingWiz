@@ -9,13 +9,15 @@ interface ItemFormProps {
         category: string;
         quantity: number;
     }) => void;
-    onCategoryUpdate: (original: string, updated: string) => void; // Corrected here
+    onCategoryUpdate: (original: string, updated: string) => void;
+    handleCategoryDeleted: (category: string) => void;
 }
 
 const ItemForm: React.FC<ItemFormProps> = ({
     onAddItem,
     id,
     onCategoryUpdate,
+    handleCategoryDeleted,
 }) => {
     const [name, setName] = useState('');
     const [category, setCategory] = useState('');
@@ -73,11 +75,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     required
                 >
                     <option value="">- Select a category -</option>
-                    {categories.map((cat, index) => (
-                        <option key={`${cat}-${index}`} value={cat}>
-                            {cat}
-                        </option>
-                    ))}
+                    {categories
+                        .filter((cat) => cat !== 'Uncategorized') // Exclude "Uncategorized"
+                        .map((cat, index) => (
+                            <option key={`${cat}-${index}`} value={cat}>
+                                {cat}
+                            </option>
+                        ))}
                     <option value="add-new-category">+ Add new category</option>
                 </select>
                 <button
@@ -116,8 +120,8 @@ const ItemForm: React.FC<ItemFormProps> = ({
             )}
             {isEditingCategories && (
                 <CategoryEditor
-                    tempCategories={tempCategories}
                     categories={categories}
+                    tempCategories={tempCategories}
                     errorIndexes={errorIndexes}
                     onCategoryChange={(index, value) => {
                         const updatedCategories = [...tempCategories];
@@ -132,7 +136,9 @@ const ItemForm: React.FC<ItemFormProps> = ({
                             onCategoryUpdate,
                         );
                     }}
-                    onDelete={deleteCategory}
+                    onDelete={(category) => {
+                        deleteCategory(category, handleCategoryDeleted); // Pass the callback
+                    }}
                     onDone={() => setIsEditingCategories(false)}
                 />
             )}

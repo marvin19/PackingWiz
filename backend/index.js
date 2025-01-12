@@ -95,6 +95,51 @@ app.put('/api/packing-list/:id', async (req, res) => {
     }
 });
 
+// PUTT INN HeR
+
+// PUT: Update the category of all items in a specific packing list
+// app.put(
+//     '/api/packing-list/:id/items/items-update-category',
+//     async (req, res) => {
+//         const { id } = req.params;
+//         const { oldCategory, newCategory } = req.query;
+
+//         console.log('Route hit with params:', id, 'Query:', {
+//             oldCategory,
+//             newCategory,
+//         });
+
+//         if (!oldCategory || !newCategory) {
+//             return res
+//                 .status(400)
+//                 .json({
+//                     message: 'Both oldCategory and newCategory are required',
+//                 });
+//         }
+
+//         try {
+//             const packingList = await PackingList.findById(id);
+//             if (!packingList) {
+//                 return res
+//                     .status(404)
+//                     .json({ message: 'Packing list not found' });
+//             }
+
+//             packingList.items = packingList.items.map((item) =>
+//                 item.category === oldCategory
+//                     ? { ...item, category: newCategory }
+//                     : item,
+//             );
+
+//             await packingList.save();
+//             res.status(200).json({ items: packingList.items });
+//         } catch (error) {
+//             console.error('Error updating items:', error);
+//             res.status(500).json({ message: 'Internal server error' });
+//         }
+//     },
+// );
+
 // PUT: Add an item to a specific packing list's items array
 app.put('/api/packing-list/:id/items', async (req, res) => {
     try {
@@ -346,6 +391,37 @@ app.delete('/api/packing-list/:id/categories/:category', async (req, res) => {
     } catch (error) {
         console.error('Error deleting category:', error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.patch('/api/packing-list/:id/categories', async (req, res) => {
+    const { id } = req.params; // Packing list ID
+    const { oldCategory, newCategory } = req.body; // Categories to update
+
+    if (!oldCategory || !newCategory) {
+        return res
+            .status(400)
+            .json({ message: 'Both oldCategory and newCategory are required' });
+    }
+
+    try {
+        const packingList = await PackingList.findById(id);
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        // Update all items with the old category
+        packingList.items = packingList.items.map((item) =>
+            item.category === oldCategory
+                ? { ...item, category: newCategory }
+                : item,
+        );
+
+        await packingList.save();
+        res.status(200).json({ items: packingList.items });
+    } catch (error) {
+        console.error('Error updating categories:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
