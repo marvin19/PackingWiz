@@ -74,6 +74,7 @@ export const useCategories = (id: string) => {
         newCategory: string,
         index: number,
     ) => {
+        console.log('orig ', originalCategory, newCategory);
         if (originalCategory === newCategory) return;
 
         // Validate against original categories to avoid duplicate detection issues

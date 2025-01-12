@@ -2,6 +2,7 @@ import React from 'react';
 
 interface CategoryEditorProps {
     tempCategories: string[];
+    categories: string[];
     errorIndexes: Record<number, string>;
     onCategoryChange: (index: number, value: string) => void;
     onSave: (original: string, updated: string, index: number) => void;
@@ -11,6 +12,7 @@ interface CategoryEditorProps {
 
 const CategoryEditor: React.FC<CategoryEditorProps> = ({
     tempCategories,
+    categories,
     errorIndexes,
     onCategoryChange,
     onSave,
@@ -44,9 +46,11 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
                     />
                     <button
                         type="button"
-                        onClick={() =>
-                            onSave(cat, tempCategories[index], index)
-                        }
+                        onClick={() => {
+                            // cat is og, temp is new category
+                            console.log(categories, 'category from on save');
+                            onSave(categories[index], cat, index);
+                        }}
                     >
                         Save
                     </button>

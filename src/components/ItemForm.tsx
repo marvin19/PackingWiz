@@ -112,6 +112,7 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, id }) => {
             {isEditingCategories && (
                 <CategoryEditor
                     tempCategories={tempCategories}
+                    categories={categories}
                     errorIndexes={errorIndexes}
                     onCategoryChange={(index, value) => {
                         const updatedCategories = [...tempCategories];

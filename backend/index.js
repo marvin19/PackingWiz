@@ -277,6 +277,10 @@ app.put(
         const { id, originalCategory } = req.params;
         const { newCategory } = req.body;
 
+        console.log('Received ID:', id);
+        console.log('Received original category:', originalCategory);
+        console.log('Received new category:', newCategory);
+
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Invalid packing list ID' });
         }
