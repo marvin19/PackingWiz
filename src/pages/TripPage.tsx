@@ -253,6 +253,16 @@ const TripPage: React.FC = () => {
         }
     };
 
+    const handleCategoryUpdate = (original: string, updated: string) => {
+        console.log('Updating items with new category:', { original, updated });
+
+        const updatedItems = items.map((item) =>
+            item.category === original ? { ...item, category: updated } : item,
+        );
+
+        setItems(updatedItems);
+    };
+
     return (
         <div>
             <TripForm onAddTrip={handleAddTrip} />
@@ -288,7 +298,11 @@ const TripPage: React.FC = () => {
                             handleEditItem(selectedTrip._id, id, completeItem);
                         }}
                     />
-                    <ItemForm onAddItem={handleAddItem} id={selectedTrip._id} />
+                    <ItemForm
+                        onAddItem={handleAddItem}
+                        id={selectedTrip._id}
+                        onCategoryUpdate={handleCategoryUpdate} // Pass the handler as a prop
+                    />
                 </div>
             )}
         </div>

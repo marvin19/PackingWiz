@@ -73,35 +73,32 @@ export const useCategories = (id: string) => {
         originalCategory: string,
         newCategory: string,
         index: number,
+        onCategoryUpdate: (original: string, updated: string) => void,
     ) => {
-        console.log('orig ', originalCategory, newCategory);
-        if (originalCategory === newCategory) return;
+        console.log('Saving category:', { originalCategory, newCategory });
 
-        // Validate against original categories to avoid duplicate detection issues
-        if (
-            categories.some(
-                (cat) =>
-                    cat.toLowerCase() === newCategory.toLowerCase() &&
-                    cat !== originalCategory,
-            )
-        ) {
-            setErrorIndexes((prev) => ({
-                ...prev,
-                [index]: 'Category already exists',
-            }));
+        if (originalCategory === newCategory) {
+            console.log('No changes to save.');
             return;
         }
 
         try {
             const response = await axios.put(
-                `${LOCALHOST_URL}/${id}/categories/${originalCategory}`,
+                `${LOCALHOST_URL}/${id}/categories/${encodeURIComponent(
+                    originalCategory,
+                )}`,
                 { newCategory },
             );
 
-            const uniqueCategories: string[] = Array.from(
-                new Set(response.data.categories),
-            );
-            setTempCategories(uniqueCategories); // Update tempCategories after successful save
+            const updatedCategories = response.data.categories || [];
+            setCategories(sortCategories(updatedCategories));
+            setTempCategories(sortCategories(updatedCategories));
+
+            console.log('Updated categories:', updatedCategories);
+
+            // Call the callback to update parent state
+            onCategoryUpdate(originalCategory, newCategory);
+
             setErrorIndexes((prev) => {
                 const updatedErrors = { ...prev };
                 delete updatedErrors[index];

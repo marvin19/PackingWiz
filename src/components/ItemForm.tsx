@@ -9,9 +9,14 @@ interface ItemFormProps {
         category: string;
         quantity: number;
     }) => void;
+    onCategoryUpdate: (original: string, updated: string) => void; // Corrected here
 }
 
-const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, id }) => {
+const ItemForm: React.FC<ItemFormProps> = ({
+    onAddItem,
+    id,
+    onCategoryUpdate,
+}) => {
     const [name, setName] = useState('');
     const [category, setCategory] = useState('');
     const [quantity, setQuantity] = useState<number>(1);
@@ -119,7 +124,14 @@ const ItemForm: React.FC<ItemFormProps> = ({ onAddItem, id }) => {
                         updatedCategories[index] = value;
                         setTempCategories(updatedCategories);
                     }}
-                    onSave={saveCategory}
+                    onSave={(original, updated, index) => {
+                        saveCategory(
+                            original,
+                            updated,
+                            index,
+                            onCategoryUpdate,
+                        );
+                    }}
                     onDelete={deleteCategory}
                     onDone={() => setIsEditingCategories(false)}
                 />
