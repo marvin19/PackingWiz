@@ -16,6 +16,10 @@ export const useCategories = (id: string) => {
     const sortCategories = (categories: string[]) =>
         categories.sort((a, b) => a.localeCompare(b));
 
+    useEffect(() => {
+        setTempCategories([...categories]);
+    }, [categories]);
+
     // Fetch existing categories from the backend
     useEffect(() => {
         const fetchCategories = async () => {
