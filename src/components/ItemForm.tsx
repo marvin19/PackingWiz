@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useCategories } from '../hooks/useCategories';
 import CategoryEditor from './CategoryEditor';
+import SelectCategory from './SelectCategory';
 import { useInputValidation } from '../hooks/useInputValidation';
 
 interface ItemFormProps {
@@ -38,17 +39,6 @@ const ItemForm: React.FC<ItemFormProps> = ({
     } = useCategories(id);
 
     const { inputErrors, validateInput } = useInputValidation();
-
-    const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const value = e.target.value;
-        if (value === 'add-new-category') {
-            setIsAddingNewCategory(true);
-            setCategory('');
-        } else {
-            setCategory(value);
-            setIsAddingNewCategory(false);
-        }
-    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -89,23 +79,11 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     </div>
                     <div>
                         <label>Category:</label>
-                        <select
-                            value={category}
-                            onChange={handleCategoryChange}
-                            required
-                        >
-                            <option value="">- Select a category -</option>
-                            {categories
-                                .filter((cat) => cat !== 'Uncategorized') // Exclude "Uncategorized"
-                                .map((cat, index) => (
-                                    <option key={`${cat}-${index}`} value={cat}>
-                                        {cat}
-                                    </option>
-                                ))}
-                            <option value="add-new-category">
-                                + Add new category
-                            </option>
-                        </select>
+                        <SelectCategory
+                            category={category}
+                            id={id}
+                            onCategoryChange={(value) => setCategory(value)} // Update local state
+                        />
                         <button
                             type="button"
                             onClick={() => setIsEditingCategories(true)}
@@ -114,6 +92,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                             Edit Categories
                         </button>
                     </div>
+
                     {isAddingNewCategory && (
                         <div style={{ marginTop: '8px' }}>
                             <input
