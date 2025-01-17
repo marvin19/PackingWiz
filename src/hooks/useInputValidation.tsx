@@ -2,6 +2,9 @@ import { useState } from 'react';
 
 export const useInputValidation = () => {
     const [inputErrors, setInputErrors] = useState<Record<number, string>>({});
+    const [successMessages, setSuccessMessages] = useState<
+        Record<number, string>
+    >({});
 
     const validateInput = (index: number, value: string) => {
         const regex = /^[A-Za-z\s]*$/; // Only allow alphabetic characters and spaces
@@ -21,5 +24,19 @@ export const useInputValidation = () => {
         }
     };
 
-    return { inputErrors, validateInput };
+    const setSuccessMessage = (index: number, message: string) => {
+        setSuccessMessages((prev) => ({
+            ...prev,
+            [index]: message,
+        }));
+        setTimeout(() => {
+            setSuccessMessages((prev) => {
+                const newMessages = { ...prev };
+                delete newMessages[index];
+                return newMessages;
+            });
+        }, 3000); // Clear the message after 3 seconds
+    };
+
+    return { inputErrors, validateInput, successMessages, setSuccessMessage };
 };

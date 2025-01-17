@@ -1,6 +1,7 @@
 import DeleteButton from './DeleteButton';
 import EditButton from './EditButton';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useInputValidation } from '../hooks/useInputValidation';
 
 interface Item {
     _id: string;
@@ -26,6 +27,9 @@ const PackingList = ({
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editedItem, setEditedItem] = useState<Partial<Item>>({});
 
+    const { inputErrors, validateInput, successMessages, setSuccessMessage } =
+        useInputValidation();
+
     const handleEditClick = (item: Item) => {
         setEditingItemId(item._id);
         // Add current values to input fields
@@ -40,16 +44,17 @@ const PackingList = ({
         }));
     };
 
-    const handleUpdateClick = (id: string) => {
+    const handleUpdateClick = (id: string, index: number) => {
         onEditItem(id, editedItem); // Call function passed down from the parent
         setEditingItemId(null); // Exit edit mode
+        setSuccessMessage(index, 'Item edited successfully');
     };
 
     return (
         <div>
             <h2>Packing List</h2>
             <ul>
-                {items.map((item) => (
+                {items.map((item, index) => (
                     <li key={item._id}>
                         {editingItemId === item._id ? (
                             <>
@@ -57,8 +62,40 @@ const PackingList = ({
                                     type="text"
                                     name="name"
                                     value={editedItem.name || ''}
-                                    onChange={handleInputChange}
+                                    onChange={(e) => {
+                                        if (
+                                            validateInput(index, e.target.value)
+                                        ) {
+                                            handleInputChange(e);
+                                        }
+                                    }}
+                                    style={{
+                                        border: inputErrors[index]
+                                            ? '1px solid red'
+                                            : '1px solid #ccc',
+                                        marginBottom: '4px',
+                                    }}
                                 />
+                                {inputErrors[index] && (
+                                    <p
+                                        style={{
+                                            color: 'red',
+                                            fontSize: '0.9rem',
+                                        }}
+                                    >
+                                        {inputErrors[index]}
+                                    </p>
+                                )}
+                                {successMessages[index] && (
+                                    <p
+                                        style={{
+                                            color: 'green',
+                                            fontSize: '0.9rem',
+                                        }}
+                                    >
+                                        {successMessages[index]}
+                                    </p>
+                                )}
                                 <input
                                     type="text"
                                     name="category"
@@ -72,7 +109,9 @@ const PackingList = ({
                                     onChange={handleInputChange}
                                 />
                                 <button
-                                    onClick={() => handleUpdateClick(item._id)}
+                                    onClick={() =>
+                                        handleUpdateClick(item._id, index)
+                                    }
                                 >
                                     Update
                                 </button>

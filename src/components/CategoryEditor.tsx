@@ -20,12 +20,18 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
     onDelete,
     onDone,
 }) => {
-    const { inputErrors, validateInput } = useInputValidation();
+    const { inputErrors, validateInput, successMessages, setSuccessMessage } =
+        useInputValidation();
 
     const handleInputChange = (index: number, value: string) => {
         if (validateInput(index, value)) {
             onCategoryChange(index, value); // Call the prop function only if the input is valid
         }
+    };
+
+    const handleSave = (original: string, updated: string, index: number) => {
+        onSave(original, updated, index);
+        setSuccessMessage(index, 'Category edited successfully');
     };
 
     return (
@@ -59,11 +65,16 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
                             {inputErrors[index]}
                         </p>
                     )}
+                    {successMessages[index] && (
+                        <p style={{ color: 'green', fontSize: '0.9rem' }}>
+                            {successMessages[index]}
+                        </p>
+                    )}
                     <button
                         type="button"
-                        onClick={() => {
-                            onSave(categories[index], cat, index);
-                        }}
+                        onClick={() =>
+                            handleSave(categories[index], cat, index)
+                        }
                         disabled={!!inputErrors[index]} // Disable save button if there's an input error
                     >
                         Save
