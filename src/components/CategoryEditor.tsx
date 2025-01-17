@@ -1,4 +1,5 @@
 import React from 'react';
+import { useInputValidation } from '../hooks/useInputValidation';
 
 interface CategoryEditorProps {
     tempCategories: string[];
@@ -19,6 +20,14 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
     onDelete,
     onDone,
 }) => {
+    const { inputErrors, validateInput } = useInputValidation();
+
+    const handleInputChange = (index: number, value: string) => {
+        if (validateInput(index, value)) {
+            onCategoryChange(index, value); // Call the prop function only if the input is valid
+        }
+    };
+
     return (
         <div style={{ marginTop: '16px' }}>
             <h3>Edit Categories</h3>
@@ -35,22 +44,27 @@ const CategoryEditor: React.FC<CategoryEditorProps> = ({
                         type="text"
                         value={cat}
                         onChange={(e) =>
-                            onCategoryChange(index, e.target.value)
+                            handleInputChange(index, e.target.value)
                         }
                         style={{
-                            border: errorIndexes[index]
-                                ? '1px solid red'
-                                : '1px solid #ccc',
+                            border:
+                                errorIndexes[index] || inputErrors[index]
+                                    ? '1px solid red'
+                                    : '1px solid #ccc',
                             marginBottom: '4px',
                         }}
                     />
+                    {inputErrors[index] && (
+                        <p style={{ color: 'red', fontSize: '0.9rem' }}>
+                            {inputErrors[index]}
+                        </p>
+                    )}
                     <button
                         type="button"
                         onClick={() => {
-                            // cat is og, temp is new category
-                            console.log(categories, 'category from on save');
                             onSave(categories[index], cat, index);
                         }}
+                        disabled={!!inputErrors[index]} // Disable save button if there's an input error
                     >
                         Save
                     </button>

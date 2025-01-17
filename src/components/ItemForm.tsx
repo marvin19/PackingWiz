@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useCategories } from '../hooks/useCategories';
 import CategoryEditor from './CategoryEditor';
+import { useInputValidation } from '../hooks/useInputValidation';
 
 interface ItemFormProps {
     id: string;
@@ -36,6 +37,8 @@ const ItemForm: React.FC<ItemFormProps> = ({
         deleteCategory,
     } = useCategories(id);
 
+    const { inputErrors, validateInput } = useInputValidation();
+
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = e.target.value;
         if (value === 'add-new-category') {
@@ -63,9 +66,24 @@ const ItemForm: React.FC<ItemFormProps> = ({
                 <input
                     type="text"
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    onChange={(e) => {
+                        if (validateInput(0, e.target.value)) {
+                            setName(e.target.value);
+                        }
+                    }}
                     required
+                    style={{
+                        border: inputErrors[0]
+                            ? '1px solid red'
+                            : '1px solid #ccc',
+                        marginBottom: '4px',
+                    }}
                 />
+                {inputErrors[0] && (
+                    <p style={{ color: 'red', fontSize: '0.9rem' }}>
+                        {inputErrors[0]}
+                    </p>
+                )}
             </div>
             <div>
                 <label>Category:</label>
@@ -97,9 +115,24 @@ const ItemForm: React.FC<ItemFormProps> = ({
                     <input
                         type="text"
                         value={newCategory}
-                        onChange={(e) => setNewCategory(e.target.value)}
+                        onChange={(e) => {
+                            if (validateInput(1, e.target.value)) {
+                                setNewCategory(e.target.value);
+                            }
+                        }}
                         placeholder="Enter new category"
+                        style={{
+                            border: inputErrors[1]
+                                ? '1px solid red'
+                                : '1px solid #ccc',
+                            marginBottom: '4px',
+                        }}
                     />
+                    {inputErrors[1] && (
+                        <p style={{ color: 'red', fontSize: '0.9rem' }}>
+                            {inputErrors[1]}
+                        </p>
+                    )}
                     <button
                         type="button"
                         onClick={async () => {
@@ -113,6 +146,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
                                 console.error(error);
                             }
                         }}
+                        disabled={!!inputErrors[1]} // Disable add button if there's an input error
                     >
                         Add
                     </button>
