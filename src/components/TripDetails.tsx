@@ -1,3 +1,5 @@
+import { formatDate, calculateDaysGone } from '../utils/utilities';
+
 interface TripDetailsProps {
     name: string;
     destination: string;
@@ -12,7 +14,6 @@ const TripDetails = ({
     destination,
     startDate,
     endDate,
-    daysGone,
     weather,
 }: TripDetailsProps): JSX.Element => {
     return (
@@ -25,13 +26,14 @@ const TripDetails = ({
                 <strong>Destination:</strong> {destination}
             </p>
             <p>
-                <strong>Start date:</strong> {startDate}
+                <strong>Start date:</strong> {formatDate(startDate)}
             </p>
             <p>
-                <strong>End date:</strong> {endDate}
+                <strong>End date:</strong> {formatDate(endDate)}
             </p>
             <p>
-                <strong>Days Gone:</strong> {daysGone}
+                <strong>Days Gone:</strong>{' '}
+                {calculateDaysGone(startDate, endDate)}
             </p>
             <p>
                 <strong>Weather:</strong> {weather}

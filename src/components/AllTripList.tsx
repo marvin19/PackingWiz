@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { formatDate } from '../utils/utilities';
 import DeleteButton from './DeleteButton';
 import EditButton from './EditButton';
 
@@ -93,7 +94,8 @@ const AllTripList = ({
                         ) : (
                             <>
                                 <strong>{trip.name}</strong> -{' '}
-                                {trip.destination} - {trip.id} ({trip.startDate}
+                                {trip.destination} - {trip.id} (
+                                {formatDate(trip.startDate)}
                                 )
                                 <EditButton
                                     onEdit={() => handleEditClick(trip)}
