@@ -142,10 +142,17 @@ const ItemForm: React.FC<ItemFormProps> = ({
                                             setNewCategory(''); // Clear the input field
                                             setIsAddingNewCategory(false); // Close the input field
                                         } catch (error) {
-                                            console.error(
-                                                'Error adding category:',
-                                                error.message,
-                                            );
+                                            if (error instanceof Error) {
+                                                console.error(
+                                                    'Error adding category:',
+                                                    error.message,
+                                                );
+                                            } else {
+                                                console.error(
+                                                    'Unexpected error:',
+                                                    error,
+                                                );
+                                            }
                                         }
                                     }}
                                     disabled={

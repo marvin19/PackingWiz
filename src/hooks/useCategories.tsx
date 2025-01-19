@@ -9,7 +9,6 @@ export const useCategories = (id: string) => {
     const [errorIndexes, setErrorIndexes] = useState<Record<number, string>>(
         {},
     );
-    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
     const [newCategory, setNewCategory] = useState('');
     const [isEditingCategories, setIsEditingCategories] = useState(false);
@@ -124,7 +123,6 @@ export const useCategories = (id: string) => {
     return {
         category,
         categories,
-        errorMessage,
         tempCategories,
         setCategory,
         setTempCategories,

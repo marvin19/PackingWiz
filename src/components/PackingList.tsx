@@ -33,8 +33,7 @@ const PackingList = ({
     const { inputErrors, validateInput, successMessages, setSuccessMessage } =
         useInputValidation();
 
-    const { category, categories, setCategory, setIsAddingNewCategory } =
-        useCategories(id);
+    const { categories, setIsAddingNewCategory } = useCategories(id);
 
     const handleEditClick = (item: Item) => {
         setEditingItemId(item._id);
