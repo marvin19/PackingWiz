@@ -10,8 +10,6 @@ export const useCategories = (id: string) => {
         {},
     );
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
-    const [newCategory, setNewCategory] = useState('');
-    const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
 
     const sortCategories = (categories: string[]) =>
         categories.sort((a, b) => a.localeCompare(b));
@@ -59,10 +57,9 @@ export const useCategories = (id: string) => {
             );
 
             const updatedCategories = response.data.categories || [];
-            setCategories(sortCategories(updatedCategories));
-
-            // Return the new category for selection
-            return newCategory;
+            setCategories(sortCategories(updatedCategories)); // Ensure state updates
+            console.log('Updated categories:', updatedCategories); // Debug log
+            return newCategory; // Return the new category for selection
         } catch (error) {
             console.error('Error adding category:', error);
             throw new Error('Error adding category');
@@ -76,9 +73,6 @@ export const useCategories = (id: string) => {
         onCategoryUpdate: (original: string, updated: string) => void,
     ) => {
         try {
-            console.log('Saving category:', { originalCategory, newCategory });
-
-            // Step 1: Update the category name
             await axios.put(
                 `${LOCALHOST_URL}/${id}/categories/${encodeURIComponent(
                     originalCategory,
@@ -86,18 +80,13 @@ export const useCategories = (id: string) => {
                 { newCategory },
             );
 
-            // Step 2: Update items associated with the old category
             await axios.patch(`${LOCALHOST_URL}/${id}/categories`, {
                 oldCategory: originalCategory,
                 newCategory,
             });
 
-            console.log('Category and items updated successfully');
-
-            // Step 3: Notify the parent about the update
             onCategoryUpdate(originalCategory, newCategory);
 
-            // Step 4: Clear errors if any
             setErrorIndexes((prev) => {
                 const updatedErrors = { ...prev };
                 delete updatedErrors[index];
@@ -123,7 +112,6 @@ export const useCategories = (id: string) => {
             setTempCategories(updatedCategories);
             setCategories(updatedCategories);
 
-            // Notify the parent about the deleted category
             onCategoryDeleted(categoryToDelete);
         } catch (error) {
             console.error('Error deleting category:', error);
@@ -134,7 +122,6 @@ export const useCategories = (id: string) => {
         category,
         categories,
         errorMessage,
-        newCategory,
         tempCategories,
         setCategory,
         setTempCategories,
@@ -142,10 +129,6 @@ export const useCategories = (id: string) => {
         addCategory,
         saveCategory,
         deleteCategory,
-        isAddingNewCategory,
-        setIsAddingNewCategory,
-        setNewCategory,
-        setCategories,
         sortCategories,
     };
 };

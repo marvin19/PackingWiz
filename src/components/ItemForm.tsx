@@ -82,59 +82,70 @@ const ItemForm: React.FC<ItemFormProps> = ({
                         <SelectCategory
                             category={category}
                             id={id}
-                            onCategoryChange={(value) => setCategory(value)} // Update local state
+                            onCategoryChange={(value) => setCategory(value)}
+                            onAddNewCategory={(isAdding) =>
+                                setIsAddingNewCategory(isAdding)
+                            }
+                            key={categories.join(',')} // Ensure updates trigger a re-render
                         />
-                        <button
-                            type="button"
-                            onClick={() => setIsEditingCategories(true)}
-                            style={{ marginLeft: '8px' }}
-                        >
-                            Edit Categories
-                        </button>
+                        {isAddingNewCategory && (
+                            <div style={{ marginTop: '8px' }}>
+                                <input
+                                    type="text"
+                                    value={newCategory}
+                                    onChange={(e) => {
+                                        if (validateInput(1, e.target.value)) {
+                                            setNewCategory(e.target.value);
+                                        }
+                                    }}
+                                    placeholder="Enter new category"
+                                    style={{
+                                        border: inputErrors[1]
+                                            ? '1px solid red'
+                                            : '1px solid #ccc',
+                                        marginBottom: '4px',
+                                    }}
+                                />
+                                {inputErrors[1] && (
+                                    <p
+                                        style={{
+                                            color: 'red',
+                                            fontSize: '0.9rem',
+                                        }}
+                                    >
+                                        {inputErrors[1]}
+                                    </p>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={async () => {
+                                        try {
+                                            if (!newCategory.trim()) {
+                                                throw new Error(
+                                                    'Category name cannot be empty.',
+                                                );
+                                            }
+                                            const addedCategory =
+                                                await addCategory(newCategory);
+                                            setCategory(addedCategory); // Update the selected category
+                                            setNewCategory(''); // Clear the input field
+                                            setIsAddingNewCategory(false); // Close the input field
+                                        } catch (error) {
+                                            console.error(
+                                                'Error adding category:',
+                                                error.message,
+                                            );
+                                        }
+                                    }}
+                                    disabled={
+                                        !!inputErrors[1] || !newCategory.trim()
+                                    } // Disable the button for errors or empty input
+                                >
+                                    Add
+                                </button>
+                            </div>
+                        )}
                     </div>
-
-                    {isAddingNewCategory && (
-                        <div style={{ marginTop: '8px' }}>
-                            <input
-                                type="text"
-                                value={newCategory}
-                                onChange={(e) => {
-                                    if (validateInput(1, e.target.value)) {
-                                        setNewCategory(e.target.value);
-                                    }
-                                }}
-                                placeholder="Enter new category"
-                                style={{
-                                    border: inputErrors[1]
-                                        ? '1px solid red'
-                                        : '1px solid #ccc',
-                                    marginBottom: '4px',
-                                }}
-                            />
-                            {inputErrors[1] && (
-                                <p style={{ color: 'red', fontSize: '0.9rem' }}>
-                                    {inputErrors[1]}
-                                </p>
-                            )}
-                            <button
-                                type="button"
-                                onClick={async () => {
-                                    try {
-                                        const addedCategory =
-                                            await addCategory(newCategory); // Add and retrieve the new category
-                                        setCategory(addedCategory); // Set the new category as selected
-                                        setNewCategory(''); // Clear the input field
-                                        setIsAddingNewCategory(false); // Close the "Add new category" UI
-                                    } catch (error) {
-                                        console.error(error);
-                                    }
-                                }}
-                                disabled={!!inputErrors[1]} // Disable add button if there's an input error
-                            >
-                                Add
-                            </button>
-                        </div>
-                    )}
                 </div>
             )}
             {isEditingCategories && (

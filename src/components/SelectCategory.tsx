@@ -4,31 +4,38 @@ interface SelectCategoryProps {
     category: string;
     id: string;
     onCategoryChange: (value: string) => void; // Add this prop
+    onAddNewCategory: (value: boolean) => void; // Add this prop
 }
 
 const SelectCategory = ({
     category,
     id,
     onCategoryChange,
+    onAddNewCategory,
 }: SelectCategoryProps): JSX.Element => {
-    const { categories, setIsAddingNewCategory } = useCategories(id);
+    const { categories } = useCategories(id); // Fetch categories, but avoid state conflicts
 
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = e.target.value;
         if (value === 'add-new-category') {
-            setIsAddingNewCategory(true);
-            onCategoryChange(''); // Clear category in parent
+            onAddNewCategory(true); // Notify parent to display "Add New Category" UI
+            onCategoryChange(''); // Clear the category
         } else {
-            onCategoryChange(value); // Notify parent
-            setIsAddingNewCategory(false);
+            onAddNewCategory(false); // Hide the "Add New Category" UI
+            onCategoryChange(value); // Notify parent about the selected category
         }
     };
 
     return (
-        <select value={category} onChange={handleCategoryChange} required>
+        <select
+            key={categories.join(',')} // Force re-render if categories change
+            value={category}
+            onChange={handleCategoryChange}
+            required
+        >
             <option value="">- Select a category -</option>
             {categories
-                .filter((cat) => cat !== 'Uncategorized') // Exclude "Uncategorized"
+                .filter((cat) => cat !== 'Uncategorized')
                 .map((cat, index) => (
                     <option key={`${cat}-${index}`} value={cat}>
                         {cat}
@@ -38,5 +45,4 @@ const SelectCategory = ({
         </select>
     );
 };
-
 export default SelectCategory;
