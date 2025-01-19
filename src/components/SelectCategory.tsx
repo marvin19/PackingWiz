@@ -5,6 +5,7 @@ interface SelectCategoryProps {
     id: string;
     onCategoryChange: (value: string) => void; // Add this prop
     onAddNewCategory: (value: boolean) => void; // Add this prop
+    allowAddNewCategory?: boolean;
 }
 
 const SelectCategory = ({
@@ -12,12 +13,13 @@ const SelectCategory = ({
     id,
     onCategoryChange,
     onAddNewCategory,
+    allowAddNewCategory = true,
 }: SelectCategoryProps): JSX.Element => {
     const { categories } = useCategories(id); // Fetch categories, but avoid state conflicts
 
     const handleCategoryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const value = e.target.value;
-        if (value === 'add-new-category') {
+        if (value === 'add-new-category' && allowAddNewCategory) {
             onAddNewCategory(true); // Notify parent to display "Add New Category" UI
             onCategoryChange(''); // Clear the category
         } else {
@@ -41,7 +43,9 @@ const SelectCategory = ({
                         {cat}
                     </option>
                 ))}
-            <option value="add-new-category">+ Add new category</option>
+            {allowAddNewCategory && (
+                <option value="add-new-category">+ Add new category</option>
+            )}
         </select>
     );
 };

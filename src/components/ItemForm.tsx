@@ -22,13 +22,10 @@ const ItemForm: React.FC<ItemFormProps> = ({
     handleCategoryDeleted,
 }) => {
     const [name, setName] = useState('');
-    const [category, setCategory] = useState('');
     const [quantity, setQuantity] = useState<number>(1);
-    const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
-    const [newCategory, setNewCategory] = useState('');
-    const [isEditingCategories, setIsEditingCategories] = useState(false);
 
     const {
+        category,
         categories,
         tempCategories,
         setTempCategories,
@@ -36,6 +33,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
         addCategory,
         saveCategory,
         deleteCategory,
+        isAddingNewCategory,
+        setIsAddingNewCategory,
+        newCategory,
+        setNewCategory,
+        setCategory,
+        isEditingCategories,
+        setIsEditingCategories,
     } = useCategories(id);
 
     const { inputErrors, validateInput } = useInputValidation();
@@ -88,6 +92,13 @@ const ItemForm: React.FC<ItemFormProps> = ({
                             }
                             key={categories.join(',')} // Ensure updates trigger a re-render
                         />
+                        <button
+                            type="button"
+                            onClick={() => setIsEditingCategories(true)}
+                            style={{ marginLeft: '8px' }}
+                        >
+                            Edit Categories
+                        </button>
                         {isAddingNewCategory && (
                             <div style={{ marginTop: '8px' }}>
                                 <input

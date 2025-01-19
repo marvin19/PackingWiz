@@ -221,36 +221,22 @@ const TripPage: React.FC = () => {
         itemId: string,
         updatedItem: Partial<Item>,
     ) => {
-        console.log('handleEditItem', tripId, itemId);
-
-        console.log('Editing item with tripId:', tripId, 'itemId:', itemId);
-        console.log('Updated item data:', updatedItem);
         try {
-            // Find the existing item so that we can merge it with updatedItem
-            const existingItem = items.find((item) => item._id === itemId);
-            if (!existingItem) throw new Error('Item not found');
-
-            // Merge existing item with updated values, giving priority to updatedItem
-            const completeItem = {
-                ...existingItem,
-                ...updatedItem,
-            };
-
-            // Send the complete item to the backend
-            const response = await Axios.put(
+            // Call the backend to update the item
+            await Axios.put(
                 `${LOCALHOST_URL}/${tripId}/items/${itemId}`,
-                completeItem,
+                updatedItem,
             );
 
-            console.log('Item edited successfully:', response.data);
+            console.log(updatedItem, 'is edited');
 
-            // Update frontend state with the new item data
+            // Update the frontend state with the updated item
             const updatedItems = items.map((item) =>
                 item._id === itemId ? { ...item, ...updatedItem } : item,
             );
             setItems(updatedItems);
         } catch (error) {
-            console.error('Error editing item:', error);
+            console.error('Error updating item:', error);
         }
     };
 
@@ -318,6 +304,7 @@ const TripPage: React.FC = () => {
                     />
                     <PackingList
                         items={items}
+                        id={selectedTrip._id}
                         updatedCategory={updatedCategory} // Pass the updated category to PackingList
                         onDeleteItem={(id) =>
                             handleDeleteItem(selectedTrip._id, id)

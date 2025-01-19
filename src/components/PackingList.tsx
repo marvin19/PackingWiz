@@ -2,6 +2,8 @@ import DeleteButton from './DeleteButton';
 import EditButton from './EditButton';
 import { useState } from 'react';
 import { useInputValidation } from '../hooks/useInputValidation';
+import { useCategories } from '../hooks/useCategories';
+import SelectCategory from './SelectCategory';
 
 interface Item {
     _id: string;
@@ -13,6 +15,7 @@ interface Item {
 
 interface PackingListProps {
     items: Item[];
+    id: string;
     updatedCategory: string | null;
     onDeleteItem: (id: string) => void;
     onEditItem: (id: string, updatedItem: Partial<Item>) => void;
@@ -20,7 +23,7 @@ interface PackingListProps {
 
 const PackingList = ({
     items,
-    updatedCategory,
+    id,
     onDeleteItem,
     onEditItem,
 }: PackingListProps): JSX.Element => {
@@ -29,6 +32,9 @@ const PackingList = ({
 
     const { inputErrors, validateInput, successMessages, setSuccessMessage } =
         useInputValidation();
+
+    const { category, categories, setCategory, setIsAddingNewCategory } =
+        useCategories(id);
 
     const handleEditClick = (item: Item) => {
         setEditingItemId(item._id);
@@ -96,11 +102,22 @@ const PackingList = ({
                                         {successMessages[index]}
                                     </p>
                                 )}
-                                <input
-                                    type="text"
-                                    name="category"
-                                    value={editedItem.category || ''}
-                                    onChange={handleInputChange}
+                                <SelectCategory
+                                    category={
+                                        editedItem.category || item.category
+                                    }
+                                    id={id}
+                                    onCategoryChange={(value) =>
+                                        setEditedItem((prev) => ({
+                                            ...prev,
+                                            category: value,
+                                        }))
+                                    }
+                                    onAddNewCategory={(isAdding) =>
+                                        setIsAddingNewCategory(isAdding)
+                                    }
+                                    key={categories.join(',')} // Ensure updates trigger a re-render
+                                    allowAddNewCategory={false}
                                 />
                                 <input
                                     type="number"

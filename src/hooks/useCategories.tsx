@@ -10,6 +10,9 @@ export const useCategories = (id: string) => {
         {},
     );
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
+    const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+    const [newCategory, setNewCategory] = useState('');
+    const [isEditingCategories, setIsEditingCategories] = useState(false);
 
     const sortCategories = (categories: string[]) =>
         categories.sort((a, b) => a.localeCompare(b));
@@ -130,5 +133,11 @@ export const useCategories = (id: string) => {
         saveCategory,
         deleteCategory,
         sortCategories,
+        isAddingNewCategory,
+        setIsAddingNewCategory,
+        newCategory,
+        setNewCategory,
+        isEditingCategories,
+        setIsEditingCategories,
     };
 };
