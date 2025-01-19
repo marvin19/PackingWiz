@@ -15,6 +15,14 @@ interface Trip {
     endDate: string;
 }
 
+interface WeatherData {
+    current: {
+        temp: number;
+        humidity: number;
+        weather: { description: string }[];
+    };
+}
+
 interface Item {
     _id: string;
     name: string;
@@ -28,6 +36,7 @@ const TripPage: React.FC = () => {
     const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
     const [items, setItems] = useState<Item[]>([]);
     const [updatedCategory, setUpdatedCategory] = useState<string | null>(null);
+    const [weather, setWeather] = useState<WeatherData | null>(null);
 
     useEffect(() => {
         const fetchTrips = async () => {
@@ -140,15 +149,30 @@ const TripPage: React.FC = () => {
 
     // Handle selecting a trip and fetching its items
     const handleSelectTrip = async (id: string) => {
-        const selected = trips.find((trip) => trip.id === id) || null;
+        const selected = trips.find((trip) => trip.id === id) || null; // Default to null if not found
 
-        // Only update the state if the selected trip is different
-        if (selectedTrip && selectedTrip.id === id) {
-            return; // Prevent re-fetching the same trip
+        // Fetch weather data if the trip is found
+        if (selected) {
+            const latLon = getLatLon(selected.destination);
+            if (latLon) {
+                const { latitude, longitude } = latLon;
+                const weatherData = await fetchWeatherData(latitude, longitude);
+                if (weatherData) {
+                    setWeather(weatherData);
+                }
+            } else {
+                console.error(
+                    `Coordinates not found for destination: ${selected.destination}`,
+                );
+            }
         }
 
-        setSelectedTrip(selected); // Set the selected trip in state
+        // Prevent re-fetching the same trip
+        if (selectedTrip && selectedTrip.id === id) {
+            return;
+        }
 
+        setSelectedTrip(selected); // Set the selected trip or null
         if (selected) {
             try {
                 // Make the backend request only if the trip is selected
@@ -283,6 +307,41 @@ const TripPage: React.FC = () => {
         setItems(updatedItems);
     };
 
+    const fetchWeatherData = async (lat: number, lon: number) => {
+        try {
+            const response = await Axios.get(
+                'http://localhost:5001/api/weather',
+                {
+                    params: {
+                        lat,
+                        lon,
+                    },
+                },
+            );
+
+            const weatherData = response.data;
+            console.log('Weather data fetched: ', weatherData);
+            return weatherData;
+        } catch (error) {
+            console.error('Error fetching weather data:', error);
+        }
+    };
+
+    const getLatLon = (
+        destination: string,
+    ): { latitude: number; longitude: number } => {
+        // Use a geocoding API to get the latitude and longitude
+        // For now, return a default value
+        const destinations: Record<
+            string,
+            { latitude: number; longitude: number }
+        > = {
+            Sevilla: { latitude: 37.3886, longitude: -5.9823 },
+            Athens: { latitude: 37.9838, longitude: 23.7275 },
+        };
+        return destinations[destination] || { latitude: 0, longitude: 0 };
+    };
+
     return (
         <div>
             <TripForm onAddTrip={handleAddTrip} />
@@ -300,7 +359,7 @@ const TripPage: React.FC = () => {
                         startDate={selectedTrip.startDate}
                         endDate={selectedTrip.endDate}
                         daysGone={2} // TODO: Calculate days gone
-                        weather={'Sunny'} // TODO: Fetch weather data
+                        weather={weather}
                     />
                     <PackingList
                         items={items}

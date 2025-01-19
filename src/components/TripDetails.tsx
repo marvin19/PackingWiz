@@ -1,12 +1,20 @@
 import { formatDate, calculateDaysGone } from '../utils/utilities';
 
+interface WeatherData {
+    current: {
+        temp: number;
+        humidity: number;
+        weather: { description: string }[];
+    };
+}
+
 interface TripDetailsProps {
     name: string;
     destination: string;
     startDate: string;
     endDate: string;
     daysGone: number;
-    weather: string;
+    weather: WeatherData | null;
 }
 
 const TripDetails = ({
@@ -35,9 +43,19 @@ const TripDetails = ({
                 <strong>Days Gone:</strong>{' '}
                 {calculateDaysGone(startDate, endDate)}
             </p>
-            <p>
-                <strong>Weather:</strong> {weather}
-            </p>
+            <div>
+                <h3>Weather forecast</h3>
+                <p>
+                    <strong>Temperature:</strong> {weather?.current.temp}°C
+                </p>
+                <p>
+                    <strong>Conditions:</strong>{' '}
+                    {weather?.current.weather[0].description}
+                </p>
+                <p>
+                    <strong>Humidity:</strong> {weather?.current.humidity}%
+                </p>
+            </div>
         </div>
     );
 };
