@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { calculateDaysGone } from '../utils/utilities';
 import AllTripList from '../components/AllTripList';
 import TripDetails from '../components/TripDetails';
 import PackingList from '../components/PackingList';
@@ -21,6 +22,12 @@ interface WeatherData {
         humidity: number;
         weather: { description: string }[];
     };
+    daily: Array<{
+        dt: number;
+        temp: { day: number };
+        weather: { description: string }[];
+        humidity: number;
+    }>;
 }
 
 interface Item {
@@ -67,6 +74,63 @@ const TripPage: React.FC = () => {
         };
         fetchTrips();
     }, []);
+
+    const daysUntilTripStart = (startDate: string): number => {
+        const today = new Date();
+        const tripStart = new Date(startDate);
+        return Math.ceil(
+            (tripStart.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+        );
+    };
+
+    // Automatically fetch weather data if the trip is 7 days away
+    useEffect(() => {
+        if (
+            selectedTrip &&
+            daysUntilTripStart(selectedTrip.startDate) <= 7 &&
+            !weather
+        ) {
+            fetchWeatherForTrip(selectedTrip);
+        }
+    }, [selectedTrip, weather]);
+
+    // Fetch weather data
+    const fetchWeatherForTrip = async (trip: Trip) => {
+        const latLon = getLatLon(trip.destination);
+        if (!latLon) {
+            console.error(
+                'Coordinates not found for destination:',
+                trip.destination,
+            );
+            return;
+        }
+
+        const { latitude, longitude } = latLon;
+        try {
+            const response = await Axios.get(
+                'http://localhost:5001/api/weather',
+                {
+                    params: { lat: latitude, lon: longitude },
+                },
+            );
+
+            const weatherData = response.data;
+
+            // Filter daily forecast for the trip dates
+            const tripStart = new Date(trip.startDate).getTime();
+            const tripEnd = new Date(trip.endDate).getTime();
+            const filteredDaily = weatherData.daily.filter(
+                (day: { dt: number }) => {
+                    const forecastDate = new Date(day.dt * 1000).getTime(); // Convert UNIX timestamp to milliseconds
+                    return forecastDate >= tripStart && forecastDate <= tripEnd;
+                },
+            );
+
+            setWeather({ ...weatherData, daily: filteredDaily }); // Save filtered daily data
+        } catch (error) {
+            console.error('Error fetching weather data:', error);
+        }
+    };
 
     const handleAddTrip = async (trip: {
         name: string;
@@ -358,9 +422,21 @@ const TripPage: React.FC = () => {
                         destination={selectedTrip.destination}
                         startDate={selectedTrip.startDate}
                         endDate={selectedTrip.endDate}
-                        daysGone={2} // TODO: Calculate days gone
+                        daysGone={calculateDaysGone(
+                            selectedTrip.startDate,
+                            selectedTrip.endDate,
+                        )}
                         weather={weather}
+                        daysUntilTripStart={daysUntilTripStart(
+                            selectedTrip.startDate,
+                        )}
                     />
+                    {daysUntilTripStart(selectedTrip.startDate) > 7 && (
+                        <p>
+                            Weather forecast will be available 7 days prior to
+                            your trip
+                        </p>
+                    )}
                     <PackingList
                         items={items}
                         id={selectedTrip._id}
