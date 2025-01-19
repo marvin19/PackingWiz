@@ -1,5 +1,5 @@
 import { useState, FormEvent } from 'react';
-
+import { useInputValidation } from '../hooks/useInputValidation';
 interface TripFormProps {
     onAddTrip: (trip: {
         name: string;
@@ -15,9 +15,29 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
 
+    const { inputErrors, validateInput } = useInputValidation();
+
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
-        onAddTrip({ name, destination, startDate, endDate });
+
+        const parsedStartDate = new Date(startDate);
+        const parsedEndDate = new Date(endDate);
+
+        // Log the data to be sent to the parent component
+        console.log({
+            name,
+            destination,
+            startDate: parsedStartDate.toISOString(),
+            endDate: parsedEndDate.toISOString(),
+        });
+
+        onAddTrip({
+            name,
+            destination,
+            startDate: parsedStartDate.toISOString(),
+            endDate: parsedEndDate.toISOString(),
+        });
+
         setName('');
         setDestination('');
         setStartDate('');
@@ -31,9 +51,22 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
             <input
                 type="text"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                    if (validateInput(0, e.target.value)) {
+                        setName(e.target.value);
+                    }
+                }}
                 required
+                style={{
+                    border: inputErrors[0] ? '1px solid red' : '1px solid #ccc',
+                    marginBottom: '4px',
+                }}
             />
+            {inputErrors[0] && (
+                <p style={{ color: 'red', fontSize: '0.9rem' }}>
+                    {inputErrors[0]}
+                </p>
+            )}
             <label>Destination:</label>
             <input
                 type="text"
