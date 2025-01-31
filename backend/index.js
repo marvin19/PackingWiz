@@ -5,6 +5,8 @@ const mongoose = require('mongoose');
 const PackingList = require('./models/PackingList');
 require('dotenv').config();
 
+console.log('OpenWeather API Key:', process.env.OPENWEATHER_API_KEY);
+
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY;
 
 // Middleware, parsing incoming JSON requests
@@ -385,6 +387,8 @@ app.patch('/api/packing-list/:id/categories', async (req, res) => {
 
 app.get('/api/weather', async (req, res) => {
     const { lat, lon } = req.query;
+
+    console.log('Open weather api key:', OPENWEATHER_API_KEY);
 
     if (!lat || !lon) {
         return res

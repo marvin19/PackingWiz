@@ -49,6 +49,7 @@ const TripDetails = ({
         ) {
             return '🌩️';
         }
+        return '';
     };
 
     const emojiGeneratorTemperature = (temperature: number): string => {

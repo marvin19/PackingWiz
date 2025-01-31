@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { calculateDaysGone } from '../utils/utilities';
 import AllTripList from '../components/AllTripList';
 import TripDetails from '../components/TripDetails';
@@ -83,19 +83,8 @@ const TripPage: React.FC = () => {
         );
     };
 
-    // Automatically fetch weather data if the trip is 7 days away
-    useEffect(() => {
-        if (
-            selectedTrip &&
-            daysUntilTripStart(selectedTrip.startDate) <= 7 &&
-            !weather
-        ) {
-            fetchWeatherForTrip(selectedTrip);
-        }
-    }, [selectedTrip, weather]);
-
     // Fetch weather data
-    const fetchWeatherForTrip = async (trip: Trip) => {
+    const fetchWeatherForTrip = useCallback(async (trip: Trip) => {
         const latLon = getLatLon(trip.destination);
         if (!latLon) {
             console.error(
@@ -130,7 +119,18 @@ const TripPage: React.FC = () => {
         } catch (error) {
             console.error('Error fetching weather data:', error);
         }
-    };
+    }, []);
+
+    // Automatically fetch weather data if the trip is 7 days away
+    useEffect(() => {
+        if (
+            selectedTrip &&
+            daysUntilTripStart(selectedTrip.startDate) <= 7 &&
+            !weather
+        ) {
+            fetchWeatherForTrip(selectedTrip);
+        }
+    }, [selectedTrip, weather, fetchWeatherForTrip]);
 
     const handleAddTrip = async (trip: {
         name: string;
