@@ -9,6 +9,7 @@ interface Trip {
     destination: string;
     startDate: string;
     endDate: string;
+    tags: string[]; // tags should be an array
 }
 
 interface AllTripListProps {
@@ -95,8 +96,18 @@ const AllTripList = ({
                             <>
                                 <strong>{trip.name}</strong> -{' '}
                                 {trip.destination} - {trip.id} (
-                                {formatDate(trip.startDate)}
-                                )
+                                {formatDate(trip.startDate)})
+                                {/* Render tags with a check to ensure it's defined */}
+                                <div>
+                                    {Array.isArray(trip.tags) &&
+                                    trip.tags.length > 0 ? (
+                                        <span>
+                                            Tags: {trip.tags.join(', ')}
+                                        </span>
+                                    ) : (
+                                        <span>No tags</span>
+                                    )}
+                                </div>
                                 <EditButton
                                     onEdit={() => handleEditClick(trip)}
                                 />

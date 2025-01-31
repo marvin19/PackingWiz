@@ -1,11 +1,13 @@
 import { useState, FormEvent } from 'react';
 import { useInputValidation } from '../hooks/useInputValidation';
+
 interface TripFormProps {
     onAddTrip: (trip: {
         name: string;
         destination: string;
         startDate: string;
         endDate: string;
+        tags: string[];
     }) => void;
 }
 
@@ -14,8 +16,17 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
     const [destination, setDestination] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [tags, setTags] = useState<string[]>([]); // Store selected tags
 
     const { inputErrors, validateInput } = useInputValidation();
+
+    const handleTagChange = (tag: string) => {
+        setTags((prevTags) =>
+            prevTags.includes(tag)
+                ? prevTags.filter((t) => t !== tag)
+                : [...prevTags, tag],
+        );
+    };
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
@@ -23,25 +34,19 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
         const parsedStartDate = new Date(startDate);
         const parsedEndDate = new Date(endDate);
 
-        // Log the data to be sent to the parent component
-        console.log({
-            name,
-            destination,
-            startDate: parsedStartDate.toISOString(),
-            endDate: parsedEndDate.toISOString(),
-        });
-
         onAddTrip({
             name,
             destination,
             startDate: parsedStartDate.toISOString(),
             endDate: parsedEndDate.toISOString(),
+            tags,
         });
 
         setName('');
         setDestination('');
         setStartDate('');
         setEndDate('');
+        setTags([]);
     };
 
     return (
@@ -88,6 +93,37 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
                 onChange={(e) => setEndDate(e.target.value)}
                 required
             />
+            <label>Tags:</label>
+            <div>
+                <label>
+                    <input
+                        type="checkbox"
+                        value="Work"
+                        checked={tags.includes('Work')}
+                        onChange={() => handleTagChange('Work')}
+                    />{' '}
+                    Work 💼
+                </label>
+                <label>
+                    <input
+                        type="checkbox"
+                        value="Ski"
+                        checked={tags.includes('Ski')}
+                        onChange={() => handleTagChange('Ski')}
+                    />{' '}
+                    Ski ⛷️
+                </label>
+                <label>
+                    <input
+                        type="checkbox"
+                        value="Christmas"
+                        checked={tags.includes('Beach')}
+                        onChange={() => handleTagChange('Beach')}
+                    />{' '}
+                    Beach 🏖️
+                </label>
+                {/* Add more tag checkboxes as needed */}
+            </div>
             <button type="submit">Add Trip</button>
         </form>
     );
