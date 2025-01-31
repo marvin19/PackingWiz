@@ -29,6 +29,7 @@ const PackingList = ({
 }: PackingListProps): JSX.Element => {
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editedItem, setEditedItem] = useState<Partial<Item>>({});
+    const [isChatOpen, setIsChatOpen] = useState(false);
 
     const { inputErrors, validateInput, successMessages, setSuccessMessage } =
         useInputValidation();
@@ -53,6 +54,10 @@ const PackingList = ({
         onEditItem(id, editedItem); // Call function passed down from the parent
         setEditingItemId(null); // Exit edit mode
         setSuccessMessage(index, 'Item edited successfully');
+    };
+
+    const handleGeneratePackingList = () => {
+        setIsChatOpen(true);
     };
 
     return (
@@ -145,6 +150,14 @@ const PackingList = ({
                     </li>
                 ))}
             </ul>
+            <button onClick={handleGeneratePackingList}>
+                Generate packing list
+            </button>
+            {isChatOpen && (
+                <div>
+                    <h3>Tweak the packing list with AI</h3>
+                </div>
+            )}
         </div>
     );
 };
