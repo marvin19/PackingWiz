@@ -13,6 +13,8 @@ dist-ssr
 *.local
 llama_env
 venv/
+llama2_model/
+mistral_model/
 
 # Editor directories and files
 .vscode/*
