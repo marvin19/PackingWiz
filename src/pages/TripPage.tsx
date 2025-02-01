@@ -14,6 +14,7 @@ interface Trip {
     destination: string;
     startDate: string;
     endDate: string;
+    tags: string[];
 }
 
 interface WeatherData {
@@ -137,6 +138,7 @@ const TripPage: React.FC = () => {
         destination: string;
         startDate: string;
         endDate: string;
+        tags: string[];
     }) => {
         try {
             const response = await Axios.post(LOCALHOST_URL, {
@@ -144,6 +146,7 @@ const TripPage: React.FC = () => {
                 destination: trip.destination,
                 startDate: trip.startDate,
                 endDate: trip.endDate,
+                tags: trip.tags,
                 items: [], // Initially empty
             });
             const savedTrip = response.data;
@@ -172,6 +175,7 @@ const TripPage: React.FC = () => {
             endDate: updatedTrip.endDate
                 ? new Date(updatedTrip.endDate).toISOString()
                 : existingTrip.endDate,
+            tags: updatedTrip.tags ?? existingTrip.tags, // Ensure tags are updated
         };
 
         try {
@@ -183,14 +187,14 @@ const TripPage: React.FC = () => {
 
             console.log('Trip updated successfully:', response.data);
 
-            // Optionally, update the state directly with the updated trip
+            // Update frontend state with the modified trip
             const updatedTrips = trips.map((trip) =>
                 trip.id === id ? { ...trip, ...response.data } : trip,
             );
             setTrips(updatedTrips);
 
             // Refetch the updated trip to ensure data is up-to-date
-            await handleSelectTrip(id); // This will refetch the updated trip details and set them in state
+            await handleSelectTrip(id);
         } catch (error) {
             console.error('Error editing trip:', error);
         }

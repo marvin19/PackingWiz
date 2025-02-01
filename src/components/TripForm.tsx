@@ -1,5 +1,6 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useInputValidation } from '../hooks/useInputValidation';
+import Axios from 'axios';
 
 interface TripFormProps {
     onAddTrip: (trip: {
@@ -17,8 +18,23 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [tags, setTags] = useState<string[]>([]); // Store selected tags
+    const [defaultTags, setDefaultTags] = useState<string[]>([]); // Tags from backend
 
     const { inputErrors, validateInput } = useInputValidation();
+
+    useEffect(() => {
+        const fetchDefaultTags = async () => {
+            try {
+                const response = await Axios.get(
+                    'http://localhost:5001/api/default-tags',
+                );
+                setDefaultTags(response.data.tags); // Set default tags
+            } catch (error) {
+                console.error('Error fetching default tags:', error);
+            }
+        };
+        fetchDefaultTags();
+    }, []);
 
     const handleTagChange = (tag: string) => {
         setTags((prevTags) =>
@@ -95,34 +111,17 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
             />
             <label>Tags:</label>
             <div>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Work"
-                        checked={tags.includes('Work')}
-                        onChange={() => handleTagChange('Work')}
-                    />{' '}
-                    Work 💼
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Ski"
-                        checked={tags.includes('Ski')}
-                        onChange={() => handleTagChange('Ski')}
-                    />{' '}
-                    Ski ⛷️
-                </label>
-                <label>
-                    <input
-                        type="checkbox"
-                        value="Christmas"
-                        checked={tags.includes('Beach')}
-                        onChange={() => handleTagChange('Beach')}
-                    />{' '}
-                    Beach 🏖️
-                </label>
-                {/* Add more tag checkboxes as needed */}
+                {defaultTags.map((tag) => (
+                    <label key={tag}>
+                        <input
+                            type="checkbox"
+                            value={tag}
+                            checked={tags.includes(tag)}
+                            onChange={() => handleTagChange(tag)}
+                        />{' '}
+                        {tag}
+                    </label>
+                ))}
             </div>
             <button type="submit">Add Trip</button>
         </form>

@@ -86,6 +86,45 @@ const AllTripList = ({
                                     value={editedTrip.endDate || ''}
                                     onChange={handleInputChange}
                                 />
+                                <label>Tags:</label>
+                                <div>
+                                    {['Work', 'Ski', 'Christmas', 'Beach'].map(
+                                        (tag) => (
+                                            <label key={tag}>
+                                                <input
+                                                    type="checkbox"
+                                                    value={tag}
+                                                    checked={
+                                                        editedTrip.tags?.includes(
+                                                            tag,
+                                                        ) || false
+                                                    }
+                                                    onChange={() => {
+                                                        setEditedTrip(
+                                                            (prev) => ({
+                                                                ...prev,
+                                                                tags: prev.tags?.includes(
+                                                                    tag,
+                                                                )
+                                                                    ? prev.tags.filter(
+                                                                          (t) =>
+                                                                              t !==
+                                                                              tag,
+                                                                      )
+                                                                    : [
+                                                                          ...(prev.tags ||
+                                                                              []),
+                                                                          tag,
+                                                                      ],
+                                                            }),
+                                                        );
+                                                    }}
+                                                />{' '}
+                                                {tag}
+                                            </label>
+                                        ),
+                                    )}
+                                </div>
                                 <button
                                     onClick={() => handleUpdateClick(trip.id)}
                                 >

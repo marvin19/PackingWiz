@@ -39,7 +39,7 @@ app.get('/api/packing-list', async (req, res) => {
 app.post('/api/packing-list', async (req, res) => {
     try {
         console.log('Received request data:', req.body); // Log incoming data
-        const { name, destination, startDate, endDate, items } = req.body;
+        const { name, destination, startDate, endDate, items, tags } = req.body;
 
         // Check if data is missing or invalid
         if (!name || !destination || !startDate || !endDate) {
@@ -52,6 +52,7 @@ app.post('/api/packing-list', async (req, res) => {
             startDate,
             endDate,
             items,
+            tags: tags || [],
         });
 
         const savedTrip = await newTrip.save();
@@ -79,12 +80,12 @@ app.get('/api/packing-list/:id', async (req, res) => {
 // PUT: Update a packing list by ID
 app.put('/api/packing-list/:id', async (req, res) => {
     try {
-        const { name, destination, startDate, endDate, items } = req.body;
+        const { name, destination, startDate, endDate, items, tags } = req.body;
 
         // Update the packing list and check if it exists in one step
         const updatedPackingList = await PackingList.findByIdAndUpdate(
             req.params.id,
-            { name, destination, startDate, endDate, items },
+            { name, destination, startDate, endDate, items, tags },
             { new: true }, // Returns the updated document
         );
 
@@ -418,6 +419,82 @@ app.get('/api/weather', async (req, res) => {
             message: 'Failed to fetch weather data',
             error: error.message,
         });
+    }
+});
+
+// PUT: Add a tag to a spesific packing list
+app.put('/api/packing-list/:id/tags', async (req, res) => {
+    const { id } = req.params;
+    const { tag } = req.body;
+
+    if (!tag || typeof tag !== 'string') {
+        return res.status(400).json({ message: 'Tag is required' });
+    }
+
+    try {
+        const packingList = await PackingList.findById(id);
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        // Avoid duplicate tags
+        if (packingList.tags.includes(tag)) {
+            return res.status(400).json({ message: 'Tag already exists' });
+        }
+
+        packingList.tags.push(tag);
+        await packingList.save();
+
+        res.json({ tags: packingList.tags });
+    } catch (error) {
+        console.error('Error adding tag:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// DELETE: Remove a tag from a specific packing list
+app.delete('/api/packing-list/:id/tags/:tag', async (req, res) => {
+    const { id, tag } = req.params;
+
+    try {
+        const packingList = await PackingList.findById(id);
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        packingList.tags = packingList.tags.filter((t) => t !== tag);
+        await packingList.save();
+
+        res.json({ tags: packingList.tags });
+    } catch (error) {
+        console.error('Error deleting tag:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// GET: Fetch tags for a spesific packing list
+app.get('/api/packing-list/:id/tags', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const packingList = await PackingList.findById(id);
+        if (!packingList) {
+            return res.status(404).json({ message: 'Packing list not found' });
+        }
+
+        res.json({ tags: packingList.tags });
+    } catch (error) {
+        console.error('Error fetching tags:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+app.get('/api/default-tags', async (req, res) => {
+    try {
+        const packingList = new PackingList();
+        res.json({ tags: packingList.tags });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching default tags' });
     }
 });
 

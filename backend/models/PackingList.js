@@ -28,6 +28,16 @@ const packingListSchema = new mongoose.Schema(
             type: [String],
             default: ['Clothes', 'Toiletries', 'Electronics', 'Miscellaneous'], // Default categories
         },
+        tags: {
+            type: [String],
+            default: [
+                'Working 💼',
+                'Ski ⛷️',
+                'Beach 🏖️',
+                'Running 🏃‍♀️',
+                'Half Marathon 🎽',
+            ],
+        },
     },
     {
         timestamps: true, // Adds `createdAt` and `updatedAt` fields automatically
