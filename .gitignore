@@ -30,3 +30,4 @@ mistral_model/
 
 todo.md
 .env
+__pycache__/

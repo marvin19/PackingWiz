@@ -448,6 +448,7 @@ const TripPage: React.FC = () => {
                     <PackingList
                         items={items}
                         id={selectedTrip._id}
+                        selectedTrip={selectedTrip}
                         updatedCategory={updatedCategory} // Pass the updated category to PackingList
                         onDeleteItem={(id) =>
                             handleDeleteItem(selectedTrip._id, id)

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useInputValidation } from '../hooks/useInputValidation';
 import { useCategories } from '../hooks/useCategories';
 import SelectCategory from './SelectCategory';
+import Axios from 'axios';
 
 interface Item {
     _id: string;
@@ -13,10 +14,21 @@ interface Item {
     quantity: number;
 }
 
+interface Trip {
+    _id: string; // MongoDB ID
+    id: string; // Frontend ID
+    name: string;
+    destination: string;
+    startDate: string;
+    endDate: string;
+    tags: string[];
+}
+
 interface PackingListProps {
     items: Item[];
     id: string;
     updatedCategory: string | null;
+    selectedTrip: Trip | null;
     onDeleteItem: (id: string) => void;
     onEditItem: (id: string, updatedItem: Partial<Item>) => void;
 }
@@ -24,12 +36,14 @@ interface PackingListProps {
 const PackingList = ({
     items,
     id,
+    selectedTrip,
     onDeleteItem,
     onEditItem,
 }: PackingListProps): JSX.Element => {
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editedItem, setEditedItem] = useState<Partial<Item>>({});
     const [isChatOpen, setIsChatOpen] = useState(false);
+    const [aiResponse, setAiResponse] = useState<string>('');
 
     const { inputErrors, validateInput, successMessages, setSuccessMessage } =
         useInputValidation();
@@ -56,8 +70,34 @@ const PackingList = ({
         setSuccessMessage(index, 'Item edited successfully');
     };
 
-    const handleGeneratePackingList = () => {
+    const handleGeneratePackingList = async () => {
+        if (!selectedTrip) {
+            console.error('No trip selected');
+            return;
+        }
+
         setIsChatOpen(true);
+
+        try {
+            const response = await Axios.post(
+                'http://localhost:8000/generate_packing_list',
+                {
+                    trip_name: selectedTrip.name, // ✅ Use actual trip name
+                    tags: selectedTrip.tags, // ✅ Use actual tags
+                    items: items.map((item) => item.name),
+                },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+
+            setAiResponse(response.data.packing_list);
+        } catch (error) {
+            console.error('Error generating packing list:', error);
+            setAiResponse('Failed to generate packing list.');
+        }
     };
 
     return (
@@ -153,9 +193,11 @@ const PackingList = ({
             <button onClick={handleGeneratePackingList}>
                 Generate packing list
             </button>
+
             {isChatOpen && (
                 <div>
-                    <h3>Tweak the packing list with AI</h3>
+                    <h3>AI Suggestions:</h3>
+                    <p>{aiResponse || 'Generating...'}</p>
                 </div>
             )}
         </div>
