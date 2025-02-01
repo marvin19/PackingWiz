@@ -406,6 +406,10 @@ const TripPage: React.FC = () => {
         > = {
             Sevilla: { latitude: 37.3886, longitude: -5.9823 },
             Athens: { latitude: 37.9838, longitude: 23.7275 },
+            Berlin: { latitude: 52.52, longitude: 13.405 },
+            Valencia: { latitude: 39.4699, longitude: -0.3763 },
+            Oslo: { latitude: 59.9139, longitude: 10.7522 },
+            London: { latitude: 51.5074, longitude: -0.1278 },
         };
         return destinations[destination] || { latitude: 0, longitude: 0 };
     };
