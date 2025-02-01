@@ -36,6 +36,7 @@ const packingListSchema = new mongoose.Schema(
                 'Beach 🏖️',
                 'Running 🏃‍♀️',
                 'Half Marathon 🎽',
+                'Winter ❄️',
             ],
         },
     },
