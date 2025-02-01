@@ -93,7 +93,7 @@ const TripDetails = ({
                                     day.dt <= endTimestamp,
                             )
                             .map((day, index) => {
-                                console.log(day); // Log the value of day
+                                console.log('day', day); // Log the value of day
                                 return (
                                     <div key={index}>
                                         <p>

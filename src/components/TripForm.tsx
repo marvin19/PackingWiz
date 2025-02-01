@@ -65,6 +65,26 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
         setTags([]);
     };
 
+    /** Running whenever i type, fix later TODO */
+    const emojiGeneratorTags = (tag: string): string => {
+        switch (tag) {
+            case 'Running':
+                return '🏃‍♀️';
+            case 'Half Marathon':
+                return '🎽';
+            case 'Beach':
+                return '🏖️';
+            case 'Winter':
+                return '❄️';
+            case 'Ski':
+                return '⛷️';
+            case 'Working':
+                return '💼';
+            default:
+                return '';
+        }
+    };
+
     return (
         <form onSubmit={handleSubmit}>
             <h2>Add New Trip:</h2>
@@ -119,7 +139,7 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
                             checked={tags.includes(tag)}
                             onChange={() => handleTagChange(tag)}
                         />{' '}
-                        {tag}
+                        {tag} {emojiGeneratorTags(tag)}
                     </label>
                 ))}
             </div>

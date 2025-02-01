@@ -31,12 +31,12 @@ const packingListSchema = new mongoose.Schema(
         tags: {
             type: [String],
             default: [
-                'Working 💼',
-                'Ski ⛷️',
-                'Beach 🏖️',
-                'Running 🏃‍♀️',
-                'Half Marathon 🎽',
-                'Winter ❄️',
+                'Working',
+                'Ski',
+                'Beach',
+                'Running',
+                'Half Marathon',
+                'Winter',
             ],
         },
     },

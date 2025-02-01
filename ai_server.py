@@ -30,6 +30,10 @@ model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float
 
 @app.post("/generate_packing_list")
 async def generate_packing_list(request_data: dict):
+
+    # Debugging - Print tags to check for emojis
+    print("Received tags:", request_data["tags"])  # Print tags in the server logs
+
     prompt = f"Generate a packing list for {request_data['trip_name']} with tags: {', '.join(request_data['tags'])}. Include: {', '.join(request_data['items'])}."
 
     inputs = tokenizer(prompt, return_tensors="pt")
