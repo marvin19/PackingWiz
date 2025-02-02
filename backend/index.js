@@ -35,7 +35,18 @@ app.get('/api/packing-list', async (req, res) => {
     }
 });
 
-// POST: Create a new packing list
+// Helper function
+const getLatLon = (destination) => {
+    const destinations = {
+        Sevilla: { latitude: 37.3886, longitude: -5.9823 },
+        Oslo: { latitude: 59.9139, longitude: 10.7522 },
+        Valencia: { latitude: 39.4699, longitude: -0.3763 },
+        London: { latitude: 51.5074, longitude: -0.1278 },
+    };
+    return destinations[destination] || null;
+};
+
+// POST: Create a new packing list (with weather fetching)
 app.post('/api/packing-list', async (req, res) => {
     try {
         console.log('Received request data:', req.body); // Log incoming data
@@ -46,6 +57,37 @@ app.post('/api/packing-list', async (req, res) => {
             return res.status(400).json({ message: 'All fields are required' });
         }
 
+        // Fetch weather if available
+        let weatherData = [];
+        const latLon = getLatLon(destination);
+        if (latLon) {
+            try {
+                const weatherResponse = await axios.get(
+                    `http://localhost:5001/api/weather`,
+                    { params: { lat: latLon.latitude, lon: latLon.longitude } },
+                );
+
+                weatherData = weatherResponse.data.daily
+                    .filter((day) => {
+                        const forecastDate = new Date(day.dt * 1000);
+                        return (
+                            forecastDate >= new Date(startDate) &&
+                            forecastDate <= new Date(endDate)
+                        );
+                    })
+                    .map((day) => ({
+                        date: new Date(day.dt * 1000)
+                            .toISOString()
+                            .split('T')[0],
+                        temp: Math.round(day.temp.day),
+                        conditions: day.weather[0].description,
+                        humidity: day.humidity,
+                    }));
+            } catch (error) {
+                console.error('Error fetching weather:', error.message);
+            }
+        }
+
         const newTrip = new PackingList({
             name,
             destination,
@@ -53,7 +95,10 @@ app.post('/api/packing-list', async (req, res) => {
             endDate,
             items,
             tags: tags || [],
+            weather: weatherData,
         });
+
+        console.log('WEATHER DATA BEFORE SAVING', weatherData);
 
         const savedTrip = await newTrip.save();
         console.log('Trip saved successfully:', savedTrip); // Log the saved trip
@@ -80,23 +125,33 @@ app.get('/api/packing-list/:id', async (req, res) => {
 // PUT: Update a packing list by ID
 app.put('/api/packing-list/:id', async (req, res) => {
     try {
-        const { name, destination, startDate, endDate, items, tags } = req.body;
+        console.log('🔹 Received update request for trip:', req.params.id);
+        console.log('🔹 Received update data:', req.body);
+
+        const { name, destination, startDate, endDate, items, tags, weather } =
+            req.body;
+
+        console.log('🚀 Storing weather data in MongoDB:', weather);
 
         // Update the packing list and check if it exists in one step
         const updatedPackingList = await PackingList.findByIdAndUpdate(
             req.params.id,
-            { name, destination, startDate, endDate, items, tags },
-            { new: true }, // Returns the updated document
+            { name, destination, startDate, endDate, items, tags, weather }, // <-- Ensure weather is saved
+            { new: true },
         );
 
         if (!updatedPackingList) {
+            console.error('❌ Packing list not found in DB');
             return res.status(404).json({ message: 'Packing list not found' });
         }
-        console.log('Trip saved successfully', updatedPackingList);
 
+        console.log(
+            '✅ Packing list updated successfully:',
+            updatedPackingList,
+        );
         res.json(updatedPackingList);
     } catch (error) {
-        console.error('Error updating packing list:', error);
+        console.error('❌ Error updating packing list:', error);
         res.status(500).json({ message: 'Server error' });
     }
 });

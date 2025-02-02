@@ -14,6 +14,15 @@ interface Item {
     quantity: number;
 }
 
+interface WeatherData {
+    daily: Array<{
+        dt: number;
+        temp: { day: number };
+        weather: Array<{ description: string }>;
+        humidity: number;
+    }>;
+}
+
 interface Trip {
     _id: string; // MongoDB ID
     id: string; // Frontend ID
@@ -22,6 +31,8 @@ interface Trip {
     startDate: string;
     endDate: string;
     tags: string[];
+    daysGone?: number;
+    weather?: WeatherData | null;
 }
 
 interface PackingListProps {
@@ -82,9 +93,12 @@ const PackingList = ({
             const response = await Axios.post(
                 'http://localhost:8000/generate_packing_list',
                 {
-                    trip_name: selectedTrip.name, // ✅ Use actual trip name
-                    tags: selectedTrip.tags, // ✅ Use actual tags
+                    trip_name: selectedTrip.name,
+                    destination: selectedTrip.destination,
+                    days_gone: selectedTrip.daysGone ?? 1,
+                    tags: selectedTrip.tags ?? [],
                     items: items.map((item) => item.name),
+                    weather: selectedTrip.weather ?? [],
                 },
                 {
                     headers: {

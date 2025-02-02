@@ -1,10 +1,10 @@
 import { formatDate } from '../utils/utilities';
 
-interface WeatherData {
+interface FilteredWeatherData {
     daily: Array<{
-        dt: number;
-        temp: { day: number };
-        weather: Array<{ description: string }>;
+        date: string;
+        temp: number;
+        conditions: string;
         humidity: number;
     }>;
 }
@@ -15,7 +15,7 @@ interface TripDetailsProps {
     startDate: string;
     endDate: string;
     daysGone: number;
-    weather: WeatherData | null;
+    weather: FilteredWeatherData | null;
     daysUntilTripStart: number;
 }
 
@@ -27,10 +27,6 @@ const TripDetails = ({
     daysGone,
     weather,
 }: TripDetailsProps): JSX.Element => {
-    const startTimestamp = new Date(startDate).setHours(0, 0, 0, 0) / 1000;
-    // Hack for displaying weather for last day
-    const endTimestamp = new Date(endDate).setHours(23, 59, 59, 999) / 1000;
-
     const emojiGeneratorWeather = (description: string): string => {
         if (description.includes('rain')) {
             return '🌧️';
@@ -55,6 +51,10 @@ const TripDetails = ({
     const emojiGeneratorTemperature = (temperature: number): string => {
         if (temperature < 0) {
             return '🥶';
+        } else if (temperature >= 0 && temperature < 10) {
+            return '🙂';
+        } else if (temperature >= 10 && temperature < 20) {
+            return '😊';
         } else if (temperature >= 20 && temperature < 30) {
             return '😎';
         } else if (temperature >= 30) {
@@ -85,46 +85,41 @@ const TripDetails = ({
             {weather ? (
                 <div>
                     <h3>Weather Forecast for Trip</h3>
-                    {weather.daily.length > 0 ? (
+                    {weather?.daily && weather.daily.length > 0 ? (
                         weather.daily
-                            .filter(
-                                (day) =>
-                                    day.dt >= startTimestamp &&
-                                    day.dt <= endTimestamp,
-                            )
-                            .map((day, index) => {
-                                console.log('day', day); // Log the value of day
+                            .filter((day) => {
+                                const tripStart = new Date(startDate)
+                                    .toISOString()
+                                    .split('T')[0];
+                                const tripEnd = new Date(endDate)
+                                    .toISOString()
+                                    .split('T')[0];
+
                                 return (
-                                    <div key={index}>
-                                        <p>
-                                            <strong>Date:</strong>{' '}
-                                            {formatDate(
-                                                new Date(
-                                                    day.dt * 1000,
-                                                ).toISOString(),
-                                            )}
-                                        </p>
-                                        <p>
-                                            <strong>Temperature:</strong>{' '}
-                                            {Math.round(day.temp.day)}°C
-                                            {emojiGeneratorTemperature(
-                                                Math.round(day.temp.day),
-                                            )}
-                                        </p>
-                                        <p>
-                                            <strong>Conditions:</strong>{' '}
-                                            {day.weather[0].description}{' '}
-                                            {emojiGeneratorWeather(
-                                                day.weather[0].description,
-                                            )}
-                                        </p>
-                                        <p>
-                                            <strong>Humidity:</strong>{' '}
-                                            {day.humidity}%
-                                        </p>
-                                    </div>
+                                    day.date >= tripStart && day.date <= tripEnd
                                 );
                             })
+                            .map((day, index) => (
+                                <div key={index}>
+                                    <p>
+                                        <strong>Date:</strong>{' '}
+                                        {formatDate(day.date)}
+                                    </p>
+                                    <p>
+                                        <strong>Temperature:</strong> {day.temp}
+                                        °C {emojiGeneratorTemperature(day.temp)}
+                                    </p>
+                                    <p>
+                                        <strong>Conditions:</strong>{' '}
+                                        {day.conditions}{' '}
+                                        {emojiGeneratorWeather(day.conditions)}
+                                    </p>
+                                    <p>
+                                        <strong>Humidity:</strong>{' '}
+                                        {day.humidity}%
+                                    </p>
+                                </div>
+                            ))
                     ) : (
                         <p>No weather data available for the trip dates.</p>
                     )}

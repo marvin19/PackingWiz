@@ -7,6 +7,13 @@ const itemSchema = new mongoose.Schema({
     quantity: { type: Number, default: 1, min: 1 }, // Ensure quantity is at least 1
 });
 
+const weatherSchema = new mongoose.Schema({
+    date: String,
+    temp: Number,
+    conditions: String,
+    humidity: Number,
+});
+
 // Define a schema for the packing list
 const packingListSchema = new mongoose.Schema(
     {
@@ -39,6 +46,7 @@ const packingListSchema = new mongoose.Schema(
                 'Winter',
             ],
         },
+        weather: [weatherSchema],
     },
     {
         timestamps: true, // Adds `createdAt` and `updatedAt` fields automatically

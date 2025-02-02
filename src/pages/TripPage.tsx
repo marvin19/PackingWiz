@@ -15,18 +15,23 @@ interface Trip {
     startDate: string;
     endDate: string;
     tags: string[];
+    weather?: WeatherData | null;
 }
 
 interface WeatherData {
-    current: {
-        temp: number;
-        humidity: number;
-        weather: { description: string }[];
-    };
     daily: Array<{
         dt: number;
         temp: { day: number };
         weather: { description: string }[];
+        humidity: number;
+    }>;
+}
+
+interface FilteredWeatherData {
+    daily: Array<{
+        date: string;
+        temp: number;
+        conditions: string;
         humidity: number;
     }>;
 }
@@ -44,25 +49,80 @@ const TripPage: React.FC = () => {
     const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null);
     const [items, setItems] = useState<Item[]>([]);
     const [updatedCategory, setUpdatedCategory] = useState<string | null>(null);
-    const [weather, setWeather] = useState<WeatherData | null>(null);
+    const [weather, setWeather] = useState<FilteredWeatherData | null>(null);
+
+    // Fetch weather data
+    const fetchWeatherForTrip = useCallback(async (trip: Trip) => {
+        console.log(
+            '🚀 Fetching weather for:',
+            trip.destination,
+            'on',
+            trip.startDate,
+            'to',
+            trip.endDate,
+        );
+
+        const latLon = getLatLon(trip.destination);
+        if (!latLon) {
+            console.error('❌ Coordinates not found for', trip.destination);
+            return;
+        }
+
+        const { latitude, longitude } = latLon;
+        try {
+            const response = await Axios.get(
+                'http://localhost:5001/api/weather',
+                { params: { lat: latitude, lon: longitude } },
+            );
+
+            console.log('🚀 Weather API Response:', response.data);
+
+            const weatherData: WeatherData = response.data;
+
+            const filteredDaily = weatherData.daily.map((day) => ({
+                date: new Date(day.dt * 1000).toISOString().split('T')[0],
+                temp: Math.round(day.temp.day),
+                conditions: day.weather[0].description,
+                humidity: day.humidity,
+            }));
+
+            const updatedWeather: FilteredWeatherData = {
+                daily: filteredDaily,
+            };
+
+            setWeather(updatedWeather);
+
+            await Axios.put(
+                `http://localhost:5001/api/packing-list/${trip._id}`,
+                {
+                    weather: updatedWeather.daily, // 🔥 Store only relevant data
+                },
+            );
+        } catch (error) {
+            console.error('❌ Error fetching weather data:', error);
+        }
+    }, []);
 
     useEffect(() => {
-        const fetchTrips = async () => {
+        const fetchTripsWithWeather = async () => {
             try {
-                const response = await Axios.get(
-                    'http://localhost:5001/api/packing-list',
-                );
+                const response = await Axios.get(LOCALHOST_URL);
                 if (Array.isArray(response.data)) {
-                    const tripsWithId = response.data.map((trip: Trip) => {
-                        if (!trip._id) {
-                            console.error('Trip missing _id:', trip); // Log any trips missing _id
-                        }
-                        return {
-                            ...trip,
-                            id: trip._id, // Map _id to id
-                        };
-                    });
+                    const tripsWithId = response.data.map((trip: Trip) => ({
+                        ...trip,
+                        id: trip._id, // Ensure consistent ID mapping
+                    }));
+
                     setTrips(tripsWithId);
+
+                    tripsWithId.forEach(async (trip) => {
+                        if (
+                            !trip.weather &&
+                            daysUntilTripStart(trip.startDate) <= 7
+                        ) {
+                            await fetchWeatherForTrip(trip);
+                        }
+                    });
                 } else {
                     console.error(
                         'Expected an array but received:',
@@ -73,8 +133,9 @@ const TripPage: React.FC = () => {
                 console.error('Error fetching trips', error);
             }
         };
-        fetchTrips();
-    }, []);
+
+        fetchTripsWithWeather();
+    }, [fetchWeatherForTrip]);
 
     const daysUntilTripStart = (startDate: string): number => {
         const today = new Date();
@@ -84,52 +145,28 @@ const TripPage: React.FC = () => {
         );
     };
 
-    // Fetch weather data
-    const fetchWeatherForTrip = useCallback(async (trip: Trip) => {
-        const latLon = getLatLon(trip.destination);
-        if (!latLon) {
-            console.error(
-                'Coordinates not found for destination:',
-                trip.destination,
-            );
-            return;
-        }
-
-        const { latitude, longitude } = latLon;
-        try {
-            const response = await Axios.get(
-                'http://localhost:5001/api/weather',
-                {
-                    params: { lat: latitude, lon: longitude },
-                },
-            );
-
-            const weatherData = response.data;
-
-            // Filter daily forecast for the trip dates
-            const tripStart = new Date(trip.startDate).getTime();
-            const tripEnd = new Date(trip.endDate).getTime();
-            const filteredDaily = weatherData.daily.filter(
-                (day: { dt: number }) => {
-                    const forecastDate = new Date(day.dt * 1000).getTime(); // Convert UNIX timestamp to milliseconds
-                    return forecastDate >= tripStart && forecastDate <= tripEnd;
-                },
-            );
-
-            setWeather({ ...weatherData, daily: filteredDaily }); // Save filtered daily data
-        } catch (error) {
-            console.error('Error fetching weather data:', error);
-        }
-    }, []);
-
     // Automatically fetch weather data if the trip is 7 days away
     useEffect(() => {
+        console.log('📌 useEffect triggered with selectedTrip:', selectedTrip);
+        console.log('📌 useEffect triggered with weather:', weather);
+
+        console.log(
+            'selctedTrip',
+            selectedTrip,
+            '!selectedTrip?.weather',
+            !selectedTrip?.weather,
+        );
+
         if (
             selectedTrip &&
+            !selectedTrip.weather &&
             daysUntilTripStart(selectedTrip.startDate) <= 7 &&
             !weather
         ) {
+            console.log('🚀 Fetching new weather data...');
             fetchWeatherForTrip(selectedTrip);
+        } else {
+            console.log('Weather already exists in trip, skipping fetch.');
         }
     }, [selectedTrip, weather, fetchWeatherForTrip]);
 
@@ -157,8 +194,6 @@ const TripPage: React.FC = () => {
     };
 
     const handleEditTrip = async (id: string, updatedTrip: Partial<Trip>) => {
-        console.log('Editing trip:', id, 'with data:', updatedTrip);
-
         const existingTrip = trips.find((trip) => trip.id === id);
 
         if (!existingTrip) {
@@ -179,13 +214,10 @@ const TripPage: React.FC = () => {
         };
 
         try {
-            console.log('CompleteTrip', completeTrip);
             const response = await Axios.put(
                 `${LOCALHOST_URL}/${id}`,
                 completeTrip,
             );
-
-            console.log('Trip updated successfully:', response.data);
 
             // Update frontend state with the modified trip
             const updatedTrips = trips.map((trip) =>
@@ -201,9 +233,6 @@ const TripPage: React.FC = () => {
     };
 
     const handleDeleteTrip = async (id: string) => {
-        console.log('Deleting trip', id);
-        console.log(`Attempting DELETE request to: ${LOCALHOST_URL}/${id}`);
-
         try {
             // Make DELETE request to the backend
             await Axios.delete(`${LOCALHOST_URL}/${id}`);
@@ -215,47 +244,33 @@ const TripPage: React.FC = () => {
         }
     };
 
-    // Handle selecting a trip and fetching its items
     const handleSelectTrip = async (id: string) => {
-        const selected = trips.find((trip) => trip.id === id) || null; // Default to null if not found
+        const selected = trips.find((trip) => trip.id === id) || null;
 
-        // Fetch weather data if the trip is found
-        if (selected) {
-            const latLon = getLatLon(selected.destination);
-            if (latLon) {
-                const { latitude, longitude } = latLon;
-                const weatherData = await fetchWeatherData(latitude, longitude);
-                if (weatherData) {
-                    setWeather(weatherData);
-                }
-            } else {
-                console.error(
-                    `Coordinates not found for destination: ${selected.destination}`,
-                );
-            }
-        }
-
-        // Prevent re-fetching the same trip
-        if (selectedTrip && selectedTrip.id === id) {
+        if (!selected) {
+            console.error('❌ Trip not found');
             return;
         }
 
-        setSelectedTrip(selected); // Set the selected trip or null
-        if (selected) {
-            try {
-                // Make the backend request only if the trip is selected
-                const response = await Axios.get(`${LOCALHOST_URL}/${id}`);
-                console.log('response data', response.data);
+        setSelectedTrip(selected);
+        fetchWeatherForTrip(selected);
 
-                // Set the items in the state
-                const itemsWithId = response.data.items.map((item: Item) => ({
+        if (selected.weather && Array.isArray(selected.weather)) {
+            setWeather({ daily: selected.weather }); // Ensure correct format
+        } else {
+            await fetchWeatherForTrip(selected);
+        }
+
+        try {
+            const response = await Axios.get(`${LOCALHOST_URL}/${id}`);
+            setItems(
+                response.data.items.map((item: Item) => ({
                     ...item,
-                    id: item._id, // Map _id to id
-                }));
-                setItems(itemsWithId);
-            } catch (error) {
-                console.error('Error fetching items', error);
-            }
+                    id: item._id,
+                })),
+            );
+        } catch (error) {
+            console.error('❌ Error fetching trip details:', error);
         }
     };
 
@@ -271,20 +286,13 @@ const TripPage: React.FC = () => {
             category: item.category,
             quantity: item.quantity,
         };
-        console.log('newItem', newItem);
 
         try {
-            console.log(
-                'Attempting PUT request to:',
-                `${LOCALHOST_URL}/${selectedTrip._id}/items`,
-            );
             // Post new item to the backend
             const response = await Axios.put(
                 `${LOCALHOST_URL}/${selectedTrip._id}/items`, // Use the selectedTrip's _id in the URL
                 newItem,
             );
-
-            console.log('Item added to backend: ', response.data);
             setItems([
                 ...items,
                 response.data.items[response.data.items.length - 1],
@@ -295,7 +303,6 @@ const TripPage: React.FC = () => {
     };
 
     const handleDeleteItem = async (tripId: string, itemId: string) => {
-        console.log('handleDeleteItem', tripId, itemId);
         try {
             // Delete the item from the backend
             await Axios.delete(`${LOCALHOST_URL}/${tripId}/items/${itemId}`);
@@ -320,8 +327,6 @@ const TripPage: React.FC = () => {
                 updatedItem,
             );
 
-            console.log(updatedItem, 'is edited');
-
             // Update the frontend state with the updated item
             const updatedItems = items.map((item) =>
                 item._id === itemId ? { ...item, ...updatedItem } : item,
@@ -333,8 +338,6 @@ const TripPage: React.FC = () => {
     };
 
     const handleCategoryUpdate = async (original: string, updated: string) => {
-        console.log('Updating items with new category:', { original, updated });
-
         try {
             // Update the backend with the new category
             await Axios.patch(
@@ -364,8 +367,6 @@ const TripPage: React.FC = () => {
     };
 
     const handleCategoryDeleted = (deletedCategory: string) => {
-        console.log('Category deleted:', deletedCategory);
-
         const updatedItems = items.map((item) =>
             item.category === deletedCategory
                 ? { ...item, category: 'Uncategorized' } // Assign "Uncategorized"
@@ -373,26 +374,6 @@ const TripPage: React.FC = () => {
         );
 
         setItems(updatedItems);
-    };
-
-    const fetchWeatherData = async (lat: number, lon: number) => {
-        try {
-            const response = await Axios.get(
-                'http://localhost:5001/api/weather',
-                {
-                    params: {
-                        lat,
-                        lon,
-                    },
-                },
-            );
-
-            const weatherData = response.data;
-            console.log('Weather data fetched: ', weatherData);
-            return weatherData;
-        } catch (error) {
-            console.error('Error fetching weather data:', error);
-        }
     };
 
     const getLatLon = (
@@ -470,6 +451,9 @@ const TripPage: React.FC = () => {
                         onCategoryUpdate={handleCategoryUpdate}
                         handleCategoryDeleted={handleCategoryDeleted}
                     />
+                    <button onClick={() => fetchWeatherForTrip(trips[0])}>
+                        Test Fetch Weather
+                    </button>
                 </div>
             )}
         </div>
