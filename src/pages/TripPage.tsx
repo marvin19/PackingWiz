@@ -53,15 +53,6 @@ const TripPage: React.FC = () => {
 
     // Fetch weather data
     const fetchWeatherForTrip = useCallback(async (trip: Trip) => {
-        console.log(
-            '🚀 Fetching weather for:',
-            trip.destination,
-            'on',
-            trip.startDate,
-            'to',
-            trip.endDate,
-        );
-
         const latLon = getLatLon(trip.destination);
         if (!latLon) {
             console.error('❌ Coordinates not found for', trip.destination);
@@ -74,8 +65,6 @@ const TripPage: React.FC = () => {
                 'http://localhost:5001/api/weather',
                 { params: { lat: latitude, lon: longitude } },
             );
-
-            console.log('🚀 Weather API Response:', response.data);
 
             const weatherData: WeatherData = response.data;
 
@@ -147,23 +136,12 @@ const TripPage: React.FC = () => {
 
     // Automatically fetch weather data if the trip is 7 days away
     useEffect(() => {
-        console.log('📌 useEffect triggered with selectedTrip:', selectedTrip);
-        console.log('📌 useEffect triggered with weather:', weather);
-
-        console.log(
-            'selctedTrip',
-            selectedTrip,
-            '!selectedTrip?.weather',
-            !selectedTrip?.weather,
-        );
-
         if (
             selectedTrip &&
             !selectedTrip.weather &&
             daysUntilTripStart(selectedTrip.startDate) <= 7 &&
             !weather
         ) {
-            console.log('🚀 Fetching new weather data...');
             fetchWeatherForTrip(selectedTrip);
         } else {
             console.log('Weather already exists in trip, skipping fetch.');
