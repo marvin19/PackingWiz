@@ -406,6 +406,7 @@ const TripPage: React.FC = () => {
                     )}
                     <PackingList
                         items={items}
+                        setItems={setItems}
                         id={selectedTrip._id}
                         selectedTrip={selectedTrip}
                         updatedCategory={updatedCategory} // Pass the updated category to PackingList

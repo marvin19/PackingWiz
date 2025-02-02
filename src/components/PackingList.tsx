@@ -37,6 +37,7 @@ interface Trip {
 
 interface PackingListProps {
     items: Item[];
+    setItems: (items: Item[]) => void;
     id: string;
     updatedCategory: string | null;
     selectedTrip: Trip | null;
@@ -46,6 +47,7 @@ interface PackingListProps {
 
 const PackingList = ({
     items,
+    setItems,
     id,
     selectedTrip,
     onDeleteItem,
@@ -122,6 +124,75 @@ const PackingList = ({
             setAiResponse('<p>Error: Failed to generate packing list.</p>');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const parseAiResponse = (htmlString: string) => {
+        const tempElement = document.createElement('div');
+        tempElement.innerHTML = htmlString;
+
+        const items: { name: string; category: string; quantity: number }[] =
+            [];
+
+        tempElement.querySelectorAll('li').forEach((li) => {
+            const match = li.textContent?.match(/(.+) - (.+) \(Qty: (\d+)\)/);
+            if (match) {
+                items.push({
+                    name: match[1].trim(),
+                    category: match[2].trim(),
+                    quantity: parseInt(match[3], 10),
+                });
+            }
+        });
+
+        return items;
+    };
+
+    const handleAddSuggestedItems = async () => {
+        if (!selectedTrip) {
+            console.error('❌ No trip selected');
+            return;
+        }
+
+        try {
+            // ✅ Step 1: Parse the AI-generated HTML list into structured objects
+            const suggestedItems = parseAiResponse(aiResponse);
+
+            if (!suggestedItems.length) {
+                console.error('❌ No suggested items found.');
+                return;
+            }
+
+            console.log('📌 Parsed AI Suggestions:', suggestedItems);
+
+            // ✅ Step 2: Ensure no empty `_id` fields exist before sending data
+            const itemsToSend = suggestedItems;
+
+            console.log('📌 Cleaned Items to Send:', itemsToSend);
+
+            // ✅ Step 3: Send items to the backend
+            const response = await Axios.put(
+                `http://localhost:5001/api/packing-list/${selectedTrip._id}/items`,
+                { items: itemsToSend },
+                {
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                },
+            );
+
+            console.log(
+                '✅ Suggested items added successfully!',
+                response.data,
+            );
+
+            // Update frontend state with new items
+            // @ts-expect-error TODO: Fix this
+            setItems((prevItems: Item[]) => {
+                return [...(prevItems || []), ...response.data.items];
+            });
+        } catch (error) {
+            console.error('❌ Error adding suggested items:', error);
         }
     };
 
@@ -225,7 +296,17 @@ const PackingList = ({
                     {isLoading ? (
                         <p>Generating...</p>
                     ) : (
-                        <div dangerouslySetInnerHTML={{ __html: aiResponse }} />
+                        <div>
+                            <div
+                                dangerouslySetInnerHTML={{ __html: aiResponse }}
+                            />
+                            <button onClick={handleAddSuggestedItems}>
+                                Add suggested items to packing list
+                            </button>
+                            <button>
+                                Tweak packing list with PackingWiz 🪄
+                            </button>
+                        </div>
                     )}
                 </div>
             )}

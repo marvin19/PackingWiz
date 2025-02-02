@@ -156,39 +156,42 @@ app.put('/api/packing-list/:id', async (req, res) => {
     }
 });
 
-// PUT: Add an item to a specific packing list's items array
+// PUT: Add an item (or multiple) to a specific packing list's items array
+// ✅ PUT: Add multiple items to a specific packing list
 app.put('/api/packing-list/:id/items', async (req, res) => {
     try {
-        const { name, category, quantity } = req.body;
+        const { items } = req.body;
 
-        // Make sure the required fields are present
-        if (!name || !quantity) {
-            return res
-                .status(400)
-                .json({ message: 'Item name and quantity are required' });
+        if (!Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ message: 'Items array is required' });
         }
 
-        // Find the packing list and push the new item to the items array
+        // Ensure each item has a name, category, and quantity
+        for (const item of items) {
+            if (!item.name || !item.category || !item.quantity) {
+                return res.status(400).json({
+                    message: 'Each item must have name, category, and quantity',
+                });
+            }
+        }
+
+        // Find the packing list and add multiple items
         const updatedPackingList = await PackingList.findByIdAndUpdate(
             req.params.id,
             {
-                $push: {
-                    items: { name, category, quantity },
-                },
+                $push: { items: { $each: items } }, // Add multiple items at once
             },
-            { new: true }, // To return the updated version
+            { new: true },
         );
 
         if (!updatedPackingList) {
             return res.status(404).json({ message: 'Packing list not found' });
         }
 
-        // Log the updated packing list to see if the item was added
-        console.log('Updated Packing List:', updatedPackingList);
-
-        res.json(updatedPackingList); // Send the updated packing list back
+        console.log('✅ Items added successfully:', updatedPackingList.items);
+        res.json(updatedPackingList);
     } catch (error) {
-        console.error('Error updating packing list:', error); // Log any errors
+        console.error('❌ Error updating packing list:', error);
         res.status(500).json({ message: 'Error updating the packing list' });
     }
 });
@@ -298,36 +301,35 @@ app.get('/api/packing-list/:tripId/categories', async (req, res) => {
 });
 
 // PUT: Add a category to a specific packing list
-app.put('/api/packing-list/:id/categories', async (req, res) => {
+app.put('/api/packing-list/:id/items', async (req, res) => {
     try {
-        const { id } = req.params;
-        const { category } = req.body;
+        let { items } = req.body;
 
-        if (!category || typeof category !== 'string') {
-            return res.status(400).json({ message: 'Category is required' });
-        }
+        // ✅ Remove empty `_id` fields from items (Mongo will auto-generate them)
+        items = items.map((item) => {
+            if (!item._id || item._id === '') {
+                const { _id, ...rest } = item; // Remove _id
+                return rest;
+            }
+            return item;
+        });
 
-        if (!mongoose.Types.ObjectId.isValid(id)) {
-            return res.status(400).json({ message: 'Invalid packing list ID' });
-        }
+        // ✅ Update the packing list and push new items
+        const updatedPackingList = await PackingList.findByIdAndUpdate(
+            req.params.id,
+            { $push: { items: { $each: items } } }, // $each allows adding multiple items at once
+            { new: true }, // Return updated document
+        );
 
-        const packingList = await PackingList.findById(id);
-
-        if (!packingList) {
+        if (!updatedPackingList) {
             return res.status(404).json({ message: 'Packing list not found' });
         }
 
-        if (packingList.categories.includes(category)) {
-            return res.status(400).json({ message: 'Category already exists' });
-        }
-
-        packingList.categories.push(category);
-        await packingList.save();
-
-        res.json({ categories: packingList.categories });
+        console.log('✅ Updated Packing List:', updatedPackingList);
+        res.json(updatedPackingList);
     } catch (error) {
-        console.error('Error adding category:', error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('❌ Error updating packing list:', error);
+        res.status(500).json({ message: 'Error updating the packing list' });
     }
 });
 
@@ -443,8 +445,6 @@ app.patch('/api/packing-list/:id/categories', async (req, res) => {
 
 app.get('/api/weather', async (req, res) => {
     const { lat, lon } = req.query;
-
-    console.log('Open weather api key:', OPENWEATHER_API_KEY);
 
     if (!lat || !lon) {
         return res
