@@ -112,6 +112,7 @@ Generate a structured packing list for a trip.
     # ✅ Convert Extracted Text to HTML List
     formatted_list_html = "<ul>"
     current_category = None
+    seen_items = set()  # ✅ Track items to prevent duplicates
 
     for line in packing_list_text.split("\n"):
         line = line.strip()
@@ -119,21 +120,25 @@ Generate a structured packing list for a trip.
         # ✅ Detect category headers
         if line.startswith("- **") and line.endswith("**:"):
             current_category = line[4:-3].strip()  # Extract category name
+            continue  # ✅ Skip adding category headers to the list
 
         # ✅ Process list items
         elif line.startswith("- ") and current_category:
             item = line[2:].strip()
 
-            # ✅ Extract quantity (if available)
+            # ✅ Extract quantity if available
             match = re.search(r"\(Qty: (\d+)\)", item)
-            quantity = match.group(1) if match else "1"  # Default to 1
+            quantity = match.group(1) if match else "1"
 
-            # ✅ Remove redundant category and quantity info from item
+            # ✅ Remove redundant category or partial duplication
             clean_item = re.sub(rf"\s*-\s*{re.escape(current_category)}(\s*\(Qty: \d+\))?$", "", item)
             clean_item = re.sub(r"\(Qty: \d+\)", "", clean_item).strip()  # Ensure only one quantity remains
 
-            # ✅ Append formatted item
-            formatted_list_html += f"<li>{clean_item} - {current_category} (Qty: {quantity})</li>"
+            # ✅ Avoid partial duplicates like "Passport - Essentials (Q"
+            if not re.search(r"\(Q$", clean_item):  # Catch unfinished "(Q"
+                if clean_item not in seen_items:  # ✅ Prevent duplicate entries
+                    seen_items.add(clean_item)
+                    formatted_list_html += f"<li>{clean_item} - {current_category} (Qty: {quantity})</li>"
 
     formatted_list_html += "</ul>"
 
@@ -141,7 +146,3 @@ Generate a structured packing list for a trip.
 
     return formatted_list_html  # ✅ Return as formatted HTML
 
-
-    print("\n✅ Final Formatted Packing List HTML:\n", formatted_list_html)  # Debug Final Output
-
-    return formatted_list_html  # ✅ Return as formatted HTML
