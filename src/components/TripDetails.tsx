@@ -84,7 +84,7 @@ const TripDetails = ({
 
             {weather ? (
                 <div>
-                    <h3>Weather Forecast for Trip</h3>
+                    <h3 className="weather-h3">Weather Forecast for Trip</h3>
                     {weather?.daily && weather.daily.length > 0 ? (
                         weather.daily
                             .filter((day) => {
@@ -100,7 +100,7 @@ const TripDetails = ({
                                 );
                             })
                             .map((day, index) => (
-                                <div key={index}>
+                                <div key={index} className="weather-day">
                                     <p>
                                         <strong>Date:</strong>{' '}
                                         {formatDate(day.date)}

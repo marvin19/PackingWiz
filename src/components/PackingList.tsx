@@ -55,6 +55,7 @@ const PackingList = ({
     const [editedItem, setEditedItem] = useState<Partial<Item>>({});
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [aiResponse, setAiResponse] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
 
     const { inputErrors, validateInput, successMessages, setSuccessMessage } =
         useInputValidation();
@@ -87,7 +88,8 @@ const PackingList = ({
             return;
         }
 
-        setIsChatOpen(true);
+        setIsChatOpen(true); // Ensure the AI section is open
+        setIsLoading(true);
 
         try {
             const response = await Axios.post(
@@ -107,10 +109,19 @@ const PackingList = ({
                 },
             );
 
-            setAiResponse(response.data.packing_list);
+            console.log('✅ AI Response Received:', response.data);
+
+            // Make sure the response is not null before setting it
+            if (response.data) {
+                setAiResponse(response.data);
+            } else {
+                setAiResponse('<p>Failed to generate packing list.</p>');
+            }
         } catch (error) {
-            console.error('Error generating packing list:', error);
-            setAiResponse('Failed to generate packing list.');
+            console.error('❌ Error generating packing list:', error);
+            setAiResponse('<p>Error: Failed to generate packing list.</p>');
+        } finally {
+            setIsLoading(false);
         }
     };
 
@@ -211,7 +222,11 @@ const PackingList = ({
             {isChatOpen && (
                 <div>
                     <h3>AI Suggestions:</h3>
-                    <p>{aiResponse || 'Generating...'}</p>
+                    {isLoading ? (
+                        <p>Generating...</p>
+                    ) : (
+                        <div dangerouslySetInnerHTML={{ __html: aiResponse }} />
+                    )}
                 </div>
             )}
         </div>
