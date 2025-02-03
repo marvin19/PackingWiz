@@ -7,10 +7,17 @@ const itemSchema = new mongoose.Schema({
     quantity: { type: Number, default: 1, min: 1 }, // Ensure quantity is at least 1
 });
 
+const weatherSchema = new mongoose.Schema({
+    date: String,
+    temp: Number,
+    conditions: String,
+    humidity: Number,
+});
+
 // Define a schema for the packing list
 const packingListSchema = new mongoose.Schema(
     {
-        name: { type: String, required: true, trim: true }, // Name of the trip, trimmed for whitespace
+        name: { type: String, required: true, trim: true }, // Name of the trip
         destination: { type: String, required: true, trim: true }, // Destination of the trip
         startDate: {
             type: Date,
@@ -28,9 +35,21 @@ const packingListSchema = new mongoose.Schema(
             type: [String],
             default: ['Clothes', 'Toiletries', 'Electronics', 'Miscellaneous'], // Default categories
         },
+        tags: {
+            type: [String],
+            default: [
+                'Working',
+                'Ski',
+                'Beach',
+                'Running',
+                'Half Marathon',
+                'Winter',
+            ],
+        },
+        weather: [weatherSchema],
     },
     {
-        timestamps: true, // Adds `createdAt` and `updatedAt` fields automatically
+        timestamps: true,
     },
 );
 
