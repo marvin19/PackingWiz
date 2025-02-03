@@ -17,7 +17,7 @@ const weatherSchema = new mongoose.Schema({
 // Define a schema for the packing list
 const packingListSchema = new mongoose.Schema(
     {
-        name: { type: String, required: true, trim: true }, // Name of the trip, trimmed for whitespace
+        name: { type: String, required: true, trim: true }, // Name of the trip
         destination: { type: String, required: true, trim: true }, // Destination of the trip
         startDate: {
             type: Date,
@@ -49,7 +49,7 @@ const packingListSchema = new mongoose.Schema(
         weather: [weatherSchema],
     },
     {
-        timestamps: true, // Adds `createdAt` and `updatedAt` fields automatically
+        timestamps: true,
     },
 );
 

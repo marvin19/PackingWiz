@@ -38,7 +38,7 @@ async def generate_packing_list(request_data: PackingListRequest):
     # ✅ Extract `days_gone` safely
     days_gone = int(request_data.days_gone) if isinstance(request_data.days_gone, int) else 1
 
-    # ✅ Compute suggested quantities for specific items
+    # Compute suggested quantities for specific items
     socks_qty = days_gone  # 1 pair per day
     underwear_qty = days_gone  # 1 per day
     tshirts_qty = max(2, days_gone // 2)  # At least 2, otherwise every 2 days
@@ -62,7 +62,7 @@ Generate a structured packing list for a trip.
         for day in request_data.weather:
             prompt += f"- {day.get('date', 'Unknown Date')}: {day.get('temp', 'N/A')}°C, {day.get('conditions', 'No conditions available')}\n"
 
-    # ✅ Explicit Instructions for AI
+    # Explicit Instructions for AI
     prompt += f"""
     ### Packing List Suggestions:
     Provide a structured packing list formatted like this:

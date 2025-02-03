@@ -256,6 +256,7 @@ const TripPage: React.FC = () => {
         name: string;
         category: string;
         quantity: number;
+        _id?: string;
     }) => {
         if (!selectedTrip) return;
 
@@ -266,17 +267,19 @@ const TripPage: React.FC = () => {
         };
 
         try {
-            // Post new item to the backend
+            console.log('📦 Item being added:', newItem);
+
             const response = await Axios.put(
-                `${LOCALHOST_URL}/${selectedTrip._id}/items`, // Use the selectedTrip's _id in the URL
-                newItem,
+                `${LOCALHOST_URL}/${selectedTrip._id}/items`,
+                { items: [newItem] },
             );
+
             setItems([
                 ...items,
-                response.data.items[response.data.items.length - 1],
+                response.data.items[response.data.items.length - 1], // Add the last added item
             ]);
         } catch (error) {
-            console.error('Error adding item:', error);
+            console.error('❌ Error adding item:', error);
         }
     };
 
