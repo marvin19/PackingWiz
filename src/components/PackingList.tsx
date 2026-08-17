@@ -111,7 +111,7 @@ const PackingList = ({
                 },
             );
 
-            console.log('✅ AI Response Received:', response.data);
+            console.log('AI Response Received:', response.data);
 
             // Make sure the response is not null before setting it
             if (response.data) {
@@ -120,7 +120,7 @@ const PackingList = ({
                 setAiResponse('<p>Failed to generate packing list.</p>');
             }
         } catch (error) {
-            console.error('❌ Error generating packing list:', error);
+            console.error('Error generating packing list:', error);
             setAiResponse('<p>Error: Failed to generate packing list.</p>');
         } finally {
             setIsLoading(false);

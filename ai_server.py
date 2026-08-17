@@ -8,7 +8,7 @@ import torch
 
 app = FastAPI()
 
-# ✅ Enable CORS for frontend requests
+# Enable CORS for frontend requests
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],  
@@ -17,7 +17,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Define request schema
+# Define request schema
 class PackingListRequest(BaseModel):
     trip_name: str
     destination: str
@@ -26,16 +26,15 @@ class PackingListRequest(BaseModel):
     items: List[str]  
     weather: Optional[List[Dict[str, Any]]] = None
 
-# ✅ Load AI Model
+# Load AI Model
 model_path = "mistral_model"
 tokenizer = AutoTokenizer.from_pretrained(model_path)
 model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, device_map="auto")
 
 @app.post("/generate_packing_list")
 async def generate_packing_list(request_data: PackingListRequest):
-    print("\n🔹 Received Request:", request_data.dict())  # Debugging Request
 
-    # ✅ Extract `days_gone` safely
+    # Extract `days_gone` safely
     days_gone = int(request_data.days_gone) if isinstance(request_data.days_gone, int) else 1
 
     # Compute suggested quantities for specific items
@@ -44,7 +43,7 @@ async def generate_packing_list(request_data: PackingListRequest):
     tshirts_qty = max(2, days_gone // 2)  # At least 2, otherwise every 2 days
     shorts_qty = max(1, days_gone // 3)  # At least 1, otherwise every 3 days
 
-    # ✅ Construct AI Prompt
+    # Construct AI Prompt
     prompt = f"""You are an expert travel assistant.
 Generate a structured packing list for a trip.
 
@@ -56,7 +55,7 @@ Generate a structured packing list for a trip.
 
 """
 
-    # ✅ Include Weather Forecast if Available
+    # Include Weather Forecast if Available
     if request_data.weather:
         prompt += "\n### Weather Forecast:\n"
         for day in request_data.weather:
@@ -86,21 +85,21 @@ Generate a structured packing list for a trip.
 
     print("\n🔍 Generated Prompt:\n", prompt)  # Debug Prompt Before AI Call
 
-    # ✅ Tokenize Input
+    # Tokenize Input
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
 
-    # ✅ Move to Correct Device
+    # Move to Correct Device
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
     inputs = inputs.to(device)
     model.to(device)
 
-    # ✅ Generate AI Response
+    # Generate AI Response
     outputs = model.generate(**inputs, max_new_tokens=300)
     response = tokenizer.decode(outputs[0], skip_special_tokens=True)
 
     print("\n🔍 Raw AI Response:\n", response)  # Debug AI Output
 
-    # ✅ Extract Packing List Using Improved Regex
+    # Extract Packing List Using Improved Regex
     match = re.search(r"### Packing List Suggestions:\n([\s\S]+)", response)
     if match:
         packing_list_text = match.group(1).strip()
@@ -109,40 +108,40 @@ Generate a structured packing list for a trip.
         print("❌ No packing list found in response!")
         return "<ul><li>No packing list generated.</li></ul>"
 
-    # ✅ Convert Extracted Text to HTML List
+    # Convert Extracted Text to HTML List
     formatted_list_html = "<ul>"
     current_category = None
-    seen_items = set()  # ✅ Track items to prevent duplicates
+    seen_items = set()  # Track items to prevent duplicates
 
     for line in packing_list_text.split("\n"):
         line = line.strip()
 
-        # ✅ Detect category headers
+        # Detect category headers
         if line.startswith("- **") and line.endswith("**:"):
             current_category = line[4:-3].strip()  # Extract category name
-            continue  # ✅ Skip adding category headers to the list
+            continue  # Skip adding category headers to the list
 
-        # ✅ Process list items
+        # Process list items
         elif line.startswith("- ") and current_category:
             item = line[2:].strip()
 
-            # ✅ Extract quantity if available
+            # Extract quantity if available
             match = re.search(r"\(Qty: (\d+)\)", item)
             quantity = match.group(1) if match else "1"
 
-            # ✅ Remove redundant category or partial duplication
+            # Remove redundant category or partial duplication
             clean_item = re.sub(rf"\s*-\s*{re.escape(current_category)}(\s*\(Qty: \d+\))?$", "", item)
             clean_item = re.sub(r"\(Qty: \d+\)", "", clean_item).strip()  # Ensure only one quantity remains
 
-            # ✅ Avoid partial duplicates like "Passport - Essentials (Q"
+            # Avoid partial duplicates like "Passport - Essentials (Q"
             if not re.search(r"\(Q$", clean_item):  # Catch unfinished "(Q"
-                if clean_item not in seen_items:  # ✅ Prevent duplicate entries
+                if clean_item not in seen_items:  # Prevent duplicate entries
                     seen_items.add(clean_item)
                     formatted_list_html += f"<li>{clean_item} - {current_category} (Qty: {quantity})</li>"
 
     formatted_list_html += "</ul>"
 
-    print("\n✅ Final Formatted Packing List HTML:\n", formatted_list_html)  # Debug Final Output
+    print("\n Final Formatted Packing List HTML:\n", formatted_list_html)  # Debug Final Output
 
-    return formatted_list_html  # ✅ Return as formatted HTML
+    return formatted_list_html  # Return as formatted HTML
 

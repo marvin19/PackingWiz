@@ -267,8 +267,7 @@ const TripPage: React.FC = () => {
         };
 
         try {
-            console.log('📦 Item being added:', newItem);
-
+            // Post new item to the backend
             const response = await Axios.put(
                 `${LOCALHOST_URL}/${selectedTrip._id}/items`,
                 { items: [newItem] },
@@ -279,7 +278,7 @@ const TripPage: React.FC = () => {
                 response.data.items[response.data.items.length - 1], // Add the last added item
             ]);
         } catch (error) {
-            console.error('❌ Error adding item:', error);
+            console.error('Error adding item:', error);
         }
     };
 
@@ -372,6 +371,7 @@ const TripPage: React.FC = () => {
             Valencia: { latitude: 39.4699, longitude: -0.3763 },
             Oslo: { latitude: 59.9139, longitude: 10.7522 },
             London: { latitude: 51.5074, longitude: -0.1278 },
+            Bangkok: { latitude: 13.7563, longitude: 100.5018 },
         };
         return destinations[destination] || { latitude: 0, longitude: 0 };
     };
