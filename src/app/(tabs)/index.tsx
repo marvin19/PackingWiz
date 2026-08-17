@@ -1,5 +1,5 @@
-import { TripsPlaceholderScreen } from '@/features/trips/screens/trips-placeholder-screen';
+import { HomeScreen } from '@/features/trips/screens/home-screen';
 
 export default function TripsRoute() {
-  return <TripsPlaceholderScreen />;
+  return <HomeScreen />;
 }

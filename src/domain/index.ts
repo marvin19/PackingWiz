@@ -1,5 +1,6 @@
 export * from '@/domain/bag';
 export * from '@/domain/catalog';
+export * from '@/domain/dates';
 export * from '@/domain/packing-item';
 export * from '@/domain/packing-stats';
 export * from '@/domain/traveler';
