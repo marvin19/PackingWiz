@@ -1,11 +1,14 @@
-import { useState, FormEvent } from 'react';
+import { useState, FormEvent, useEffect } from 'react';
 import { useInputValidation } from '../hooks/useInputValidation';
+import Axios from 'axios';
+
 interface TripFormProps {
     onAddTrip: (trip: {
         name: string;
         destination: string;
         startDate: string;
         endDate: string;
+        tags: string[];
     }) => void;
 }
 
@@ -14,8 +17,32 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
     const [destination, setDestination] = useState('');
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [tags, setTags] = useState<string[]>([]); // Store selected tags
+    const [defaultTags, setDefaultTags] = useState<string[]>([]); // Tags from backend
 
     const { inputErrors, validateInput } = useInputValidation();
+
+    useEffect(() => {
+        const fetchDefaultTags = async () => {
+            try {
+                const response = await Axios.get(
+                    'http://localhost:5001/api/default-tags',
+                );
+                setDefaultTags(response.data.tags); // Set default tags
+            } catch (error) {
+                console.error('Error fetching default tags:', error);
+            }
+        };
+        fetchDefaultTags();
+    }, []);
+
+    const handleTagChange = (tag: string) => {
+        setTags((prevTags) =>
+            prevTags.includes(tag)
+                ? prevTags.filter((t) => t !== tag)
+                : [...prevTags, tag],
+        );
+    };
 
     const handleSubmit = (e: FormEvent) => {
         e.preventDefault();
@@ -23,25 +50,39 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
         const parsedStartDate = new Date(startDate);
         const parsedEndDate = new Date(endDate);
 
-        // Log the data to be sent to the parent component
-        console.log({
-            name,
-            destination,
-            startDate: parsedStartDate.toISOString(),
-            endDate: parsedEndDate.toISOString(),
-        });
-
         onAddTrip({
             name,
             destination,
             startDate: parsedStartDate.toISOString(),
             endDate: parsedEndDate.toISOString(),
+            tags,
         });
 
         setName('');
         setDestination('');
         setStartDate('');
         setEndDate('');
+        setTags([]);
+    };
+
+    /** Running whenever i type, fix later TODO */
+    const emojiGeneratorTags = (tag: string): string => {
+        switch (tag) {
+            case 'Running':
+                return '🏃‍♀️';
+            case 'Half Marathon':
+                return '🎽';
+            case 'Beach':
+                return '🏖️';
+            case 'Winter':
+                return '❄️';
+            case 'Ski':
+                return '⛷️';
+            case 'Working':
+                return '💼';
+            default:
+                return '';
+        }
     };
 
     return (
@@ -88,6 +129,20 @@ const TripForm = ({ onAddTrip }: TripFormProps): JSX.Element => {
                 onChange={(e) => setEndDate(e.target.value)}
                 required
             />
+            <label>Tags:</label>
+            <div>
+                {defaultTags.map((tag) => (
+                    <label key={tag}>
+                        <input
+                            type="checkbox"
+                            value={tag}
+                            checked={tags.includes(tag)}
+                            onChange={() => handleTagChange(tag)}
+                        />{' '}
+                        {tag} {emojiGeneratorTags(tag)}
+                    </label>
+                ))}
+            </div>
             <button type="submit">Add Trip</button>
         </form>
     );

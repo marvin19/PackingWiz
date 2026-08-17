@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { formatDate } from '../utils/utilities';
 import DeleteButton from './DeleteButton';
 import EditButton from './EditButton';
+import Axios from 'axios';
 
 interface Trip {
     id: string;
@@ -9,6 +10,7 @@ interface Trip {
     destination: string;
     startDate: string;
     endDate: string;
+    tags: string[];
 }
 
 interface AllTripListProps {
@@ -26,6 +28,22 @@ const AllTripList = ({
 }: AllTripListProps): JSX.Element => {
     const [editingTripId, setEditingTripId] = useState<string | null>(null);
     const [editedTrip, setEditedTrip] = useState<Partial<Trip>>({});
+    const [defaultTags, setDefaultTags] = useState<string[]>([]); // Fetch from backend
+
+    // Fetch available tags from backend
+    useEffect(() => {
+        const fetchDefaultTags = async () => {
+            try {
+                const response = await Axios.get(
+                    'http://localhost:5001/api/default-tags',
+                );
+                setDefaultTags(response.data.tags); // Set default tags from backend
+            } catch (error) {
+                console.error('Error fetching default tags:', error);
+            }
+        };
+        fetchDefaultTags();
+    }, []);
 
     const handleEditClick = (trip: Trip) => {
         setEditingTripId(trip.id);
@@ -37,6 +55,7 @@ const AllTripList = ({
             endDate: trip.endDate
                 ? new Date(trip.endDate).toISOString().split('T')[0]
                 : '',
+            tags: trip.tags ?? [], // Ensure tags are always an array
         });
     };
 
@@ -46,6 +65,16 @@ const AllTripList = ({
             ...prev,
             [name]: value,
         }));
+    };
+
+    const handleTagChange = (tag: string) => {
+        setEditedTrip((prev) => {
+            const updatedTags = prev.tags?.includes(tag)
+                ? prev.tags.filter((t) => t !== tag)
+                : [...(prev.tags || []), tag];
+
+            return { ...prev, tags: updatedTags };
+        });
     };
 
     const handleUpdateClick = (id: string) => {
@@ -82,9 +111,31 @@ const AllTripList = ({
                                 <input
                                     type="date"
                                     name="endDate"
-                                    value={editedTrip.endDate || ''}
+                                    value={editedTrip.endDate ?? ''}
                                     onChange={handleInputChange}
                                 />
+
+                                <label>Tags:</label>
+                                <div>
+                                    {defaultTags.map((tag) => (
+                                        <label key={tag}>
+                                            <input
+                                                type="checkbox"
+                                                value={tag}
+                                                checked={
+                                                    editedTrip.tags?.includes(
+                                                        tag,
+                                                    ) || false
+                                                }
+                                                onChange={() =>
+                                                    handleTagChange(tag)
+                                                }
+                                            />{' '}
+                                            {tag}
+                                        </label>
+                                    ))}
+                                </div>
+
                                 <button
                                     onClick={() => handleUpdateClick(trip.id)}
                                 >
@@ -95,8 +146,17 @@ const AllTripList = ({
                             <>
                                 <strong>{trip.name}</strong> -{' '}
                                 {trip.destination} - {trip.id} (
-                                {formatDate(trip.startDate)}
-                                )
+                                {formatDate(trip.startDate)})
+                                <div>
+                                    {Array.isArray(trip.tags) &&
+                                    trip.tags.length > 0 ? (
+                                        <span>
+                                            Tags: {trip.tags.join(', ')}
+                                        </span>
+                                    ) : (
+                                        <span>No tags</span>
+                                    )}
+                                </div>
                                 <EditButton
                                     onEdit={() => handleEditClick(trip)}
                                 />

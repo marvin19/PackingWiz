@@ -7,6 +7,7 @@ import { useInputValidation } from '../hooks/useInputValidation';
 interface ItemFormProps {
     id: string;
     onAddItem: (item: {
+        _id: string;
         name: string;
         category: string;
         quantity: number;
@@ -46,7 +47,7 @@ const ItemForm: React.FC<ItemFormProps> = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onAddItem({ name, category, quantity });
+        onAddItem({ _id: '', name, category, quantity });
         setName('');
         setCategory('');
         setQuantity(1);
