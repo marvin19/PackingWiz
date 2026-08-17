@@ -1,5 +1,5 @@
-import { PackPlaceholderScreen } from '@/features/packing/screens/pack-placeholder-screen';
+import { PackScreen } from '@/features/packing/screens/pack-screen';
 
 export default function PackRoute() {
-  return <PackPlaceholderScreen />;
+  return <PackScreen />;
 }

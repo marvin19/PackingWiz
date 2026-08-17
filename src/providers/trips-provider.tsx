@@ -9,6 +9,7 @@ import {
 } from 'react';
 
 import { findActiveTrip } from '@/domain/packing-stats';
+import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import type { Trip } from '@/domain/trip';
 import { mockDefaultActiveTripId } from '@/mocks/seed-trips';
@@ -33,6 +34,18 @@ interface TripsContextValue {
   resetDraft: () => void;
   refreshTrips: () => Promise<void>;
   commitDraftTrip: () => Promise<Trip>;
+  togglePacked: (itemId: string) => void;
+  setItemQuantity: (itemId: string, quantity: number) => void;
+  toggleNeedToBuy: (itemId: string) => void;
+  assignItem: (itemId: string, travelerId: string | null) => void;
+  deletePackingItem: (itemId: string) => void;
+  addPackingItem: (input: {
+    name: string;
+    category: PackingCategory;
+    quantity?: number;
+    needToBuy?: boolean;
+    assignedTo?: string | null;
+  }) => void;
 }
 
 const TripsContext = createContext<TripsContextValue | null>(null);
@@ -102,6 +115,109 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     return saved;
   }, [draft, packingGenerator, weatherService, tripRepository]);
 
+  const updateActiveTripItems = useCallback(
+    (updater: (items: PackingItem[]) => PackingItem[]) => {
+      setTrips((current) => {
+        if (!activeTripId) {
+          return current;
+        }
+
+        let updatedTrip: Trip | null = null;
+        const next = current.map((trip) => {
+          if (trip.id !== activeTripId) {
+            return trip;
+          }
+
+          updatedTrip = { ...trip, items: updater(trip.items) };
+          return updatedTrip;
+        });
+
+        if (updatedTrip) {
+          void tripRepository.save(updatedTrip);
+        }
+
+        return next;
+      });
+    },
+    [activeTripId, tripRepository],
+  );
+
+  const togglePacked = useCallback(
+    (itemId: string) => {
+      updateActiveTripItems((items) =>
+        items.map((item) => (item.id === itemId ? { ...item, packed: !item.packed } : item)),
+      );
+    },
+    [updateActiveTripItems],
+  );
+
+  const setItemQuantity = useCallback(
+    (itemId: string, quantity: number) => {
+      const nextQuantity = Math.max(1, quantity);
+      updateActiveTripItems((items) =>
+        items.map((item) => (item.id === itemId ? { ...item, quantity: nextQuantity } : item)),
+      );
+    },
+    [updateActiveTripItems],
+  );
+
+  const toggleNeedToBuy = useCallback(
+    (itemId: string) => {
+      updateActiveTripItems((items) =>
+        items.map((item) =>
+          item.id === itemId ? { ...item, needToBuy: !item.needToBuy } : item,
+        ),
+      );
+    },
+    [updateActiveTripItems],
+  );
+
+  const assignItem = useCallback(
+    (itemId: string, travelerId: string | null) => {
+      updateActiveTripItems((items) =>
+        items.map((item) =>
+          item.id === itemId ? { ...item, assignedTo: travelerId } : item,
+        ),
+      );
+    },
+    [updateActiveTripItems],
+  );
+
+  const deletePackingItem = useCallback(
+    (itemId: string) => {
+      updateActiveTripItems((items) => items.filter((item) => item.id !== itemId));
+    },
+    [updateActiveTripItems],
+  );
+
+  const addPackingItem = useCallback(
+    (input: {
+      name: string;
+      category: PackingCategory;
+      quantity?: number;
+      needToBuy?: boolean;
+      assignedTo?: string | null;
+    }) => {
+      const trimmed = input.name.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const newItem: PackingItem = {
+        id: `pack-item-${Date.now()}`,
+        name: trimmed,
+        category: input.category,
+        quantity: input.quantity ?? 1,
+        packed: false,
+        needToBuy: input.needToBuy ?? false,
+        assignedTo: input.assignedTo ?? null,
+      };
+
+      updateActiveTripItems((items) => [...items, newItem]);
+    },
+    [updateActiveTripItems],
+  );
+
   const activeTrip = useMemo(
     () => findActiveTrip(trips, activeTripId),
     [trips, activeTripId],
@@ -123,6 +239,12 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       resetDraft,
       refreshTrips,
       commitDraftTrip,
+      togglePacked,
+      setItemQuantity,
+      toggleNeedToBuy,
+      assignItem,
+      deletePackingItem,
+      addPackingItem,
     }),
     [
       trips,
@@ -137,6 +259,12 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       resetDraft,
       refreshTrips,
       commitDraftTrip,
+      togglePacked,
+      setItemQuantity,
+      toggleNeedToBuy,
+      assignItem,
+      deletePackingItem,
+      addPackingItem,
     ],
   );
 
