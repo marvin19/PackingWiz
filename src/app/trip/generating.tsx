@@ -1,5 +1,5 @@
-import { TripGeneratingPlaceholderScreen } from '@/features/trip-creation/screens/trip-generating-placeholder-screen';
+import { TripGeneratingScreen } from '@/features/trip-creation/screens/trip-generating-screen';
 
 export default function TripGeneratingRoute() {
-  return <TripGeneratingPlaceholderScreen />;
+  return <TripGeneratingScreen />;
 }

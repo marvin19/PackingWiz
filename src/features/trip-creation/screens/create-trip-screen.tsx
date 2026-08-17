@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -34,11 +34,18 @@ import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function CreateTripScreen() {
   const router = useRouter();
-  const { draft, setDraft } = useTrips();
-  const [step, setStep] = useState(0);
+  const { draft, setDraft, draftWizardStep, setDraftWizardStep, markDraftReachedSummary } = useTrips();
+  const step = draftWizardStep;
 
   const canContinue = canProceedFromStep(step, draft);
   const continueLabel = wizardContinueLabel(step, WIZARD_STEP_COUNT);
+
+  const setStep = useCallback(
+    (value: number | ((current: number) => number)) => {
+      setDraftWizardStep(typeof value === 'function' ? value(draftWizardStep) : value);
+    },
+    [draftWizardStep, setDraftWizardStep],
+  );
 
   const handleBack = useCallback(() => {
     if (step === 0) {
@@ -46,18 +53,19 @@ export function CreateTripScreen() {
       return;
     }
     setStep((current) => current - 1);
-  }, [router, step]);
+  }, [router, setStep, step]);
 
   const handleContinue = useCallback(() => {
     if (!canContinue) {
       return;
     }
     if (step === WIZARD_STEP_COUNT - 1) {
+      markDraftReachedSummary();
       router.push('/trip/summary');
       return;
     }
     setStep((current) => current + 1);
-  }, [canContinue, router, step]);
+  }, [canContinue, markDraftReachedSummary, router, setStep, step]);
 
   const toggleType = useCallback(
     (typeId: TripTypeId) => {

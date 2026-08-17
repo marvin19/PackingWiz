@@ -12,6 +12,7 @@ import { findActiveTrip } from '@/domain/packing-stats';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import type { Trip } from '@/domain/trip';
 import { mockDefaultActiveTripId } from '@/mocks/seed-trips';
+import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
 import { useServices } from '@/providers/services-provider';
 import { assembleTripFromDraft } from '@/services/trip-assembly';
 
@@ -22,9 +23,13 @@ interface TripsContextValue {
   activeTripId: string | null;
   activeTrip: Trip | null;
   draft: TripDraft;
+  draftWizardStep: number;
+  draftReachedSummary: boolean;
   isLoading: boolean;
   setActiveTripId: (tripId: string | null) => void;
   setDraft: (patch: Partial<TripDraft>) => void;
+  setDraftWizardStep: (step: number) => void;
+  markDraftReachedSummary: () => void;
   resetDraft: () => void;
   refreshTrips: () => Promise<void>;
   commitDraftTrip: () => Promise<Trip>;
@@ -37,6 +42,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTripId, setActiveTripId] = useState<string | null>(mockDefaultActiveTripId);
   const [draft, setDraftState] = useState<TripDraft>(createEmptyTripDraft());
+  const [draftWizardStep, setDraftWizardStep] = useState(0);
+  const [draftReachedSummary, setDraftReachedSummary] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshTrips = useCallback(async () => {
@@ -71,6 +78,13 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
   const resetDraft = useCallback(() => {
     setDraftState(createEmptyTripDraft());
+    setDraftWizardStep(0);
+    setDraftReachedSummary(false);
+  }, []);
+
+  const markDraftReachedSummary = useCallback(() => {
+    setDraftReachedSummary(true);
+    setDraftWizardStep(WIZARD_STEP_COUNT - 1);
   }, []);
 
   const commitDraftTrip = useCallback(async () => {
@@ -84,6 +98,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       return [saved, ...withoutDuplicate];
     });
     setActiveTripId(saved.id);
+    setDraftState(createEmptyTripDraft());
     return saved;
   }, [draft, packingGenerator, weatherService, tripRepository]);
 
@@ -98,9 +113,13 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       activeTripId,
       activeTrip,
       draft,
+      draftWizardStep,
+      draftReachedSummary,
       isLoading,
       setActiveTripId,
       setDraft,
+      setDraftWizardStep,
+      markDraftReachedSummary,
       resetDraft,
       refreshTrips,
       commitDraftTrip,
@@ -110,8 +129,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       activeTripId,
       activeTrip,
       draft,
+      draftWizardStep,
+      draftReachedSummary,
       isLoading,
       setDraft,
+      markDraftReachedSummary,
       resetDraft,
       refreshTrips,
       commitDraftTrip,

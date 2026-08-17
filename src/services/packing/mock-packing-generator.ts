@@ -7,6 +7,10 @@ import { buildMockInsights, buildMockPackingList } from '@/mocks/mock-packing-ge
 
 export class MockPackingGenerator implements PackingGenerator {
   async generate(input: PackingGenerationInput): Promise<PackingGenerationResult> {
+    if (input.draft.note.trim() === 'GENERATION_FAIL') {
+      throw new Error('Mock packing generation failed.');
+    }
+
     return {
       items: buildMockPackingList(input.draft),
       insights: buildMockInsights(input.draft),

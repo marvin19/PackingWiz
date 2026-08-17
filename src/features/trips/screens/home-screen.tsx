@@ -5,10 +5,12 @@ import { BrandMark } from '@/components/brand/brand-mark';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { SectionTitle } from '@/components/ui/section-title';
+import { ContinueDraftCta } from '@/features/trips/components/continue-draft-cta';
 import { PlanNewTripCta } from '@/features/trips/components/plan-new-trip-cta';
 import { PastTripCard } from '@/features/trips/components/past-trip-card';
 import { TripsEmptyState } from '@/features/trips/components/trips-empty-state';
 import { UpcomingTripCard } from '@/features/trips/components/upcoming-trip-card';
+import { isDraftInProgress } from '@/features/trip-creation/utils/draft-progress';
 import { useTripNavigation } from '@/hooks/use-trip-navigation';
 import { useTrips } from '@/hooks/use-trips';
 import { getTimeBasedGreeting, mockUserProfile } from '@/mocks/user-profile';
@@ -16,8 +18,9 @@ import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const { trips, isLoading } = useTrips();
-  const { openTrip, startCreateTrip } = useTripNavigation();
+  const { trips, isLoading, draft } = useTrips();
+  const { openTrip, startCreateTrip, resumeDraftTrip } = useTripNavigation();
+  const hasDraft = isDraftInProgress(draft);
 
   const upcoming = trips.filter((trip) => trip.status === 'upcoming');
   const past = trips.filter((trip) => trip.status === 'past');
@@ -60,6 +63,7 @@ export function HomeScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}>
+        {hasDraft ? <ContinueDraftCta draft={draft} onPress={resumeDraftTrip} /> : null}
         <PlanNewTripCta onPress={startCreateTrip} />
 
         <View style={styles.section}>

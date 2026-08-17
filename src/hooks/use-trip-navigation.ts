@@ -5,7 +5,7 @@ import { useTrips } from '@/hooks/use-trips';
 
 export function useTripNavigation() {
   const router = useRouter();
-  const { setActiveTripId, resetDraft } = useTrips();
+  const { setActiveTripId, resetDraft, draftReachedSummary } = useTrips();
 
   const openTrip = useCallback(
     (tripId: string) => {
@@ -20,5 +20,14 @@ export function useTripNavigation() {
     router.push('/trip/create');
   }, [resetDraft, router]);
 
-  return { openTrip, startCreateTrip };
+  const resumeDraftTrip = useCallback(() => {
+    if (draftReachedSummary) {
+      router.push('/trip/summary');
+      return;
+    }
+
+    router.push('/trip/create');
+  }, [draftReachedSummary, router]);
+
+  return { openTrip, startCreateTrip, resumeDraftTrip };
 }
