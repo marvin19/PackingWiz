@@ -1,14 +1,11 @@
-/**
- * Learn more about light and dark modes:
- * https://docs.expo.dev/guides/color-schemes/
- */
-
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { theme, type Theme } from '@/theme';
 
 export function useTheme() {
-  const scheme = useColorScheme();
-  const theme = scheme === 'unspecified' ? 'light' : scheme;
-
-  return Colors[theme];
+  return theme;
 }
+
+export { theme, type Theme };
+export { colors, type ColorToken } from '@/theme/colors';
+export { typography, fontFamilies, type TypographyToken } from '@/theme/typography';
+export { spacing, screenPaddingHorizontal, type SpacingToken } from '@/theme/spacing';
+export { radii, baseRadius, type RadiusToken } from '@/theme/radii';
