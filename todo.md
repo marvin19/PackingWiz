@@ -17,6 +17,7 @@
 - [ ] Rename Trove to PackingWiz
 - [ ] Remove labels when clicking an item
 - [ ] Remove the shopping part
+- [ ] Add a essentials/important category that is hardcoded to the user
 
 Version ||
 

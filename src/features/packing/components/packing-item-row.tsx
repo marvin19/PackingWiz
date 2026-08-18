@@ -8,19 +8,34 @@ import type { Traveler } from '@/domain/traveler';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 
+export type PackingCheckboxIntent = 'packed' | 'purchased';
+
 type PackingItemRowProps = {
   item: PackingItem;
   travelers: Traveler[];
+  checkboxIntent: PackingCheckboxIntent;
+  onCheckboxPress: (itemId: string) => void;
 };
 
-export function PackingItemRow({ item, travelers }: PackingItemRowProps) {
+export function PackingItemRow({
+  item,
+  travelers,
+  checkboxIntent,
+  onCheckboxPress,
+}: PackingItemRowProps) {
   const theme = useTheme();
-  const { togglePacked, setItemQuantity, toggleNeedToBuy, deletePackingItem, assignItem } =
-    useTrips();
+  const { setItemQuantity, toggleNeedToBuy, deletePackingItem, assignItem } = useTrips();
   const [expanded, setExpanded] = useState(false);
 
   const assigned = travelers.find((traveler) => traveler.id === item.assignedTo);
   const showAssign = travelers.length > 1;
+  const isPurchasedIntent = checkboxIntent === 'purchased';
+  const checkboxChecked = isPurchasedIntent ? false : item.packed;
+  const checkboxLabel = isPurchasedIntent
+    ? `Mark ${item.name} as purchased`
+    : item.packed
+      ? `Mark ${item.name} as not packed`
+      : `Mark ${item.name} as packed`;
 
   return (
     <View
@@ -35,19 +50,17 @@ export function PackingItemRow({ item, travelers }: PackingItemRowProps) {
       <View style={styles.mainRow}>
         <Pressable
           accessibilityRole="checkbox"
-          accessibilityLabel={
-            item.packed ? `Mark ${item.name} as not packed` : `Mark ${item.name} as packed`
-          }
-          accessibilityState={{ checked: item.packed }}
-          onPress={() => togglePacked(item.id)}
+          accessibilityLabel={checkboxLabel}
+          accessibilityState={{ checked: checkboxChecked }}
+          onPress={() => onCheckboxPress(item.id)}
           style={[
             styles.checkButton,
             {
-              borderColor: item.packed ? theme.colors.success : theme.colors.border,
-              backgroundColor: item.packed ? theme.colors.success : theme.colors.card,
+              borderColor: checkboxChecked ? theme.colors.success : theme.colors.border,
+              backgroundColor: checkboxChecked ? theme.colors.success : theme.colors.card,
             },
           ]}>
-          {item.packed ? (
+          {checkboxChecked ? (
             <Feather name="check" size={16} color={theme.colors.primaryForeground} />
           ) : null}
         </Pressable>
@@ -55,6 +68,7 @@ export function PackingItemRow({ item, travelers }: PackingItemRowProps) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${item.name}, ${item.quantity} items`}
+          accessibilityState={{ expanded }}
           onPress={() => setExpanded((current) => !current)}
           style={styles.nameBlock}>
           <AppText
@@ -85,6 +99,11 @@ export function PackingItemRow({ item, travelers }: PackingItemRowProps) {
                   {assigned.name}
                 </AppText>
               </View>
+            ) : null}
+            {item.quantity > 1 ? (
+              <AppText variant="micro" color="mutedForeground" style={{ fontFamily: theme.fontFamilies.sansMedium }}>
+                ×{item.quantity}
+              </AppText>
             ) : null}
             {item.note && !item.needToBuy && !assigned ? (
               <View style={styles.noteHint}>

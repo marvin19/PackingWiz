@@ -42,6 +42,7 @@ interface TripsContextValue {
   togglePacked: (itemId: string) => void;
   setItemQuantity: (itemId: string, quantity: number) => void;
   toggleNeedToBuy: (itemId: string) => void;
+  markItemPurchased: (itemId: string) => void;
   assignItem: (itemId: string, travelerId: string | null) => void;
   deletePackingItem: (itemId: string) => void;
   addPackingItem: (input: {
@@ -267,6 +268,42 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     [activeTripId, rollbackTrips, tripRepository],
   );
 
+  const markItemPurchased = useCallback(
+    (itemId: string) => {
+      if (!activeTripId) {
+        return;
+      }
+
+      const previousTrips = tripsRef.current;
+      const trip = previousTrips.find((entry) => entry.id === activeTripId);
+      const item = trip?.items.find((entry) => entry.id === itemId);
+      if (!trip || !item || !item.needToBuy) {
+        return;
+      }
+
+      setTrips((current) =>
+        current.map((entry) =>
+          entry.id === activeTripId
+            ? {
+                ...entry,
+                items: entry.items.map((entryItem) =>
+                  entryItem.id === itemId ? { ...entryItem, needToBuy: false } : entryItem,
+                ),
+              }
+            : entry,
+        ),
+      );
+
+      void tripRepository
+        .updatePackingItem(activeTripId, itemId, { needToBuy: false })
+        .catch((error) => {
+          rollbackTrips(previousTrips);
+          setRepositoryError(error instanceof Error ? error.message : 'Failed to update item');
+        });
+    },
+    [activeTripId, rollbackTrips, tripRepository],
+  );
+
   const assignItem = useCallback(
     (itemId: string, travelerId: string | null) => {
       if (!activeTripId) {
@@ -417,6 +454,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       togglePacked,
       setItemQuantity,
       toggleNeedToBuy,
+      markItemPurchased,
       assignItem,
       deletePackingItem,
       addPackingItem,
@@ -438,6 +476,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       togglePacked,
       setItemQuantity,
       toggleNeedToBuy,
+      markItemPurchased,
       assignItem,
       deletePackingItem,
       addPackingItem,

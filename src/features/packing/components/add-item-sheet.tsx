@@ -31,6 +31,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<PackingCategory>('Essentials');
   const [needToBuy, setNeedToBuy] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
 
@@ -41,6 +42,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
     setName('');
     setCategory('Essentials');
     setNeedToBuy(false);
+    setQuantity(1);
     setAssignedTo(null);
   };
 
@@ -55,7 +57,13 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
       return;
     }
 
-    addPackingItem({ name: trimmed, category, needToBuy, assignedTo: showAssign ? assignedTo : null });
+    addPackingItem({
+      name: trimmed,
+      category,
+      quantity,
+      needToBuy,
+      assignedTo: showAssign ? assignedTo : null,
+    });
     reset();
     onClose();
   };
@@ -183,6 +191,38 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
             </View>
           ) : null}
 
+          <View style={styles.quantityRow}>
+            <AppText variant="sectionLabel" color="mutedForeground">
+              Quantity
+            </AppText>
+            <View style={styles.quantityControls}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Decrease quantity"
+                disabled={quantity <= 1}
+                onPress={() => setQuantity((current) => Math.max(1, current - 1))}
+                style={[
+                  styles.quantityButton,
+                  {
+                    backgroundColor: theme.colors.muted,
+                    opacity: quantity <= 1 ? 0.35 : 1,
+                  },
+                ]}>
+                <Feather name="minus" size={14} color={theme.colors.foreground} />
+              </Pressable>
+              <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold, minWidth: 20, textAlign: 'center' }}>
+                {quantity}
+              </AppText>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Increase quantity"
+                onPress={() => setQuantity((current) => current + 1)}
+                style={[styles.quantityButton, { backgroundColor: theme.colors.muted }]}>
+                <Feather name="plus" size={14} color={theme.colors.foreground} />
+              </Pressable>
+            </View>
+          </View>
+
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: needToBuy }}
@@ -247,6 +287,23 @@ const styles = StyleSheet.create({
   },
   assignBlock: {
     gap: 8,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  quantityControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  quantityButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 9999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleRow: {
     flexDirection: 'row',

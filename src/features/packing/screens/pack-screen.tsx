@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppScreen } from '@/components/ui/app-screen';
@@ -9,11 +9,16 @@ import { AppText } from '@/components/ui/app-text';
 import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { formatRange } from '@/domain/dates';
+import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStats } from '@/domain/packing-stats';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
 import { FilterPill } from '@/features/packing/components/filter-pill';
 import { PackedCelebration } from '@/features/packing/components/packed-celebration';
-import { PackingCategorySection } from '@/features/packing/components/packing-category-section';
+import { PackingCategoryHeader } from '@/features/packing/components/packing-category-section';
+import {
+  PackingItemRow,
+  type PackingCheckboxIntent,
+} from '@/features/packing/components/packing-item-row';
 import { usePackedCelebration } from '@/features/packing/hooks/use-packed-celebration';
 import {
   filterPackingItems,
@@ -24,11 +29,17 @@ import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
+type PackSection = {
+  category: PackingCategory;
+  allItems: PackingItem[];
+  data: PackingItem[];
+};
+
 export function PackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeTrip } = useTrips();
+  const { activeTrip, togglePacked, markItemPurchased } = useTrips();
 
   const [filter, setFilter] = useState<PackingFilter>('all');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -50,6 +61,30 @@ export function PackScreen() {
     return groupItemsByCategory(filterPackingItems(activeTrip.items, filter));
   }, [activeTrip, filter]);
 
+  const sections = useMemo<PackSection[]>(
+    () =>
+      grouped.map(({ category, items }) => ({
+        category,
+        allItems: items,
+        data: collapsed[category] ? [] : items,
+      })),
+    [grouped, collapsed],
+  );
+
+  const checkboxIntent: PackingCheckboxIntent = filter === 'buy' ? 'purchased' : 'packed';
+
+  const handleCheckboxPress = useCallback(
+    (itemId: string) => {
+      if (filter === 'buy') {
+        markItemPurchased(itemId);
+        return;
+      }
+
+      togglePacked(itemId);
+    },
+    [filter, markItemPurchased, togglePacked],
+  );
+
   if (!activeTrip) {
     return (
       <AppScreen style={styles.emptyScreen}>
@@ -65,6 +100,8 @@ export function PackScreen() {
   const toggleCategory = (category: string) => {
     setCollapsed((current) => ({ ...current, [category]: !current[category] }));
   };
+
+  const listEmpty = activeTrip.items.length === 0 || grouped.length === 0;
 
   return (
     <AppScreen style={styles.screen}>
@@ -120,55 +157,63 @@ export function PackScreen() {
         />
       </View>
 
-      <ScrollView
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
         contentContainerStyle={[
           styles.listContent,
+          listEmpty && styles.listContentEmpty,
           { paddingBottom: Math.max(insets.bottom, 24) + 88 },
         ]}
-        showsVerticalScrollIndicator={false}>
-        {filter === 'buy' && buyCount > 0 ? (
-          <View style={[styles.shoppingBanner, { backgroundColor: `${theme.colors.buy}1A`, borderColor: `${theme.colors.buy}4D` }]}>
-            <Feather name="shopping-bag" size={16} color={theme.colors.buyForeground} />
-            <AppText variant="caption" style={{ color: theme.colors.buyForeground, flex: 1, lineHeight: 18 }}>
-              These are items Trove thinks you&apos;ll need to buy before you go. Toggle any item&apos;s &quot;Need to buy&quot; to manage this list.
-            </AppText>
-          </View>
-        ) : null}
-
-        {activeTrip.items.length === 0 ? (
+        ListHeaderComponent={
+          filter === 'buy' && buyCount > 0 ? (
+            <View style={[styles.shoppingBanner, { backgroundColor: `${theme.colors.buy}1A`, borderColor: `${theme.colors.buy}4D` }]}>
+              <Feather name="shopping-bag" size={16} color={theme.colors.buyForeground} />
+              <AppText variant="caption" style={{ color: theme.colors.buyForeground, flex: 1, lineHeight: 18 }}>
+                These are items Trove thinks you&apos;ll need to buy before you go. Toggle any item&apos;s &quot;Need to buy&quot; to manage this list.
+              </AppText>
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
           <View style={styles.listEmpty}>
             <Feather name="star" size={28} color={theme.colors.mutedForeground} />
             <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
-              Your packing list is empty. Add your first item to get started.
+              {activeTrip.items.length === 0
+                ? 'Your packing list is empty. Add your first item to get started.'
+                : filter === 'buy'
+                  ? "Nothing on your shopping list — you're all set."
+                  : filter === 'todo'
+                    ? 'Nothing left to pack here. Nice work!'
+                    : 'Nothing here. Nice work!'}
             </AppText>
-            <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
+            {activeTrip.items.length === 0 ? (
+              <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
+            ) : null}
           </View>
-        ) : grouped.length === 0 ? (
-          <View style={styles.listEmpty}>
-            <Feather name="star" size={28} color={theme.colors.mutedForeground} />
-            <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
-              {filter === 'buy'
-                ? "Nothing on your shopping list — you're all set."
-                : filter === 'todo'
-                  ? 'Nothing left to pack here. Nice work!'
-                  : 'Nothing here. Nice work!'}
-            </AppText>
-          </View>
-        ) : (
-          <View style={styles.sections}>
-            {grouped.map(({ category, items }) => (
-              <PackingCategorySection
-                key={category}
-                category={category}
-                items={items}
-                travelers={activeTrip.travelers}
-                collapsed={Boolean(collapsed[category])}
-                onToggleCollapsed={() => toggleCategory(category)}
-              />
-            ))}
+        }
+        renderSectionHeader={({ section }) => (
+          <PackingCategoryHeader
+            category={section.category}
+            items={section.allItems}
+            collapsed={Boolean(collapsed[section.category])}
+            onToggleCollapsed={() => toggleCategory(section.category)}
+          />
+        )}
+        renderItem={({ item }) => (
+          <View style={styles.itemWrap}>
+            <PackingItemRow
+              item={item}
+              travelers={activeTrip.travelers}
+              checkboxIntent={checkboxIntent}
+              onCheckboxPress={handleCheckboxPress}
+            />
           </View>
         )}
-      </ScrollView>
+        SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
+      />
 
       <Pressable
         accessibilityRole="button"
@@ -234,6 +279,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: screenPaddingHorizontal,
     paddingTop: 4,
   },
+  listContentEmpty: {
+    flexGrow: 1,
+  },
   shoppingBanner: {
     flexDirection: 'row',
     gap: 10,
@@ -254,8 +302,11 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingHorizontal: 12,
   },
-  sections: {
-    gap: 16,
+  itemWrap: {
+    marginBottom: 8,
+  },
+  sectionGap: {
+    height: 8,
   },
   fab: {
     position: 'absolute',
