@@ -14,7 +14,7 @@ export function createUuid(): string {
 }
 
 export function createPackingItemId(): string {
-  return `pack-item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createUuid();
 }
 
 export function ensureTripUuid(tripId: string): string {

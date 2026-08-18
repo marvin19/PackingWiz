@@ -12,6 +12,7 @@ import type { TripWeather, WeatherDay } from '@/domain/weather';
 
 /** Database row shapes — kept out of domain layer */
 
+/** Travelers, bags, and packing items use composite PK (trip_id, id) in Postgres. */
 export interface DbTripRow {
   id: string;
   user_id: string;

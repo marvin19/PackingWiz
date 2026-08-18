@@ -44,46 +44,52 @@ CREATE INDEX idx_trips_user_id ON public.trips (user_id);
 CREATE INDEX idx_trips_created_at ON public.trips (created_at DESC);
 
 -- ---------------------------------------------------------------------------
--- Travelers (domain Traveler.id preserved as text primary key)
+-- Travelers
+-- Domain Traveler.id is scoped to the trip (e.g. t-you, t-anna).
+-- Composite PK (trip_id, id) avoids global collisions across trips/users.
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.trip_travelers (
-  id TEXT PRIMARY KEY,
   trip_id UUID NOT NULL REFERENCES public.trips (id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
   name TEXT NOT NULL,
   role TEXT NOT NULL,
   age INTEGER,
   birth_date TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (trip_id, id)
 );
-
-CREATE INDEX idx_trip_travelers_trip_id ON public.trip_travelers (trip_id);
 
 -- ---------------------------------------------------------------------------
 -- Bags
--- owner_id references trip_travelers.id (nullable = shared bag)
+-- owner_id references a traveler on the same trip (nullable = shared bag).
+-- Composite FK prevents cross-trip owner references.
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.trip_bags (
-  id TEXT PRIMARY KEY,
   trip_id UUID NOT NULL REFERENCES public.trips (id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
   name TEXT NOT NULL,
   type TEXT NOT NULL,
-  owner_id TEXT REFERENCES public.trip_travelers (id) ON DELETE SET NULL,
+  owner_id TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (trip_id, id),
+  CONSTRAINT trip_bags_owner_same_trip_fkey
+    FOREIGN KEY (trip_id, owner_id)
+    REFERENCES public.trip_travelers (trip_id, id)
+    ON DELETE SET NULL
 );
-
-CREATE INDEX idx_trip_bags_trip_id ON public.trip_bags (trip_id);
 
 -- ---------------------------------------------------------------------------
 -- Packing items
--- assigned_to stores Traveler.id as text (nullable = shared/unassigned)
+-- assigned_to references a traveler on the same trip (nullable = shared).
+-- Composite PK + FK prevent cross-trip ID collisions and invalid assignments.
 -- ---------------------------------------------------------------------------
 CREATE TABLE public.packing_items (
-  id TEXT PRIMARY KEY,
   trip_id UUID NOT NULL REFERENCES public.trips (id) ON DELETE CASCADE,
+  id TEXT NOT NULL,
   name TEXT NOT NULL,
   quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 1),
   category TEXT NOT NULL,
@@ -93,10 +99,13 @@ CREATE TABLE public.packing_items (
   note TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (trip_id, id),
+  CONSTRAINT packing_items_assigned_same_trip_fkey
+    FOREIGN KEY (trip_id, assigned_to)
+    REFERENCES public.trip_travelers (trip_id, id)
+    ON DELETE SET NULL
 );
-
-CREATE INDEX idx_packing_items_trip_id ON public.packing_items (trip_id);
 
 -- ---------------------------------------------------------------------------
 -- Weather snapshot (1:1 with trip)
@@ -234,10 +243,10 @@ BEGIN
   v_sort := 0;
   FOR traveler IN SELECT value FROM jsonb_array_elements(COALESCE(payload->'travelers', '[]'::JSONB))
   LOOP
-    INSERT INTO public.trip_travelers (id, trip_id, name, role, age, birth_date, sort_order)
+    INSERT INTO public.trip_travelers (trip_id, id, name, role, age, birth_date, sort_order)
     VALUES (
-      traveler->>'id',
       v_trip_id,
+      traveler->>'id',
       traveler->>'name',
       traveler->>'role',
       NULLIF(traveler->>'age', '')::INTEGER,
@@ -250,10 +259,20 @@ BEGIN
   v_sort := 0;
   FOR bag IN SELECT value FROM jsonb_array_elements(COALESCE(payload->'bags', '[]'::JSONB))
   LOOP
-    INSERT INTO public.trip_bags (id, trip_id, name, type, owner_id, sort_order)
+    IF NULLIF(bag->>'ownerId', '') IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(COALESCE(payload->'travelers', '[]'::JSONB)) AS t(value)
+        WHERE t.value->>'id' = bag->>'ownerId'
+      )
+    THEN
+      RAISE EXCEPTION 'Bag owner % is not a traveler on this trip', bag->>'ownerId';
+    END IF;
+
+    INSERT INTO public.trip_bags (trip_id, id, name, type, owner_id, sort_order)
     VALUES (
-      bag->>'id',
       v_trip_id,
+      bag->>'id',
       bag->>'name',
       bag->>'type',
       NULLIF(bag->>'ownerId', ''),
@@ -265,11 +284,21 @@ BEGIN
   v_sort := 0;
   FOR item IN SELECT value FROM jsonb_array_elements(COALESCE(payload->'items', '[]'::JSONB))
   LOOP
+    IF NULLIF(item->>'assignedTo', '') IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM jsonb_array_elements(COALESCE(payload->'travelers', '[]'::JSONB)) AS t(value)
+        WHERE t.value->>'id' = item->>'assignedTo'
+      )
+    THEN
+      RAISE EXCEPTION 'Packing item assignee % is not a traveler on this trip', item->>'assignedTo';
+    END IF;
+
     INSERT INTO public.packing_items (
-      id, trip_id, name, quantity, category, packed, need_to_buy, assigned_to, note, sort_order
+      trip_id, id, name, quantity, category, packed, need_to_buy, assigned_to, note, sort_order
     ) VALUES (
-      item->>'id',
       v_trip_id,
+      item->>'id',
       item->>'name',
       COALESCE((item->>'quantity')::INTEGER, 1),
       item->>'category',

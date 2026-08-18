@@ -6,6 +6,15 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(url && key);
 }
 
+/** Supabase persistence is opt-in; mock remains the default development mode. */
+export function isSupabasePersistenceEnabled(): boolean {
+  return process.env.EXPO_PUBLIC_USE_SUPABASE?.trim() === 'true';
+}
+
 export function getPersistenceMode(): PersistenceMode {
-  return isSupabaseConfigured() ? 'supabase' : 'mock';
+  if (isSupabasePersistenceEnabled() && isSupabaseConfigured()) {
+    return 'supabase';
+  }
+
+  return 'mock';
 }

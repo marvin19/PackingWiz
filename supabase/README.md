@@ -58,6 +58,19 @@ All user-owned tables have Row Level Security enabled.
 
 Anonymous users receive a real `auth.users` row and are subject to the same policies.
 
+## Identity model
+
+Domain IDs for travelers, bags, and packing items are **not globally unique** in the app (e.g. `t-you`, `mock-item-1` reused across trips). The database uses:
+
+| Table | Primary key | Notes |
+|-------|-------------|--------|
+| `trips` | `id UUID` | Generated UUID on persist |
+| `trip_travelers` | `(trip_id, id)` | Domain `Traveler.id` scoped per trip |
+| `trip_bags` | `(trip_id, id)` | `owner_id` FK → `(trip_id, id)` on travelers |
+| `packing_items` | `(trip_id, id)` | `assigned_to` FK → `(trip_id, id)` on travelers |
+
+Cross-trip traveler references are rejected by composite foreign keys. New custom packing items get UUID domain IDs via `createPackingItemId()`.
+
 ## Atomic trip creation
 
 New trips are inserted via the `create_trip_with_details(jsonb)` RPC function, which runs in a single PostgreSQL transaction. If any insert fails, the entire trip graph is rolled back.
@@ -73,4 +86,9 @@ See the validation checklist in the project task description. Quick smoke test:
 
 ## Switching back to mock persistence
 
-Remove or leave empty `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. The app falls back to `MockTripRepository` with seed data.
+Mock mode is the default. Supabase is used only when **both** are true:
+
+- `EXPO_PUBLIC_USE_SUPABASE=true`
+- `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are set
+
+Leave `EXPO_PUBLIC_USE_SUPABASE` unset or set it to anything other than `true` to use `MockTripRepository` with seed data (even if Supabase credentials are present in `.env`).
