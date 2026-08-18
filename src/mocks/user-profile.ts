@@ -1,9 +1,11 @@
-export const mockUserProfile = {
+import type { UserProfile } from '@/domain/user-profile';
+
+export const mockUserProfile: UserProfile = {
   firstName: 'Anna',
   displayName: 'Alex Lindberg',
   email: 'alex@example.com',
   initials: 'AL',
-} as const;
+};
 
 export function getTimeBasedGreeting(): string {
   const hour = new Date().getHours();

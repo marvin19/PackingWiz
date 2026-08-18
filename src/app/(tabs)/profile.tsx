@@ -1,5 +1,5 @@
-import { ProfilePlaceholderScreen } from '@/features/profile/screens/profile-placeholder-screen';
+import { ProfileScreen } from '@/features/profile/screens/profile-screen';
 
 export default function ProfileRoute() {
-  return <ProfilePlaceholderScreen />;
+  return <ProfileScreen />;
 }
