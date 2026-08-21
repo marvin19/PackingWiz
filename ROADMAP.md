@@ -29,12 +29,6 @@ Foundation and Cleanup Phase 1 (Expo rebuild on `rebuild/expo-app` / merged to m
 
 ---
 
-## In progress / just completed
-
-- [x] **Developer harness** — `AGENTS.md`, `PRODUCT.md`, `ARCHITECTURE.md`, `ROADMAP.md`
-
----
-
 ## Next — Cleanup Phase 2
 
 - [ ] AI-generated vs **manually created** packing list (empty list path)
