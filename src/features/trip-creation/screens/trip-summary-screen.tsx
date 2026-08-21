@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 
 import { ScreenHeader } from '@/components/navigation/screen-header';
@@ -28,7 +28,8 @@ import { screenPaddingHorizontal } from '@/theme/spacing';
 export function TripSummaryScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { draft } = useTrips();
+  const { draft, commitDraftTrip } = useTrips();
+  const [manualCreateLoading, setManualCreateLoading] = useState(false);
 
   const days = useMemo(
     () => (draft.startDate && draft.endDate ? durationDays(draft.startDate, draft.endDate) : 0),
@@ -49,6 +50,24 @@ export function TripSummaryScreen() {
   const handleGenerate = () => {
     blurActiveElement();
     router.push('/trip/generating');
+  };
+
+  const handleManualCreate = async () => {
+    if (manualCreateLoading) {
+      return;
+    }
+
+    blurActiveElement();
+    setManualCreateLoading(true);
+
+    try {
+      await commitDraftTrip('manual');
+      router.replace('/(tabs)/pack');
+    } catch {
+      // Draft is preserved; repositoryError is set in TripsProvider.
+    } finally {
+      setManualCreateLoading(false);
+    }
   };
 
   return (
@@ -174,7 +193,12 @@ export function TripSummaryScreen() {
         ) : null}
       </ScrollView>
 
-      <SummaryFooter onPress={handleGenerate} />
+      <SummaryFooter
+        onGenerate={handleGenerate}
+        onManualCreate={handleManualCreate}
+        manualCreateLoading={manualCreateLoading}
+        manualCreateDisabled={manualCreateLoading}
+      />
     </AppScreen>
   );
 }

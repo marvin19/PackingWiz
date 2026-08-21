@@ -184,6 +184,7 @@ export function mapTripRow(row: DbTripRow): Trip {
     weather: weatherRow ? mapWeatherRow(weatherRow) : emptyWeather(),
     items,
     insights,
+    packingMode: row.generated ? 'generated' : 'manual',
     generated: row.generated,
     status: row.status as TripStatus,
     image: row.image ?? undefined,

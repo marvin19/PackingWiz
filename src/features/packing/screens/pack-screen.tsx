@@ -332,19 +332,26 @@ export function PackScreen() {
         }
         ListEmptyComponent={
           <View style={styles.listEmpty}>
-            <Feather name="star" size={28} color={theme.colors.mutedForeground} />
-            <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
-              {activeTrip.items.length === 0
-                ? 'Your packing list is empty. Add your first item to get started.'
-                : filter === 'buy'
+            <Feather name="briefcase" size={28} color={theme.colors.mutedForeground} />
+            {activeTrip.items.length === 0 ? (
+              <>
+                <AppText variant="bodySemiBold" style={styles.emptyTitle}>
+                  Your packing list is empty
+                </AppText>
+                <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
+                  Add your first item to start packing.
+                </AppText>
+                <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
+              </>
+            ) : (
+              <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
+                {filter === 'buy'
                   ? "Nothing on your shopping list — you're all set."
                   : filter === 'todo'
                     ? 'Nothing left to pack here. Nice work!'
                     : 'Nothing here. Nice work!'}
-            </AppText>
-            {activeTrip.items.length === 0 ? (
-              <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
-            ) : null}
+              </AppText>
+            )}
           </View>
         }
         renderSectionHeader={({ section }) => (
@@ -500,6 +507,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 12,
+  },
+  emptyTitle: {
+    textAlign: 'center',
   },
   itemWrap: {
     marginBottom: 8,
