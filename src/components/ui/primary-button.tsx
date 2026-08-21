@@ -23,11 +23,14 @@ export function PrimaryButton({ label, onPress, disabled = false }: PrimaryButto
         styles.button,
         {
           backgroundColor: theme.colors.primary,
+          paddingHorizontal: theme.spacing.xl,
+          minHeight: 44,
           opacity: disabled ? 0.4 : pressed ? 0.9 : 1,
         },
       ]}>
       <AppText
         variant="bodySmall"
+        numberOfLines={1}
         style={[styles.label, { color: theme.colors.primaryForeground, fontFamily: theme.fontFamilies.sansBold }]}>
         {label}
       </AppText>
