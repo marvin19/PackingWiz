@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { useTheme } from '@/hooks/use-theme';
+import { cardShadow } from '@/theme/shadows';
 
 type PlanNewTripCtaProps = {
   onPress: () => void;
@@ -20,7 +21,7 @@ export function PlanNewTripCta({ onPress }: PlanNewTripCtaProps) {
         styles.container,
         {
           backgroundColor: theme.colors.primary,
-          shadowColor: theme.colors.foreground,
+          ...cardShadow(theme.colors.foreground),
         },
         pressed && styles.pressed,
       ]}>
@@ -54,10 +55,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     padding: 16,
     borderRadius: 16,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
   },
   pressed: {
     opacity: 0.95,

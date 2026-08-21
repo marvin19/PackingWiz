@@ -9,9 +9,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <ServicesProvider>
-        <TripsProvider>
-          <ProfileProvider>{children}</ProfileProvider>
-        </TripsProvider>
+        <ProfileProvider>
+          <TripsProvider>{children}</TripsProvider>
+        </ProfileProvider>
       </ServicesProvider>
     </AuthProvider>
   );

@@ -3,29 +3,30 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AppText } from '@/components/ui/app-text';
-import { TRIP_TYPES } from '@/domain/catalog';
+import { getDestinationCountryLabel } from '@/domain/destination';
 import { durationDays, formatRange } from '@/domain/dates';
 import { packingStats } from '@/domain/packing-stats';
 import type { Trip } from '@/domain/trip';
 import { TripHeroImage } from '@/features/trips/components/trip-hero-image';
-import { getTripTypeIcon } from '@/features/trips/utils/trip-type-icon';
+import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTheme } from '@/hooks/use-theme';
+import { cardShadow } from '@/theme/shadows';
 
 type UpcomingTripCardProps = {
   trip: Trip;
   onPress: (tripId: string) => void;
 };
 
-function tripTypeLabel(trip: Trip): string {
-  const primaryType = trip.types[0];
-  return TRIP_TYPES.find((entry) => entry.id === primaryType)?.label ?? 'Trip';
+function tripContextBadgeLabel(trip: Trip): string {
+  return trip.tripContext[0] ?? 'Trip';
 }
 
 export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
   const theme = useTheme();
   const stats = packingStats(trip);
   const days = durationDays(trip.startDate, trip.endDate);
-  const typeIcon = getTripTypeIcon(trip.types[0] ?? 'vacation');
+  const typeIcon = getTripContextIcon(trip.tripContext[0]);
+  const country = getDestinationCountryLabel(trip.destination);
 
   return (
     <Pressable
@@ -37,7 +38,7 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
         {
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.border,
-          shadowColor: theme.colors.foreground,
+          ...cardShadow(theme.colors.foreground),
         },
         pressed && styles.pressed,
       ]}>
@@ -50,7 +51,7 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
           ]}>
           <Feather name={typeIcon} size={14} color={theme.colors.primary} />
           <AppText variant="caption" style={styles.typeBadgeText}>
-            {tripTypeLabel(trip)}
+            {tripContextBadgeLabel(trip)}
           </AppText>
         </View>
         <View style={styles.heroText}>
@@ -64,7 +65,7 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
           <View style={styles.locationRow}>
             <Feather name="map-pin" size={14} color="rgba(255,255,255,0.85)" />
             <AppText variant="bodySmall" style={styles.countryText}>
-              {trip.country}
+              {country}
             </AppText>
           </View>
         </View>
@@ -101,10 +102,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 24,
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
   },
   pressed: {
     opacity: 0.98,

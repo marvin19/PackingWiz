@@ -2,6 +2,7 @@ import type { PackingCategory } from '@/domain/packing-item';
 import type { TripFeatherIcon } from '@/features/trips/utils/trip-type-icon';
 
 const CATEGORY_ICONS: Record<PackingCategory, TripFeatherIcon> = {
+  Important: 'alert-triangle',
   Essentials: 'shield',
   Clothing: 'tag',
   Shoes: 'map-pin',

@@ -22,6 +22,8 @@ function createItem(
     needToBuy: overrides.needToBuy ?? false,
     assignedTo: overrides.assignedTo ?? null,
     note: overrides.note,
+    source: overrides.source ?? 'generated',
+    importantItemId: overrides.importantItemId,
   };
 }
 
@@ -35,9 +37,9 @@ function tripDurationDays(draft: TripDraft): number {
   return Math.max(1, Math.round(diffMs / (1000 * 60 * 60 * 24)) + 1);
 }
 
-function includesActivity(activities: string[], keyword: string): boolean {
+function includesContext(tags: string[], keyword: string): boolean {
   const lower = keyword.toLowerCase();
-  return activities.some((activity) => activity.toLowerCase().includes(lower));
+  return tags.some((tag) => tag.toLowerCase().includes(lower));
 }
 
 /**
@@ -48,6 +50,7 @@ export function buildMockPackingList(draft: TripDraft): PackingItem[] {
   const days = tripDurationDays(draft);
   const laundry = draft.laundry === 'yes';
   const shirtCount = laundry ? Math.min(days, 6) : Math.min(days, 8);
+  const tags = draft.tripContext;
 
   const items: PackingItem[] = [
     createItem('Passport', 'Essentials'),
@@ -78,7 +81,7 @@ export function buildMockPackingList(draft: TripDraft): PackingItem[] {
     createItem('Sunglasses', 'Weather'),
   ];
 
-  if (includesActivity(draft.activities, 'run') || includesActivity(draft.activities, 'marathon')) {
+  if (includesContext(tags, 'run') || includesContext(tags, 'marathon')) {
     items.push(
       createItem('Running shoes', 'Shoes'),
       createItem('Running shorts', 'Activities', { quantity: 2 }),
@@ -86,7 +89,7 @@ export function buildMockPackingList(draft: TripDraft): PackingItem[] {
     );
   }
 
-  if (includesActivity(draft.activities, 'beach') || includesActivity(draft.activities, 'swim')) {
+  if (includesContext(tags, 'beach') || includesContext(tags, 'swim')) {
     items.push(createItem('Swimwear', 'Activities', { quantity: 2 }));
   }
 
@@ -99,6 +102,7 @@ export function buildMockPackingList(draft: TripDraft): PackingItem[] {
 
 export function buildMockInsights(draft: TripDraft): string[] {
   const insights: string[] = [];
+  const tags = draft.tripContext;
 
   if (draft.laundry === 'yes') {
     insights.push(
@@ -106,7 +110,7 @@ export function buildMockInsights(draft: TripDraft): string[] {
     );
   }
 
-  if (includesActivity(draft.activities, 'run') || includesActivity(draft.activities, 'marathon')) {
+  if (includesContext(tags, 'run') || includesContext(tags, 'marathon')) {
     insights.push('Because you are running, we added race-day essentials to your list.');
   }
 

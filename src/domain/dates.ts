@@ -63,3 +63,31 @@ export function isEndBeforeStart(startIso: string, endIso: string): boolean {
   }
   return parseDate(endIso).getTime() < parseDate(startIso).getTime();
 }
+
+/** Profile / stale-notice copy for Important master list saves. */
+export function formatImportantUpdatedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const month = MONTHS_SHORT[date.getMonth()];
+  const day = date.getDate();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `Last updated ${month} ${day}, ${hours}:${minutes}`;
+}
+
+/** Stale Important notice body copy. */
+export function formatImportantUpdatedSentence(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return 'Your saved Important list has been updated since this packing list was created.';
+  }
+
+  const month = MONTHS_SHORT[date.getMonth()];
+  const day = date.getDate();
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `Your Important items were updated ${month} ${day} at ${hours}:${minutes}.`;
+}

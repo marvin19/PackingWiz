@@ -1,5 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,12 +10,14 @@ import { SectionTitle } from '@/components/ui/section-title';
 import { SettingsCard, SettingsDivider } from '@/components/ui/settings/settings-card';
 import { SettingsLinkRow } from '@/components/ui/settings/settings-link-row';
 import { SettingsToggleRow } from '@/components/ui/settings/settings-toggle-row';
+import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
 import { ProfileIdentityCard } from '@/features/profile/components/profile-identity-card';
 import { ProfileStatCard } from '@/features/profile/components/profile-stat-card';
 import {
   AddTravelerRow,
   TravelerProfileRow,
 } from '@/features/profile/components/traveler-profile-row';
+import { formatImportantUpdatedAt } from '@/domain/dates';
 import { profileTravelStats } from '@/features/profile/utils/profile-stats';
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
@@ -26,11 +29,70 @@ export function ProfileScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { trips } = useTrips();
-  const { preferences, savedTravelers, setPreference, addSavedTraveler } = useProfile();
+  const {
+    preferences,
+    savedTravelers,
+    importantItems,
+    isImportantConfigured,
+    isImportantEnabled,
+    importantUpdatedAt,
+    setPreference,
+    addSavedTraveler,
+    saveImportantItems,
+    setImportantEnabled,
+    resetImportantPromptDismissed,
+    consumeImportantEditorRequest,
+  } = useProfile();
+
+  const [importantSetupVisible, setImportantSetupVisible] = useState(false);
 
   const stats = useMemo(() => profileTravelStats(trips), [trips]);
 
   const metricHint = preferences.metricUnits ? 'Celsius, kilometers' : 'Fahrenheit, miles';
+
+  const importantHint = useMemo(() => {
+    if (!isImportantConfigured) {
+      return 'Keep your personal must-haves on every packing list';
+    }
+
+    const countLabel =
+      importantItems.length === 0
+        ? '0 items'
+        : `${importantItems.length} ${importantItems.length === 1 ? 'item' : 'items'}`;
+
+    if (!isImportantEnabled) {
+      return `${countLabel} · Turned off`;
+    }
+
+    if (importantUpdatedAt) {
+      return `${countLabel} · ${formatImportantUpdatedAt(importantUpdatedAt)}`;
+    }
+
+    return countLabel;
+  }, [importantItems.length, importantUpdatedAt, isImportantConfigured, isImportantEnabled]);
+
+  const importantInitialNames = useMemo(
+    () => importantItems.map((item) => item.name),
+    [importantItems],
+  );
+
+  const handleOpenImportantSetup = useCallback(() => {
+    resetImportantPromptDismissed();
+    setImportantSetupVisible(true);
+  }, [resetImportantPromptDismissed]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (consumeImportantEditorRequest()) {
+        resetImportantPromptDismissed();
+        setImportantSetupVisible(true);
+      }
+    }, [consumeImportantEditorRequest, resetImportantPromptDismissed]),
+  );
+
+  const handleSaveImportantItems = (names: string[]) => {
+    saveImportantItems(names);
+  };
 
   return (
     <AppScreen>
@@ -82,6 +144,18 @@ export function ProfileScreen() {
             ))}
             <SettingsDivider />
             <AddTravelerRow onPress={addSavedTraveler} />
+          </SettingsCard>
+        </View>
+
+        <View style={styles.section}>
+          <SectionTitle>Packing</SectionTitle>
+          <SettingsCard>
+            <SettingsLinkRow
+              icon={<Feather name="alert-triangle" size={16} color={theme.colors.important} />}
+              label="Important items"
+              hint={importantHint}
+              onPress={handleOpenImportantSetup}
+            />
           </SettingsCard>
         </View>
 
@@ -161,6 +235,16 @@ export function ProfileScreen() {
           PackingWiz · v1.0
         </AppText>
       </ScrollView>
+
+      <ImportantItemsSetupSheet
+        visible={importantSetupVisible}
+        initialNames={importantInitialNames}
+        isConfigured={isImportantConfigured}
+        isEnabled={isImportantEnabled}
+        onEnabledChange={setImportantEnabled}
+        onClose={() => setImportantSetupVisible(false)}
+        onSave={handleSaveImportantItems}
+      />
     </AppScreen>
   );
 }

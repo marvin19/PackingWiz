@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { getDestinationLabel } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
 import type { TripDraft } from '@/domain/trip-draft';
 import { useTheme } from '@/hooks/use-theme';
@@ -13,7 +14,7 @@ type ContinueDraftCtaProps = {
 
 export function ContinueDraftCta({ draft, onPress }: ContinueDraftCtaProps) {
   const theme = useTheme();
-  const title = draft.destination.trim() || 'Your trip in progress';
+  const title = getDestinationLabel(draft.destination).trim() || 'Your trip in progress';
   const subtitle =
     draft.startDate && draft.endDate
       ? formatRange(draft.startDate, draft.endDate)

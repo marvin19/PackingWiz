@@ -1,6 +1,10 @@
 import type { ImageSource } from 'expo-image';
 
-import type { Trip, TripTypeId } from '@/domain/trip';
+import type { Trip } from '@/domain/trip';
+import {
+  getTripContextIcon,
+  getTripContextTint,
+} from '@/features/trips/utils/trip-context-icon';
 
 /**
  * Local asset registry for trip hero images.
@@ -8,20 +12,6 @@ import type { Trip, TripTypeId } from '@/domain/trip';
  */
 const TRIP_IMAGE_BY_ID: Partial<Record<string, ImageSource>> = {
   // 'tokyo-kyoto': require('@/assets/images/trips/tokyo.png'),
-};
-
-const PLACEHOLDER_TINTS: Record<TripTypeId, string> = {
-  vacation: '#D4E8E6',
-  business: '#DDE3EA',
-  city: '#E0E4EC',
-  beach: '#E8DFCF',
-  outdoor: '#D8E6DA',
-  training: '#E2E6DE',
-  race: '#E5E0EC',
-  ski: '#DDE4EE',
-  camping: '#E0E8DA',
-  family: '#E8E4DC',
-  other: '#E5EAE9',
 };
 
 export function getTripImageSource(trip: Trip): ImageSource | null {
@@ -32,6 +22,10 @@ export function getTripImageSource(trip: Trip): ImageSource | null {
 }
 
 export function getTripPlaceholderTint(trip: Trip): string {
-  const primaryType = trip.types[0] ?? 'vacation';
-  return PLACEHOLDER_TINTS[primaryType];
+  const primaryTag = trip.tripContext[0];
+  return getTripContextTint(primaryTag);
+}
+
+export function getTripPrimaryIcon(trip: Trip) {
+  return getTripContextIcon(trip.tripContext[0]);
 }

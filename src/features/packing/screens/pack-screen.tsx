@@ -8,11 +8,19 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { getDestinationLabel } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
+import {
+  isImportantSnapshotStale,
+  isImportantPackingItem,
+} from '@/domain/important-snapshot';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStats } from '@/domain/packing-stats';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
 import { FilterPill } from '@/features/packing/components/filter-pill';
+import { ImportantItemsEmptyCard } from '@/features/packing/components/important-items-empty-card';
+import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
+import { ImportantSnapshotNotice } from '@/features/packing/components/important-snapshot-notice';
 import { PackedCelebration } from '@/features/packing/components/packed-celebration';
 import { PackingCategoryHeader } from '@/features/packing/components/packing-category-section';
 import {
@@ -25,9 +33,11 @@ import {
   groupItemsByCategory,
   type PackingFilter,
 } from '@/features/packing/utils/group-items';
+import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
+import { fabShadow } from '@/theme/shadows';
 
 type PackSection = {
   category: PackingCategory;
@@ -39,11 +49,28 @@ export function PackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeTrip, togglePacked, markItemPurchased } = useTrips();
+  const { activeTrip, activeTripId, togglePacked, markItemPurchased, injectImportantItemsIntoTrip, syncImportantSnapshotForTrip } =
+    useTrips();
+  const {
+    importantItems,
+    enabledImportantItems,
+    isImportantConfigured,
+    isImportantFeatureActive,
+    importantPromptDismissed,
+    importantMasterVersion,
+    importantUpdatedAt,
+    saveImportantItems,
+    dismissImportantPrompt,
+    requestOpenImportantEditor,
+    dismissImportantStaleNotice,
+    isImportantStaleNoticeDismissed,
+  } = useProfile();
 
   const [filter, setFilter] = useState<PackingFilter>('all');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState(false);
+  const [importantSetupVisible, setImportantSetupVisible] = useState(false);
+  const [dismissNoticeVisible, setDismissNoticeVisible] = useState(false);
 
   const stats = packingStats(activeTrip);
   const buyCount = activeTrip?.items.filter((item) => item.needToBuy).length ?? 0;
@@ -53,13 +80,41 @@ export function PackScreen() {
     stats.total,
   );
 
+  const showImportantSetup =
+    Boolean(activeTrip) && !isImportantConfigured && !importantPromptDismissed && filter === 'all';
+
+  const importantSnapshotStale = useMemo(() => {
+    if (!activeTrip || !isImportantFeatureActive) {
+      return false;
+    }
+
+    return isImportantSnapshotStale(enabledImportantItems, activeTrip.items);
+  }, [activeTrip, enabledImportantItems, isImportantFeatureActive]);
+
+  const showImportantStaleNotice = useMemo(() => {
+    if (!activeTrip || !importantSnapshotStale) {
+      return false;
+    }
+
+    return !isImportantStaleNoticeDismissed(activeTrip.id, importantMasterVersion);
+  }, [
+    activeTrip,
+    importantMasterVersion,
+    importantSnapshotStale,
+    isImportantStaleNoticeDismissed,
+  ]);
+
   const grouped = useMemo(() => {
     if (!activeTrip) {
       return [];
     }
 
-    return groupItemsByCategory(filterPackingItems(activeTrip.items, filter));
-  }, [activeTrip, filter]);
+    const visibleItems = isImportantFeatureActive
+      ? activeTrip.items
+      : activeTrip.items.filter((item) => !isImportantPackingItem(item));
+
+    return groupItemsByCategory(filterPackingItems(visibleItems, filter));
+  }, [activeTrip, filter, isImportantFeatureActive]);
 
   const sections = useMemo<PackSection[]>(
     () =>
@@ -69,6 +124,11 @@ export function PackScreen() {
         data: collapsed[category] ? [] : items,
       })),
     [grouped, collapsed],
+  );
+
+  const hasImportantSection = useMemo(
+    () => grouped.some((entry) => entry.category === 'Important'),
+    [grouped],
   );
 
   const checkboxIntent: PackingCheckboxIntent = filter === 'buy' ? 'purchased' : 'packed';
@@ -85,14 +145,65 @@ export function PackScreen() {
     [filter, markItemPurchased, togglePacked],
   );
 
+  const handleSaveImportantItems = useCallback(
+    (names: string[]) => {
+      if (!activeTrip) {
+        return;
+      }
+
+      const savedItems = saveImportantItems(names);
+      injectImportantItemsIntoTrip(activeTrip.id, savedItems);
+    },
+    [activeTrip, injectImportantItemsIntoTrip, saveImportantItems],
+  );
+
+  const handleDismissImportant = useCallback(() => {
+    dismissImportantPrompt();
+    setDismissNoticeVisible(true);
+  }, [dismissImportantPrompt]);
+
+  const handleOpenProfileImportant = useCallback(() => {
+    requestOpenImportantEditor();
+    router.navigate('/(tabs)/profile');
+  }, [requestOpenImportantEditor, router]);
+
+  const handleManageImportant = useCallback(() => {
+    handleOpenProfileImportant();
+  }, [handleOpenProfileImportant]);
+
+  const handleUpdateImportantSnapshot = useCallback(() => {
+    if (!activeTrip) {
+      return;
+    }
+
+    syncImportantSnapshotForTrip(activeTrip.id, importantItems);
+  }, [activeTrip, importantItems, syncImportantSnapshotForTrip]);
+
+  const handleKeepImportantSnapshot = useCallback(() => {
+    if (!activeTrip) {
+      return;
+    }
+
+    dismissImportantStaleNotice(activeTrip.id, importantMasterVersion);
+  }, [activeTrip, dismissImportantStaleNotice, importantMasterVersion]);
+
   if (!activeTrip) {
+    const isMissingActiveTrip = Boolean(activeTripId);
+
     return (
       <AppScreen style={styles.emptyScreen}>
-        <Feather name="star" size={32} color={theme.colors.mutedForeground} />
-        <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
-          No trip selected yet. Create a trip to see your packing list.
+        <Feather name="briefcase" size={32} color={theme.colors.mutedForeground} />
+        <AppText
+          variant="subheading"
+          style={{ fontFamily: theme.fontFamilies.displayExtraBold, textAlign: 'center' }}>
+          {isMissingActiveTrip ? 'Trip unavailable' : 'No trip selected'}
         </AppText>
-        <PrimaryButton label="Go to Trips" onPress={() => router.navigate('/(tabs)')} />
+        <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
+          {isMissingActiveTrip
+            ? 'This trip is no longer available. Choose another trip from Trips.'
+            : 'Choose a trip to view and manage its packing list.'}
+        </AppText>
+        <PrimaryButton label="Go to trips" onPress={() => router.navigate('/(tabs)')} />
       </AppScreen>
     );
   }
@@ -119,7 +230,7 @@ export function PackScreen() {
         <View style={styles.headerTop}>
           <View style={styles.headerCopy}>
             <AppText variant="title" numberOfLines={1} style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-              {activeTrip.destination}
+              {getDestinationLabel(activeTrip.destination)}
             </AppText>
             <AppText variant="bodySmall" color="mutedForeground">
               {formatRange(activeTrip.startDate, activeTrip.endDate)} · {stats.packed} of {stats.total} packed
@@ -168,14 +279,56 @@ export function PackScreen() {
           { paddingBottom: Math.max(insets.bottom, 24) + 88 },
         ]}
         ListHeaderComponent={
-          filter === 'buy' && buyCount > 0 ? (
-            <View style={[styles.shoppingBanner, { backgroundColor: `${theme.colors.buy}1A`, borderColor: `${theme.colors.buy}4D` }]}>
-              <Feather name="shopping-bag" size={16} color={theme.colors.buyForeground} />
-              <AppText variant="caption" style={{ color: theme.colors.buyForeground, flex: 1, lineHeight: 18 }}>
-                These are items Trove thinks you&apos;ll need to buy before you go. Toggle any item&apos;s &quot;Need to buy&quot; to manage this list.
-              </AppText>
-            </View>
-          ) : null
+          <>
+            {dismissNoticeVisible ? (
+              <View style={[styles.noticeBanner, { backgroundColor: theme.colors.secondary, borderColor: theme.colors.border }]}>
+                <View style={styles.noticeCopy}>
+                  <AppText variant="caption" color="secondaryForeground">
+                    Important items hidden. You can enable them anytime from{' '}
+                  </AppText>
+                  <Pressable
+                    accessibilityRole="link"
+                    accessibilityLabel="Open Profile important items"
+                    onPress={handleOpenProfileImportant}
+                    hitSlop={4}>
+                    <AppText
+                      variant="caption"
+                      color="primary"
+                      style={{ fontFamily: theme.fontFamilies.sansSemiBold, textDecorationLine: 'underline' }}>
+                      Profile
+                    </AppText>
+                  </Pressable>
+                  <AppText variant="caption" color="secondaryForeground">
+                    .
+                  </AppText>
+                </View>
+                <Pressable accessibilityRole="button" accessibilityLabel="Dismiss notice" onPress={() => setDismissNoticeVisible(false)}>
+                  <Feather name="x" size={14} color={theme.colors.mutedForeground} />
+                </Pressable>
+              </View>
+            ) : null}
+            {showImportantSetup ? (
+              <ImportantItemsEmptyCard
+                onAdd={() => setImportantSetupVisible(true)}
+                onDismiss={handleDismissImportant}
+              />
+            ) : null}
+            {showImportantStaleNotice && !hasImportantSection ? (
+              <ImportantSnapshotNotice
+                updatedAt={importantUpdatedAt}
+                onUpdate={handleUpdateImportantSnapshot}
+                onKeepCurrent={handleKeepImportantSnapshot}
+              />
+            ) : null}
+            {filter === 'buy' && buyCount > 0 ? (
+              <View style={[styles.shoppingBanner, { backgroundColor: `${theme.colors.buy}1A`, borderColor: `${theme.colors.buy}4D` }]}>
+                <Feather name="shopping-bag" size={16} color={theme.colors.buyForeground} />
+                <AppText variant="caption" style={{ color: theme.colors.buyForeground, flex: 1, lineHeight: 18 }}>
+                  These are items Trove thinks you&apos;ll need to buy before you go. Toggle any item&apos;s &quot;Need to buy&quot; to manage this list.
+                </AppText>
+              </View>
+            ) : null}
+          </>
         }
         ListEmptyComponent={
           <View style={styles.listEmpty}>
@@ -195,12 +348,34 @@ export function PackScreen() {
           </View>
         }
         renderSectionHeader={({ section }) => (
-          <PackingCategoryHeader
-            category={section.category}
-            items={section.allItems}
-            collapsed={Boolean(collapsed[section.category])}
-            onToggleCollapsed={() => toggleCategory(section.category)}
-          />
+          <View>
+            {section.category === 'Important' && showImportantStaleNotice ? (
+              <ImportantSnapshotNotice
+                updatedAt={importantUpdatedAt}
+                onUpdate={handleUpdateImportantSnapshot}
+                onKeepCurrent={handleKeepImportantSnapshot}
+              />
+            ) : null}
+            <PackingCategoryHeader
+              category={section.category}
+              items={section.allItems}
+              collapsed={Boolean(collapsed[section.category])}
+              onToggleCollapsed={() => toggleCategory(section.category)}
+              trailing={
+                section.category === 'Important' && isImportantConfigured ? (
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Manage important items in Profile"
+                    onPress={handleManageImportant}
+                    style={({ pressed }) => [styles.manageLink, pressed && styles.pressed]}>
+                    <AppText variant="caption" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+                      Manage
+                    </AppText>
+                  </Pressable>
+                ) : null
+              }
+            />
+          </View>
         )}
         renderItem={({ item }) => (
           <View style={styles.itemWrap}>
@@ -225,11 +400,18 @@ export function PackScreen() {
             backgroundColor: theme.colors.primary,
             bottom: Math.max(insets.bottom, 16) + 8,
           },
+          fabShadow(),
         ]}>
         <Feather name="plus" size={24} color={theme.colors.primaryForeground} />
       </Pressable>
 
       <AddItemSheet visible={adding} onClose={() => setAdding(false)} />
+      <ImportantItemsSetupSheet
+        visible={importantSetupVisible}
+        initialNames={[]}
+        onClose={() => setImportantSetupVisible(false)}
+        onSave={handleSaveImportantItems}
+      />
     </AppScreen>
   );
 }
@@ -282,6 +464,23 @@ const styles = StyleSheet.create({
   listContentEmpty: {
     flexGrow: 1,
   },
+  noticeBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  noticeCopy: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    rowGap: 2,
+  },
   shoppingBanner: {
     flexDirection: 'row',
     gap: 10,
@@ -308,6 +507,13 @@ const styles = StyleSheet.create({
   sectionGap: {
     height: 8,
   },
+  manageLink: {
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
   fab: {
     position: 'absolute',
     right: screenPaddingHorizontal,
@@ -316,10 +522,5 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
   },
 });

@@ -1,5 +1,6 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { clonePackingItem, cloneTrip } from '@/lib/clone-trip';
 import { createPackingItemId } from '@/lib/id';
 
 import type {
@@ -9,30 +10,59 @@ import type {
 } from '@/repositories/trips/trip-repository';
 import { mockSeedTrips } from '@/mocks/seed-trips';
 
+/** In-memory only — resets to seed trips on full app reload in mock mode. */
 export class MockTripRepository implements TripRepository {
   private trips: Trip[];
 
   constructor(initialTrips: Trip[] = mockSeedTrips) {
-    this.trips = initialTrips.map((trip) => ({ ...trip }));
+    this.trips = initialTrips.map((trip) => cloneTrip(trip));
   }
 
   async getAll(): Promise<Trip[]> {
-    return this.trips.map((trip) => ({ ...trip }));
+    return cloneTrips(this.trips);
   }
 
   async getById(id: string): Promise<Trip | null> {
     const trip = this.trips.find((entry) => entry.id === id);
-    return trip ? { ...trip } : null;
+    return trip ? cloneTrip(trip) : null;
   }
 
   async save(trip: Trip): Promise<Trip> {
     const index = this.trips.findIndex((entry) => entry.id === trip.id);
+    const normalized = cloneTrip(trip);
+
     if (index >= 0) {
-      this.trips[index] = { ...trip };
-    } else {
-      this.trips = [{ ...trip }, ...this.trips];
+      const existing = this.trips[index];
+      this.trips[index] = cloneTrip({
+        ...existing,
+        ...normalized,
+        status: normalized.status ?? existing.status,
+        travelers: normalized.travelers.length > 0 ? normalized.travelers : existing.travelers,
+        bags: normalized.bags.length > 0 ? normalized.bags : existing.bags,
+        weather: normalized.weather ?? existing.weather,
+        insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
+        items: normalized.items,
+      });
+      return cloneTrip(this.trips[index]);
     }
-    return { ...trip };
+
+    this.trips = [normalized, ...this.trips.map((entry) => cloneTrip(entry))];
+    return cloneTrip(normalized);
+  }
+
+  async updateTripPackingItems(tripId: string, items: PackingItem[]): Promise<Trip> {
+    const index = this.trips.findIndex((entry) => entry.id === tripId);
+    if (index < 0) {
+      throw new Error('Trip not found');
+    }
+
+    const existing = this.trips[index];
+    const updated = cloneTrip({
+      ...existing,
+      items: items.map((item) => clonePackingItem(item)),
+    });
+    this.trips[index] = updated;
+    return cloneTrip(updated);
   }
 
   async createTrip(trip: Trip): Promise<Trip> {
@@ -59,8 +89,10 @@ export class MockTripRepository implements TripRepository {
     }
 
     const updated: PackingItem = { ...trip.items[index], ...patch };
-    trip.items[index] = updated;
-    return { ...updated };
+    trip.items = trip.items.map((item, itemIndex) =>
+      itemIndex === index ? updated : clonePackingItem(item),
+    );
+    return clonePackingItem(updated);
   }
 
   async addPackingItem(tripId: string, input: NewPackingItemInput): Promise<PackingItem> {
@@ -80,8 +112,8 @@ export class MockTripRepository implements TripRepository {
       note: input.note,
     };
 
-    trip.items = [...trip.items, newItem];
-    return { ...newItem };
+    trip.items = [...trip.items.map(clonePackingItem), clonePackingItem(newItem)];
+    return clonePackingItem(newItem);
   }
 
   async deletePackingItem(tripId: string, itemId: string): Promise<void> {
@@ -90,8 +122,12 @@ export class MockTripRepository implements TripRepository {
       throw new Error('Trip not found');
     }
 
-    trip.items = trip.items.filter((item) => item.id !== itemId);
+    trip.items = trip.items.filter((item) => item.id !== itemId).map(clonePackingItem);
   }
+}
+
+function cloneTrips(trips: Trip[]): Trip[] {
+  return trips.map((trip) => cloneTrip(trip));
 }
 
 export const mockTripRepository = new MockTripRepository();

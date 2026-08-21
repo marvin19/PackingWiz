@@ -3,7 +3,7 @@ import { Feather } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import type { Trip } from '@/domain/trip';
-import { getTripTypeIcon } from '@/features/trips/utils/trip-type-icon';
+import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { getTripImageSource, getTripPlaceholderTint } from '@/features/trips/utils/trip-image';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -16,7 +16,7 @@ type TripHeroImageProps = {
 export function TripHeroImage({ trip, height = 160, compact = false }: TripHeroImageProps) {
   const theme = useTheme();
   const source = getTripImageSource(trip);
-  const typeIcon = getTripTypeIcon(trip.types[0] ?? 'vacation');
+  const typeIcon = getTripContextIcon(trip.tripContext[0]);
   const placeholderTint = getTripPlaceholderTint(trip);
 
   return (

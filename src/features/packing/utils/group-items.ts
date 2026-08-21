@@ -1,4 +1,9 @@
-import { PACKING_CATEGORY_ORDER, type PackingCategory, type PackingItem } from '@/domain/packing-item';
+import {
+  PACKING_CATEGORY_ORDER,
+  type PackingCategory,
+  type PackingItem,
+} from '@/domain/packing-item';
+import { isImportantPackingItem } from '@/domain/important-snapshot';
 
 export type PackingFilter = 'all' | 'todo' | 'buy';
 
@@ -13,13 +18,19 @@ export function filterPackingItems(items: PackingItem[], filter: PackingFilter):
   }
 }
 
+function resolvePackingCategory(item: PackingItem): PackingCategory {
+  if (isImportantPackingItem(item)) {
+    return 'Important';
+  }
+
+  return item.category;
+}
+
 export function groupItemsByCategory(
   items: PackingItem[],
 ): { category: PackingCategory; items: PackingItem[] }[] {
-  const filtered = items;
-
   return PACKING_CATEGORY_ORDER.map((category) => ({
     category,
-    items: filtered.filter((item) => item.category === category),
+    items: items.filter((item) => resolvePackingCategory(item) === category),
   })).filter((group) => group.items.length > 0);
 }

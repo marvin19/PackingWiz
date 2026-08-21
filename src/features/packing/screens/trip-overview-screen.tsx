@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -9,17 +9,12 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import { durationDays, formatDisplayDate, formatRange } from '@/domain/dates';
-import {
-  categoryBreakdown,
-  packingStats,
-  shoppingCount,
-  travelerBreakdown,
-} from '@/domain/packing-stats';
+import { categoryBreakdown, packingStats, shoppingCount } from '@/domain/packing-stats';
 import { OverviewBagRow } from '@/features/packing/components/overview-bag-row';
 import { OverviewCategoryRow } from '@/features/packing/components/overview-category-row';
 import { OverviewInsightCard } from '@/features/packing/components/overview-insight-card';
-import { OverviewTravelerRow } from '@/features/packing/components/overview-traveler-row';
 import { OverviewTripStat } from '@/features/packing/components/overview-trip-stat';
 import { SummarySection } from '@/features/trip-creation/components/summary-section';
 import { TripFact } from '@/features/trip-creation/components/trip-fact';
@@ -28,18 +23,19 @@ import { getAccommodationIcon } from '@/features/trip-creation/utils/catalog-ico
 import {
   getAccommodationLabel,
   getLaundryLabel,
-  getTripTypeLabels,
+  getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
-import { getTripTypeIcon } from '@/features/trips/utils/trip-type-icon';
+import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
+import { goBackOrReplace } from '@/lib/safe-navigation';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function TripOverviewScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeTrip } = useTrips();
+  const { activeTrip, activeTripId } = useTrips();
 
   const stats = useMemo(() => packingStats(activeTrip), [activeTrip]);
   const buyCount = useMemo(() => shoppingCount(activeTrip), [activeTrip]);
@@ -47,19 +43,23 @@ export function TripOverviewScreen() {
     () => (activeTrip ? categoryBreakdown(activeTrip) : []),
     [activeTrip],
   );
-  const perTraveler = useMemo(
-    () => (activeTrip ? travelerBreakdown(activeTrip) : []),
-    [activeTrip],
-  );
+
+  const handleBack = useCallback(() => {
+    goBackOrReplace('/(tabs)/pack');
+  }, []);
 
   if (!activeTrip) {
+    const emptyMessage = activeTripId
+      ? 'This trip is no longer available. Choose another trip from Trips.'
+      : 'No trip selected.';
+
     return (
       <AppScreen style={styles.emptyScreen}>
-        <ScreenHeader title="Trip overview" onBack={() => router.back()} border />
+        <ScreenHeader title="Trip overview" onBack={handleBack} border />
         <View style={styles.emptyBody}>
           <Feather name="star" size={32} color={theme.colors.mutedForeground} />
           <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
-            No trip selected.
+            {emptyMessage}
           </AppText>
           <PrimaryButton label="Go to Trips" onPress={() => router.navigate('/(tabs)')} />
         </View>
@@ -69,16 +69,14 @@ export function TripOverviewScreen() {
 
   const days = durationDays(activeTrip.startDate, activeTrip.endDate);
   const remaining = stats.total - stats.packed;
-  const firstType = activeTrip.types[0] ?? 'vacation';
-  const typeIcon = getTripTypeIcon(firstType);
+  const contextIcon = getTripContextIcon(activeTrip.tripContext[0]);
   const accommodationIcon = getAccommodationIcon(activeTrip.accommodation);
-  const multiTraveler = activeTrip.travelers.length > 1;
-  const activitiesLabel =
-    activeTrip.activities.length > 0 ? activeTrip.activities.join(', ') : 'None selected';
+  const destinationLabel = getDestinationLabel(activeTrip.destination);
+  const countryLabel = getDestinationCountryLabel(activeTrip.destination);
 
   return (
     <AppScreen style={styles.screen}>
-      <ScreenHeader title="Trip overview" onBack={() => router.back()} border />
+      <ScreenHeader title="Trip overview" onBack={handleBack} border />
 
       <ScrollView
         contentContainerStyle={[
@@ -88,10 +86,10 @@ export function TripOverviewScreen() {
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-            {activeTrip.destination}
+            {destinationLabel}
           </AppText>
           <AppText variant="bodySmall" color="mutedForeground">
-            {activeTrip.country ? `${activeTrip.country} · ` : ''}
+            {countryLabel ? `${countryLabel} · ` : ''}
             {formatRange(activeTrip.startDate, activeTrip.endDate)}
             {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
           </AppText>
@@ -145,9 +143,9 @@ export function TripOverviewScreen() {
         <View style={styles.factsGrid}>
           <View style={styles.factsRow}>
             <TripFact
-              icon={<Feather name={typeIcon} size={16} color={theme.colors.mutedForeground} />}
-              label={activeTrip.types.length > 1 ? 'Trip types' : 'Trip type'}
-              value={getTripTypeLabels(activeTrip.types)}
+              icon={<Feather name={contextIcon} size={16} color={theme.colors.mutedForeground} />}
+              label="Trip context"
+              value={getTripContextLabel(activeTrip.tripContext)}
             />
             <TripFact
               icon={<Feather name={accommodationIcon} size={16} color={theme.colors.mutedForeground} />}
@@ -157,20 +155,42 @@ export function TripOverviewScreen() {
           </View>
           <View style={styles.factsRow}>
             <TripFact
+              icon={<Feather name="users" size={16} color={theme.colors.mutedForeground} />}
+              label="Travelers"
+              value={`${activeTrip.travelers.length} ${activeTrip.travelers.length === 1 ? 'person' : 'people'}`}
+            />
+            <TripFact
               icon={<Feather name="droplet" size={16} color={theme.colors.mutedForeground} />}
               label="Laundry"
               value={getLaundryLabel(activeTrip.laundry)}
             />
-            <TripFact
-              icon={<Feather name="award" size={16} color={theme.colors.mutedForeground} />}
-              label="Activities"
-              value={activitiesLabel}
-            />
           </View>
         </View>
 
+        {activeTrip.tripContext.length > 0 ? (
+          <SummarySection title="Trip context">
+            <View style={styles.chipRow}>
+              {activeTrip.tripContext.map((tag) => (
+                <View
+                  key={tag}
+                  style={[
+                    styles.chip,
+                    {
+                      backgroundColor: theme.colors.secondary,
+                      borderColor: theme.colors.border,
+                    },
+                  ]}>
+                  <AppText variant="bodySmall" color="secondaryForeground">
+                    {tag}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          </SummarySection>
+        ) : null}
+
         {activeTrip.insights.length > 0 ? (
-          <SummarySection title="Why Trove packed this">
+          <SummarySection title="Why PackingWiz packed this">
             <View style={styles.stack}>
               {activeTrip.insights.map((insight, index) => (
                 <OverviewInsightCard key={`${index}-${insight}`} text={insight} />
@@ -182,16 +202,6 @@ export function TripOverviewScreen() {
         <View style={styles.weatherSection}>
           <WeatherCard weather={activeTrip.weather} />
         </View>
-
-        {multiTraveler && perTraveler.length > 0 ? (
-          <SummarySection title="By traveler">
-            <View style={styles.stack}>
-              {perTraveler.map((entry) => (
-                <OverviewTravelerRow key={entry.id} progress={entry} />
-              ))}
-            </View>
-          </SummarySection>
-        ) : null}
 
         {activeTrip.bags.length > 0 ? (
           <SummarySection title="Bags">
@@ -274,6 +284,17 @@ const styles = StyleSheet.create({
   factsRow: {
     flexDirection: 'row',
     gap: 12,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
   weatherSection: {
     marginBottom: 20,

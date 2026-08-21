@@ -1,9 +1,9 @@
 import type { Traveler } from '@/domain/traveler';
+import { createDestinationFromText } from '@/domain/destination';
 
 export const WIZARD_STEP_TITLES = [
   'Where are you going?',
-  'What kind of trip?',
-  'What will you do?',
+  'What kind of trip is this?',
   'Where are you staying?',
   "Who's coming?",
   'What are you packing in?',
@@ -18,6 +18,10 @@ export const DESTINATION_SUGGESTIONS = [
   { destination: 'Chamonix', country: 'France' },
   { destination: 'Bali', country: 'Indonesia' },
 ] as const;
+
+export function suggestionToDestination(suggestion: (typeof DESTINATION_SUGGESTIONS)[number]) {
+  return createDestinationFromText(suggestion.destination, suggestion.country);
+}
 
 export const TRAVELER_PRESETS: { label: string; travelers: Traveler[] }[] = [
   { label: 'Solo', travelers: [{ id: 't-you', name: 'You', role: 'Adult' }] },

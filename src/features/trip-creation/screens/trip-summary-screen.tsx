@@ -6,6 +6,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { ScreenHeader } from '@/components/navigation/screen-header';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
+import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import { durationDays, formatRange } from '@/domain/dates';
 import { SummaryFooter } from '@/features/trip-creation/components/summary-footer';
 import { SummarySection } from '@/features/trip-creation/components/summary-section';
@@ -16,11 +17,12 @@ import {
   getAccommodationLabel,
   getLaundryLabel,
   getTravelerCountLabel,
-  getTripTypeLabels,
+  getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
-import { getTripTypeIcon } from '@/features/trips/utils/trip-type-icon';
+import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTheme } from '@/hooks/use-theme';
 import { useTrips } from '@/hooks/use-trips';
+import { blurActiveElement } from '@/lib/blur-active-element';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function TripSummaryScreen() {
@@ -33,16 +35,19 @@ export function TripSummaryScreen() {
     [draft.endDate, draft.startDate],
   );
 
-  const firstType = draft.types[0] ?? 'vacation';
-  const typeIcon = getTripTypeIcon(firstType);
+  const destinationLabel = getDestinationLabel(draft.destination);
+  const countryLabel = getDestinationCountryLabel(draft.destination);
+  const contextIcon = getTripContextIcon(draft.tripContext[0]);
   const accommodationIcon = getAccommodationIcon(draft.accommodation ?? 'hotel');
-  const weatherKey = `${draft.destination}-${draft.startDate}-${draft.endDate}-${draft.country}`;
+  const weatherKey = `${destinationLabel}-${draft.startDate}-${draft.endDate}-${countryLabel}`;
 
   const handleBack = () => {
+    blurActiveElement();
     router.replace('/trip/create');
   };
 
   const handleGenerate = () => {
+    blurActiveElement();
     router.push('/trip/generating');
   };
 
@@ -55,10 +60,10 @@ export function TripSummaryScreen() {
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-            {draft.destination || 'Your trip'}
+            {destinationLabel || 'Your trip'}
           </AppText>
           <AppText variant="bodySmall" color="mutedForeground" style={styles.heroMeta}>
-            {draft.country ? `${draft.country} · ` : ''}
+            {countryLabel ? `${countryLabel} · ` : ''}
             {formatRange(draft.startDate, draft.endDate)}
             {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
           </AppText>
@@ -67,9 +72,9 @@ export function TripSummaryScreen() {
         <View style={styles.factsGrid}>
           <View style={styles.factsRow}>
             <TripFact
-              icon={<Feather name={typeIcon} size={16} color={theme.colors.mutedForeground} />}
-              label={draft.types.length > 1 ? 'Trip types' : 'Trip type'}
-              value={getTripTypeLabels(draft.types)}
+              icon={<Feather name={contextIcon} size={16} color={theme.colors.mutedForeground} />}
+              label="Trip context"
+              value={getTripContextLabel(draft.tripContext)}
             />
             <TripFact
               icon={<Feather name={accommodationIcon} size={16} color={theme.colors.mutedForeground} />}
@@ -91,12 +96,12 @@ export function TripSummaryScreen() {
           </View>
         </View>
 
-        {draft.activities.length > 0 ? (
-          <SummarySection title="Activities">
+        {draft.tripContext.length > 0 ? (
+          <SummarySection title="Trip context">
             <View style={styles.chipRow}>
-              {draft.activities.map((activity) => (
+              {draft.tripContext.map((tag) => (
                 <View
-                  key={activity}
+                  key={tag}
                   style={[
                     styles.chip,
                     {
@@ -105,7 +110,7 @@ export function TripSummaryScreen() {
                     },
                   ]}>
                   <AppText variant="bodySmall" color="secondaryForeground">
-                    {activity}
+                    {tag}
                   </AppText>
                 </View>
               ))}

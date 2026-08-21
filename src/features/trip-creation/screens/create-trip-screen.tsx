@@ -14,22 +14,24 @@ import { AppText } from '@/components/ui/app-text';
 import { BAG_TYPES } from '@/domain/catalog';
 import type { Bag, BagType } from '@/domain/bag';
 import type { Traveler, TravelerRole } from '@/domain/traveler';
-import type { AccommodationId, LaundryOption, TripTypeId } from '@/domain/trip';
+import type { AccommodationId, LaundryOption } from '@/domain/trip';
+import { findTripContextTag, tripContextIncludes } from '@/domain/trip-context-tags';
 import { WizardFooter } from '@/features/trip-creation/components/wizard-footer';
 import { WizardProgress } from '@/features/trip-creation/components/wizard-progress';
 import { AccommodationStep } from '@/features/trip-creation/components/steps/accommodation-step';
-import { ActivitiesStep } from '@/features/trip-creation/components/steps/activities-step';
 import { BagsStep } from '@/features/trip-creation/components/steps/bags-step';
 import { DestinationStep } from '@/features/trip-creation/components/steps/destination-step';
 import { NoteStep } from '@/features/trip-creation/components/steps/note-step';
 import { TravelersStep } from '@/features/trip-creation/components/steps/travelers-step';
-import { TripTypesStep } from '@/features/trip-creation/components/steps/trip-types-step';
+import { TripContextStep } from '@/features/trip-creation/components/steps/trip-context-step';
 import { WIZARD_STEP_COUNT, WIZARD_STEP_TITLES } from '@/features/trip-creation/constants';
 import {
   canProceedFromStep,
   wizardContinueLabel,
 } from '@/features/trip-creation/utils/wizard-validation';
 import { useTrips } from '@/hooks/use-trips';
+import { blurActiveElement } from '@/lib/blur-active-element';
+import { goBackOrReplace } from '@/lib/safe-navigation';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function CreateTripScreen() {
@@ -48,17 +50,19 @@ export function CreateTripScreen() {
   );
 
   const handleBack = useCallback(() => {
+    blurActiveElement();
     if (step === 0) {
-      router.back();
+      goBackOrReplace('/(tabs)');
       return;
     }
     setStep((current) => current - 1);
-  }, [router, setStep, step]);
+  }, [setStep, step]);
 
   const handleContinue = useCallback(() => {
     if (!canContinue) {
       return;
     }
+    blurActiveElement();
     if (step === WIZARD_STEP_COUNT - 1) {
       markDraftReachedSummary();
       router.push('/trip/summary');
@@ -67,36 +71,30 @@ export function CreateTripScreen() {
     setStep((current) => current + 1);
   }, [canContinue, markDraftReachedSummary, router, setStep, step]);
 
-  const toggleType = useCallback(
-    (typeId: TripTypeId) => {
-      setDraft({
-        types: draft.types.includes(typeId)
-          ? draft.types.filter((entry) => entry !== typeId)
-          : [...draft.types, typeId],
-      });
-    },
-    [draft.types, setDraft],
-  );
-
-  const toggleActivity = useCallback(
-    (activity: string) => {
-      setDraft({
-        activities: draft.activities.includes(activity)
-          ? draft.activities.filter((entry) => entry !== activity)
-          : [...draft.activities, activity],
-      });
-    },
-    [draft.activities, setDraft],
-  );
-
-  const addActivity = useCallback(
-    (activity: string) => {
-      if (draft.activities.includes(activity)) {
+  const toggleTripContextTag = useCallback(
+    (tag: string) => {
+      const existing = findTripContextTag(draft.tripContext, tag);
+      if (existing) {
+        setDraft({
+          tripContext: draft.tripContext.filter((entry) => entry !== existing),
+        });
         return;
       }
-      setDraft({ activities: [...draft.activities, activity] });
+
+      setDraft({ tripContext: [...draft.tripContext, tag] });
     },
-    [draft.activities, setDraft],
+    [draft.tripContext, setDraft],
+  );
+
+  const addTripContextTag = useCallback(
+    (tag: string) => {
+      const trimmed = tag.trim();
+      if (!trimmed || tripContextIncludes(draft.tripContext, trimmed)) {
+        return;
+      }
+      setDraft({ tripContext: [...draft.tripContext, trimmed] });
+    },
+    [draft.tripContext, setDraft],
   );
 
   const applyPreset = useCallback(
@@ -167,16 +165,14 @@ export function CreateTripScreen() {
       case 0:
         return <DestinationStep draft={draft} onChange={setDraft} />;
       case 1:
-        return <TripTypesStep draft={draft} onToggleType={toggleType} />;
-      case 2:
         return (
-          <ActivitiesStep
+          <TripContextStep
             draft={draft}
-            onToggleActivity={toggleActivity}
-            onAddActivity={addActivity}
+            onToggleTag={toggleTripContextTag}
+            onAddTag={addTripContextTag}
           />
         );
-      case 3:
+      case 2:
         return (
           <AccommodationStep
             draft={draft}
@@ -184,7 +180,7 @@ export function CreateTripScreen() {
             onSelectLaundry={(laundry: LaundryOption) => setDraft({ laundry })}
           />
         );
-      case 4:
+      case 3:
         return (
           <TravelersStep
             draft={draft}
@@ -193,7 +189,7 @@ export function CreateTripScreen() {
             onRemoveTraveler={removeTraveler}
           />
         );
-      case 5:
+      case 4:
         return (
           <BagsStep
             draft={draft}
@@ -202,7 +198,7 @@ export function CreateTripScreen() {
             onRemoveBag={removeBag}
           />
         );
-      case 6:
+      case 5:
         return <NoteStep draft={draft} onChangeNote={(note) => setDraft({ note })} />;
       default:
         return null;

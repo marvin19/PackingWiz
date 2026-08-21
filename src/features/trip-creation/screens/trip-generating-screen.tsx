@@ -7,10 +7,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { getDestinationLabel } from '@/domain/destination';
 import { GeneratingStep } from '@/features/trip-creation/components/generating-step';
 import { getGenerationStepStatus } from '@/features/trip-creation/constants/generation';
 import { useTripGeneration } from '@/features/trip-creation/hooks/use-trip-generation';
 import { useTrips } from '@/hooks/use-trips';
+import { blurActiveElement } from '@/lib/blur-active-element';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
@@ -19,7 +21,7 @@ export function TripGeneratingScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { draft } = useTrips();
-  const [destinationLabel] = useState(draft.destination);
+  const [destinationLabel] = useState(() => getDestinationLabel(draft.destination));
   const { activeStep, status, errorMessage, steps, start, retry, isReadyToFinish, finishDelayMs } =
     useTripGeneration();
 
@@ -33,6 +35,7 @@ export function TripGeneratingScreen() {
     }
 
     const timer = setTimeout(() => {
+      blurActiveElement();
       router.replace('/(tabs)/pack');
     }, finishDelayMs);
 
@@ -40,6 +43,7 @@ export function TripGeneratingScreen() {
   }, [finishDelayMs, isReadyToFinish, router]);
 
   const handleBackToSummary = () => {
+    blurActiveElement();
     router.replace('/trip/summary');
   };
 

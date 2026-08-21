@@ -1,14 +1,16 @@
-import type { AccommodationId, LaundryOption, TripTypeId } from '@/domain/trip';
+import { emptyDestination } from '@/domain/destination';
+import type { AccommodationId, LaundryOption } from '@/domain/trip';
 import type { Bag } from '@/domain/bag';
+import type { Destination } from '@/domain/destination';
 import type { Traveler } from '@/domain/traveler';
 
+export { emptyDestination } from '@/domain/destination';
+
 export interface TripDraft {
-  destination: string;
-  country: string;
+  destination: Destination;
   startDate: string;
   endDate: string;
-  types: TripTypeId[];
-  activities: string[];
+  tripContext: string[];
   accommodation: AccommodationId | null;
   laundry: LaundryOption | null;
   travelers: Traveler[];
@@ -18,12 +20,10 @@ export interface TripDraft {
 
 export function createEmptyTripDraft(): TripDraft {
   return {
-    destination: '',
-    country: '',
+    destination: emptyDestination(),
     startDate: '',
     endDate: '',
-    types: [],
-    activities: [],
+    tripContext: [],
     accommodation: null,
     laundry: null,
     travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],

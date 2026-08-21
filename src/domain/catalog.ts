@@ -1,4 +1,4 @@
-import type { AccommodationId, LaundryOption, TripTypeId } from '@/domain/trip';
+import type { AccommodationId, LaundryOption } from '@/domain/trip';
 import type { BagType } from '@/domain/bag';
 
 export interface CatalogOption<T extends string = string> {
@@ -7,34 +7,35 @@ export interface CatalogOption<T extends string = string> {
   icon: string;
 }
 
-export const TRIP_TYPES: CatalogOption<TripTypeId>[] = [
-  { id: 'vacation', label: 'Vacation', icon: 'palm' },
-  { id: 'business', label: 'Business', icon: 'briefcase' },
-  { id: 'city', label: 'City break', icon: 'building' },
-  { id: 'beach', label: 'Beach', icon: 'umbrella' },
-  { id: 'outdoor', label: 'Outdoor', icon: 'mountain' },
-  { id: 'training', label: 'Training', icon: 'dumbbell' },
-  { id: 'race', label: 'Race', icon: 'medal' },
-  { id: 'ski', label: 'Ski', icon: 'snowflake' },
-  { id: 'camping', label: 'Camping', icon: 'tent' },
-  { id: 'family', label: 'Family', icon: 'users' },
-  { id: 'other', label: 'Other', icon: 'sparkles' },
-];
-
-export const ACTIVITIES = [
-  'Sightseeing',
-  'Hiking',
-  'Running',
-  'Half marathon',
-  'Gym',
-  'Swimming',
+/** Curated tags shown by default on the Trip Context step */
+export const TRIP_CONTEXT_PRIMARY_TAGS = [
+  'Vacation',
+  'Business',
+  'City break',
   'Beach',
-  'Cycling',
+  'Hiking',
+  'Family trip',
+  'Training',
   'Skiing',
-  'Business meetings',
-  'Formal dinner',
-  'Nightlife',
+  'Camping',
 ] as const;
+
+/** Additional known tags available through Add tags */
+export const TRIP_CONTEXT_EXTENDED_TAGS = [
+  'Half marathon',
+  'Running',
+  'Cycling',
+  'Wedding',
+  'Nice dinners',
+] as const;
+
+export const TRIP_CONTEXT_ALL_TAGS = [
+  ...TRIP_CONTEXT_PRIMARY_TAGS,
+  ...TRIP_CONTEXT_EXTENDED_TAGS,
+] as const;
+
+/** @deprecated Use TRIP_CONTEXT_ALL_TAGS */
+export const TRIP_CONTEXT_SUGGESTIONS = TRIP_CONTEXT_ALL_TAGS;
 
 export const ACCOMMODATIONS: CatalogOption<AccommodationId>[] = [
   { id: 'hotel', label: 'Hotel', icon: 'hotel' },

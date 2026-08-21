@@ -96,3 +96,15 @@ export function findActiveTrip(trips: Trip[], activeTripId: string | null): Trip
   }
   return trips.find((trip) => trip.id === activeTripId) ?? null;
 }
+
+/** Keeps activeTripId only when that trip exists — never falls back to a seed/default trip. */
+export function reconcileActiveTripId(
+  activeTripId: string | null,
+  trips: Trip[],
+): string | null {
+  if (!activeTripId) {
+    return null;
+  }
+
+  return trips.some((trip) => trip.id === activeTripId) ? activeTripId : null;
+}

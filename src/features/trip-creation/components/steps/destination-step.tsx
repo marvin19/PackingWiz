@@ -5,9 +5,16 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppTextInput, Field } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
 import { DateField } from '@/components/ui/date-field';
+import {
+  createDestinationFromText,
+  getDestinationLabel,
+} from '@/domain/destination';
 import { durationDays, parseDate } from '@/domain/dates';
 import type { TripDraft } from '@/domain/trip-draft';
-import { DESTINATION_SUGGESTIONS } from '@/features/trip-creation/constants';
+import {
+  DESTINATION_SUGGESTIONS,
+  suggestionToDestination,
+} from '@/features/trip-creation/constants';
 import { useTheme } from '@/hooks/use-theme';
 
 type DestinationStepProps = {
@@ -32,8 +39,15 @@ export function DestinationStep({ draft, onChange }: DestinationStepProps) {
             style={styles.searchIcon}
           />
           <AppTextInput
-            value={draft.destination}
-            onChangeText={(destination) => onChange({ destination })}
+            value={getDestinationLabel(draft.destination)}
+            onChangeText={(displayName) =>
+              onChange({
+                destination: createDestinationFromText(
+                  displayName,
+                  draft.destination.countryName,
+                ),
+              })
+            }
             placeholder="Search a city or country"
             focused={destinationFocused}
             onFocus={() => setDestinationFocused(true)}
@@ -50,8 +64,7 @@ export function DestinationStep({ draft, onChange }: DestinationStepProps) {
               accessibilityLabel={`Use ${suggestion.destination}`}
               onPress={() =>
                 onChange({
-                  destination: suggestion.destination,
-                  country: suggestion.country,
+                  destination: suggestionToDestination(suggestion),
                 })
               }
               style={({ pressed }) => [

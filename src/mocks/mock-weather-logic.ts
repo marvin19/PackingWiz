@@ -1,3 +1,4 @@
+import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { TripDraft } from '@/domain/trip-draft';
 import type { TripWeather } from '@/domain/weather';
 
@@ -9,13 +10,19 @@ function daysUntilStart(startDate: string): number {
   return Math.round((start.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
+function destinationPlaceText(draft: TripDraft): string {
+  const label = getDestinationLabel(draft.destination);
+  const country = getDestinationCountryLabel(draft.destination);
+  return `${label} ${country}`.trim().toLowerCase();
+}
+
 function isHotDestination(draft: TripDraft): boolean {
-  const place = `${draft.destination} ${draft.country}`.toLowerCase();
+  const place = destinationPlaceText(draft);
   return ['bali', 'mallorca', 'hawaii', 'miami', 'phuket'].some((hot) => place.includes(hot));
 }
 
 function isColdDestination(draft: TripDraft): boolean {
-  const place = `${draft.destination} ${draft.country}`.toLowerCase();
+  const place = destinationPlaceText(draft);
   return ['chamonix', 'alps', 'iceland', 'hokkaido'].some((cold) => place.includes(cold));
 }
 

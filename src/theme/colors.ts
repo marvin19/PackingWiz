@@ -35,6 +35,9 @@ export const colors = {
   buy: '#D4A054',
   /** oklch(0.34 0.08 62) */
   buyForeground: '#6B4E1F',
+  /** Warm amber attention — personal must-haves (distinct from shopping buy badge) */
+  important: '#C9923E',
+  importantForeground: '#6B4E1F',
   /** oklch(0.6 0.11 155) */
   success: '#4A9B6E',
 } as const;

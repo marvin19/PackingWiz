@@ -107,7 +107,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
           />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-            {PACKING_CATEGORY_ORDER.map((entry) => {
+            {PACKING_CATEGORY_ORDER.filter((entry) => entry !== 'Important').map((entry) => {
               const selected = entry === category;
               return (
                 <Pressable

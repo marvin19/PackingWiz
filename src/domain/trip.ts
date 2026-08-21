@@ -1,20 +1,8 @@
 import type { Bag } from '@/domain/bag';
+import type { Destination } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
 import type { TripWeather } from '@/domain/weather';
-
-export type TripTypeId =
-  | 'vacation'
-  | 'business'
-  | 'city'
-  | 'beach'
-  | 'outdoor'
-  | 'training'
-  | 'race'
-  | 'ski'
-  | 'camping'
-  | 'family'
-  | 'other';
 
 export type AccommodationId =
   | 'hotel'
@@ -31,12 +19,11 @@ export type TripStatus = 'upcoming' | 'past';
 export interface Trip {
   id: string;
   title: string;
-  destination: string;
-  country: string;
+  destination: Destination;
   startDate: string;
   endDate: string;
-  types: TripTypeId[];
-  activities: string[];
+  /** Combined trip-context tags (suggested + custom) */
+  tripContext: string[];
   accommodation: AccommodationId;
   laundry: LaundryOption;
   travelers: Traveler[];

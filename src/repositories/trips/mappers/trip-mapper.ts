@@ -1,4 +1,6 @@
 import type { Bag } from '@/domain/bag';
+import type { Destination } from '@/domain/destination';
+import { createDestinationFromText, getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
 import type {
@@ -6,7 +8,6 @@ import type {
   LaundryOption,
   Trip,
   TripStatus,
-  TripTypeId,
 } from '@/domain/trip';
 import type { TripWeather, WeatherDay } from '@/domain/weather';
 
@@ -130,6 +131,7 @@ export function mapPackingItemRow(row: DbPackingItemRow): PackingItem {
     needToBuy: row.need_to_buy,
     assignedTo: row.assigned_to,
     note: row.note ?? undefined,
+    source: 'generated',
   };
 }
 
@@ -146,6 +148,18 @@ function mapWeatherRow(row: DbWeatherRow): TripWeather {
   };
 }
 
+function mapDestinationFromRow(row: DbTripRow): Destination {
+  return createDestinationFromText(row.destination, row.country || undefined);
+}
+
+function mapTripContextFromRow(row: DbTripRow): string[] {
+  if (row.activities && row.activities.length > 0) {
+    return row.activities;
+  }
+
+  return (row.types ?? []).map((type) => type.replace(/_/g, ' '));
+}
+
 export function mapTripRow(row: DbTripRow): Trip {
   const travelers = sortByOrder(row.trip_travelers ?? []).map(mapTravelerRow);
   const bags = sortByOrder(row.trip_bags ?? []).map(mapBagRow);
@@ -158,12 +172,10 @@ export function mapTripRow(row: DbTripRow): Trip {
   return {
     id: row.id,
     title: row.title,
-    destination: row.destination,
-    country: row.country,
+    destination: mapDestinationFromRow(row),
     startDate: row.start_date,
     endDate: row.end_date,
-    types: (row.types ?? []) as TripTypeId[],
-    activities: row.activities ?? [],
+    tripContext: mapTripContextFromRow(row),
     accommodation: row.accommodation as AccommodationId,
     laundry: row.laundry as LaundryOption,
     travelers,
@@ -193,12 +205,12 @@ export function tripToCreatePayload(trip: Trip): Record<string, unknown> {
   return {
     id: trip.id,
     title: trip.title,
-    destination: trip.destination,
-    country: trip.country,
+    destination: getDestinationLabel(trip.destination),
+    country: getDestinationCountryLabel(trip.destination),
     startDate: trip.startDate,
     endDate: trip.endDate,
-    types: trip.types,
-    activities: trip.activities,
+    types: [],
+    activities: trip.tripContext,
     accommodation: trip.accommodation,
     laundry: trip.laundry,
     note: trip.note,

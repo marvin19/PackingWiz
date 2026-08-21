@@ -1,8 +1,8 @@
 export const GENERATION_STEPS = [
   'Checking your trip',
   'Looking at the weather',
-  'Considering your activities',
-  'Personalizing for travelers',
+  'Reading your trip context',
+  'Adding your must-haves',
   'Building your packing list',
 ] as const;
 

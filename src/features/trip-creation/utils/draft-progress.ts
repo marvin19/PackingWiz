@@ -1,3 +1,4 @@
+import { getDestinationLabel } from '@/domain/destination';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import { canProceedFromStep } from '@/features/trip-creation/utils/wizard-validation';
 import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
@@ -6,11 +7,10 @@ export function isDraftInProgress(draft: TripDraft): boolean {
   const empty = createEmptyTripDraft();
 
   return (
-    draft.destination.trim() !== '' ||
+    getDestinationLabel(draft.destination).trim() !== '' ||
     draft.startDate !== '' ||
     draft.endDate !== '' ||
-    draft.types.length > 0 ||
-    draft.activities.length > 0 ||
+    draft.tripContext.length > 0 ||
     draft.accommodation !== null ||
     draft.laundry !== null ||
     draft.bags.length > 0 ||

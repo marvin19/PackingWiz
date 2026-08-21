@@ -1,5 +1,6 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import { createPackingItemId, ensureTripUuid } from '@/lib/id';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -64,15 +65,15 @@ export class SupabaseTripRepository implements TripRepository {
         .from('trips')
         .update({
           title: trip.title,
-          destination: trip.destination,
-          country: trip.country,
+          destination: getDestinationLabel(trip.destination),
+          country: getDestinationCountryLabel(trip.destination),
           start_date: trip.startDate,
           end_date: trip.endDate,
           accommodation: trip.accommodation,
           laundry: trip.laundry,
           note: trip.note,
-          types: trip.types,
-          activities: trip.activities,
+          types: [],
+          activities: trip.tripContext,
           generated: trip.generated,
           status: trip.status,
           image: trip.image ?? null,
@@ -87,6 +88,15 @@ export class SupabaseTripRepository implements TripRepository {
     }
 
     return this.createTrip(trip);
+  }
+
+  async updateTripPackingItems(tripId: string, items: PackingItem[]): Promise<Trip> {
+    const existing = await this.getById(tripId);
+    if (!existing) {
+      throw new Error('Trip not found');
+    }
+
+    return this.save({ ...existing, items });
   }
 
   async createTrip(trip: Trip): Promise<Trip> {

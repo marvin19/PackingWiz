@@ -1,4 +1,5 @@
 import { Feather } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -24,6 +25,7 @@ type PackingCategoryHeaderProps = {
   items: PackingItem[];
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  trailing?: ReactNode;
 };
 
 export function PackingCategoryHeader({
@@ -31,63 +33,86 @@ export function PackingCategoryHeader({
   items,
   collapsed,
   onToggleCollapsed,
+  trailing,
 }: PackingCategoryHeaderProps) {
   const theme = useTheme();
   const icon = getCategoryIcon(category);
   const packedCount = items.filter((item) => item.packed).length;
   const allPacked = packedCount === items.length;
+  const isImportant = category === 'Important';
+
+  const iconBackground = isImportant
+    ? `${theme.colors.important}26`
+    : allPacked
+      ? theme.colors.success
+      : theme.colors.accent;
+
+  const iconColor = isImportant
+    ? theme.colors.important
+    : allPacked
+      ? theme.colors.primaryForeground
+      : theme.colors.accentForeground;
+
+  const titleColor = isImportant
+    ? theme.colors.importantForeground
+    : allPacked
+      ? theme.colors.success
+      : theme.colors.foreground;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${category}, ${packedCount} of ${items.length} packed`}
-      accessibilityState={{ expanded: !collapsed }}
-      onPress={onToggleCollapsed}
-      style={styles.header}>
-      <View
-        style={[
-          styles.iconWrap,
-          {
-            backgroundColor: allPacked ? theme.colors.success : theme.colors.accent,
-          },
-        ]}>
-        {allPacked ? (
-          <Feather name="check-circle" size={16} color={theme.colors.primaryForeground} />
-        ) : (
-          <Feather
-            name={icon}
-            size={16}
-            color={allPacked ? theme.colors.primaryForeground : theme.colors.accentForeground}
-          />
-        )}
-      </View>
-      <AppText
-        variant="bodySmall"
-        style={{
-          fontFamily: theme.fontFamilies.displayExtraBold,
-          color: allPacked ? theme.colors.success : theme.colors.foreground,
-        }}>
-        {category}
-      </AppText>
-      {allPacked ? (
-        <View style={[styles.allPackedBadge, { backgroundColor: `${theme.colors.success}26` }]}>
-          <Feather name="check-circle" size={12} color={theme.colors.success} />
-          <AppText variant="micro" style={{ color: theme.colors.success, fontFamily: theme.fontFamilies.sansSemiBold }}>
-            All packed
-          </AppText>
+    <View style={styles.header}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${category}, ${packedCount} of ${items.length} packed`}
+        accessibilityState={{ expanded: !collapsed }}
+        onPress={onToggleCollapsed}
+        style={styles.headerMain}>
+        <View style={[styles.iconWrap, { backgroundColor: iconBackground }]}>
+          {allPacked && !isImportant ? (
+            <Feather name="check-circle" size={16} color={theme.colors.primaryForeground} />
+          ) : (
+            <Feather name={icon} size={16} color={iconColor} />
+          )}
         </View>
-      ) : (
-        <AppText variant="caption" color="mutedForeground">
-          {packedCount}/{items.length}
+        <AppText
+          variant="bodySmall"
+          style={{
+            fontFamily: theme.fontFamilies.displayExtraBold,
+            color: titleColor,
+          }}>
+          {category}
         </AppText>
-      )}
-      <Feather
-        name="chevron-down"
-        size={16}
-        color={theme.colors.mutedForeground}
-        style={{ marginLeft: 'auto', transform: [{ rotate: collapsed ? '-90deg' : '0deg' }] }}
-      />
-    </Pressable>
+        {allPacked && !isImportant ? (
+          <View style={[styles.allPackedBadge, { backgroundColor: `${theme.colors.success}26` }]}>
+            <Feather name="check-circle" size={12} color={theme.colors.success} />
+            <AppText variant="micro" style={{ color: theme.colors.success, fontFamily: theme.fontFamilies.sansSemiBold }}>
+              All packed
+            </AppText>
+          </View>
+        ) : (
+          <AppText variant="caption" color="mutedForeground">
+            {packedCount}/{items.length}
+          </AppText>
+        )}
+      </Pressable>
+
+      <View style={styles.headerTrailing}>
+        {trailing}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={collapsed ? `Expand ${category}` : `Collapse ${category}`}
+          onPress={onToggleCollapsed}
+          hitSlop={8}
+          style={styles.chevronButton}>
+          <Feather
+            name="chevron-down"
+            size={16}
+            color={theme.colors.mutedForeground}
+            style={{ transform: [{ rotate: collapsed ? '-90deg' : '0deg' }] }}
+          />
+        </Pressable>
+      </View>
+    </View>
   );
 }
 
@@ -139,6 +164,13 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 4,
   },
+  headerMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+  },
   iconWrap: {
     width: 28,
     height: 28,
@@ -153,6 +185,14 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     paddingHorizontal: 8,
     paddingVertical: 3,
+  },
+  headerTrailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chevronButton: {
+    padding: 4,
   },
   items: {
     gap: 8,

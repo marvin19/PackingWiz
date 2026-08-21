@@ -1,5 +1,6 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { createDestinationFromText } from '@/domain/destination';
 
 function makeItem(
   id: string,
@@ -16,6 +17,8 @@ function makeItem(
     needToBuy: overrides.needToBuy ?? false,
     assignedTo: overrides.assignedTo ?? null,
     note: overrides.note,
+    source: overrides.source ?? 'generated',
+    importantItemId: overrides.importantItemId,
   };
 }
 
@@ -51,12 +54,10 @@ const tokyoItems: PackingItem[] = [
 export const mockTokyoTrip: Trip = {
   id: 'tokyo-kyoto',
   title: 'Tokyo & Kyoto',
-  destination: 'Tokyo & Kyoto',
-  country: 'Japan',
+  destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
   startDate: '2026-10-12',
   endDate: '2026-10-26',
-  types: ['vacation', 'outdoor'],
-  activities: ['Sightseeing', 'Hiking', 'Running', 'Half marathon'],
+  tripContext: ['Vacation', 'Hiking', 'Running', 'Half marathon'],
   accommodation: 'hotel',
   laundry: 'yes',
   travelers: [
@@ -93,12 +94,10 @@ export const mockTokyoTrip: Trip = {
 export const mockLisbonTrip: Trip = {
   id: 'lisbon',
   title: 'Lisbon City Break',
-  destination: 'Lisbon',
-  country: 'Portugal',
+  destination: createDestinationFromText('Lisbon', 'Portugal'),
   startDate: '2026-05-08',
   endDate: '2026-05-12',
-  types: ['city'],
-  activities: ['Sightseeing', 'Nightlife'],
+  tripContext: ['City break', 'Nice dinners'],
   accommodation: 'apartment',
   laundry: 'no',
   travelers: [
@@ -126,12 +125,10 @@ export const mockLisbonTrip: Trip = {
 export const mockMallorcaTrip: Trip = {
   id: 'mallorca',
   title: 'Mallorca Beach',
-  destination: 'Mallorca',
-  country: 'Spain',
+  destination: createDestinationFromText('Mallorca', 'Spain'),
   startDate: '2025-07-19',
   endDate: '2025-07-28',
-  types: ['beach', 'vacation'],
-  activities: ['Beach', 'Swimming', 'Cycling'],
+  tripContext: ['Beach', 'Vacation', 'Cycling'],
   accommodation: 'hotel',
   laundry: 'yes',
   travelers: [
@@ -157,5 +154,3 @@ export const mockMallorcaTrip: Trip = {
 };
 
 export const mockSeedTrips: Trip[] = [mockTokyoTrip, mockLisbonTrip, mockMallorcaTrip];
-
-export const mockDefaultActiveTripId = mockTokyoTrip.id;

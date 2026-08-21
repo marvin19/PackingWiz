@@ -21,6 +21,8 @@ export interface TripRepository {
   getById(id: string): Promise<Trip | null>;
   /** Full trip upsert — primary path for mock persistence */
   save(trip: Trip): Promise<Trip>;
+  /** Updates only packing items while preserving trip metadata in storage */
+  updateTripPackingItems(tripId: string, items: PackingItem[]): Promise<Trip>;
   /** Atomically inserts a new trip with travelers, bags, items, weather, and insights */
   createTrip(trip: Trip): Promise<Trip>;
   delete(id: string): Promise<void>;

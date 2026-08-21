@@ -43,7 +43,7 @@ export function PackingItemRow({
         styles.card,
         {
           backgroundColor: item.packed ? theme.colors.muted : theme.colors.card,
-          borderColor: theme.colors.border,
+          borderColor: item.source === 'important' ? `${theme.colors.important}66` : theme.colors.border,
           opacity: item.packed ? 0.92 : 1,
         },
       ]}>
@@ -85,6 +85,14 @@ export function PackingItemRow({
             {item.name}
           </AppText>
           <View style={styles.metaRow}>
+            {item.source === 'important' ? (
+              <View style={[styles.importantBadge, { backgroundColor: `${theme.colors.important}26` }]}>
+                <Feather name="alert-triangle" size={11} color={theme.colors.important} />
+                <AppText variant="micro" style={{ color: theme.colors.importantForeground, fontFamily: theme.fontFamilies.sansSemiBold }}>
+                  Important
+                </AppText>
+              </View>
+            ) : null}
             {item.needToBuy ? (
               <View style={[styles.buyBadge, { backgroundColor: `${theme.colors.buy}26` }]}>
                 <Feather name="shopping-bag" size={11} color={theme.colors.buyForeground} />
@@ -289,6 +297,14 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   buyBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 9999,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  importantBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,

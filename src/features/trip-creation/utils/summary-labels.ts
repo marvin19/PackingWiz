@@ -1,14 +1,9 @@
-import { ACCOMMODATIONS, LAUNDRY_OPTIONS, TRIP_TYPES } from '@/domain/catalog';
-import type { AccommodationId, LaundryOption, TripTypeId } from '@/domain/trip';
+import { ACCOMMODATIONS, LAUNDRY_OPTIONS } from '@/domain/catalog';
+import type { AccommodationId, LaundryOption } from '@/domain/trip';
+import { formatTripContext } from '@/features/trips/utils/trip-context-icon';
 
-export function getTripTypeLabels(typeIds: TripTypeId[]): string {
-  if (typeIds.length === 0) {
-    return TRIP_TYPES.find((entry) => entry.id === 'vacation')?.label ?? 'Vacation';
-  }
-
-  return typeIds
-    .map((id) => TRIP_TYPES.find((entry) => entry.id === id)?.label ?? id)
-    .join(', ');
+export function getTripContextLabel(tags: string[]): string {
+  return formatTripContext(tags);
 }
 
 export function getAccommodationLabel(id: AccommodationId | null): string {

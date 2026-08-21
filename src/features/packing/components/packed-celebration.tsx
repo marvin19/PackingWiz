@@ -4,6 +4,7 @@ import { AccessibilityInfo, Modal, Pressable, StyleSheet, View } from 'react-nat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import { getDestinationLabel } from '@/domain/destination';
 import type { Trip } from '@/domain/trip';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
@@ -63,7 +64,7 @@ export function PackedCelebration({ visible, trip, onViewOverview, onDismiss }: 
             lineHeight: 20,
             paddingHorizontal: screenPaddingHorizontal,
           }}>
-          Every one of your {total} items for {trip.destination} is packed and ready. Have an amazing trip.
+          Every one of your {total} items for {getDestinationLabel(trip.destination)} is packed and ready. Have an amazing trip.
         </AppText>
 
         <View style={styles.actions}>
