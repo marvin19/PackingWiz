@@ -1,16 +1,24 @@
 import { Feather } from '@expo/vector-icons';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { useTheme } from '@/hooks/use-theme';
-import { screenPaddingHorizontal } from '@/theme/spacing';
+import { screenPaddingHorizontal, spacing } from '@/theme/spacing';
 
 type SummaryFooterProps = {
-  onPress: () => void;
+  onGenerate: () => void;
+  onManualCreate: () => void;
+  manualCreateDisabled?: boolean;
+  manualCreateLoading?: boolean;
 };
 
-export function SummaryFooter({ onPress }: SummaryFooterProps) {
+export function SummaryFooter({
+  onGenerate,
+  onManualCreate,
+  manualCreateDisabled = false,
+  manualCreateLoading = false,
+}: SummaryFooterProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -28,9 +36,9 @@ export function SummaryFooter({ onPress }: SummaryFooterProps) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Generate my packing list"
-        onPress={onPress}
+        onPress={onGenerate}
         style={({ pressed }) => [
-          styles.button,
+          styles.primaryButton,
           { backgroundColor: theme.colors.primary, opacity: pressed ? 0.92 : 1 },
         ]}>
         <Feather name="star" size={20} color={theme.colors.primaryForeground} />
@@ -40,6 +48,28 @@ export function SummaryFooter({ onPress }: SummaryFooterProps) {
           Generate my packing list
         </AppText>
       </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Create packing list manually"
+        accessibilityState={{ disabled: manualCreateDisabled || manualCreateLoading }}
+        disabled={manualCreateDisabled || manualCreateLoading}
+        onPress={onManualCreate}
+        style={({ pressed }) => [
+          styles.secondaryButton,
+          {
+            borderColor: theme.colors.border,
+            opacity: manualCreateDisabled || manualCreateLoading ? 0.5 : pressed ? 0.85 : 1,
+          },
+        ]}>
+        {manualCreateLoading ? (
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+        ) : (
+          <AppText variant="bodySmall" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+            Create packing list manually
+          </AppText>
+        )}
+      </Pressable>
     </View>
   );
 }
@@ -47,14 +77,23 @@ export function SummaryFooter({ onPress }: SummaryFooterProps) {
 const styles = StyleSheet.create({
   footer: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 12,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
   },
-  button: {
+  primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
     borderRadius: 9999,
     paddingVertical: 14,
+  },
+  secondaryButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 9999,
+    paddingVertical: spacing.md,
+    minHeight: 44,
   },
 });

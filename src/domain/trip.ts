@@ -16,6 +16,9 @@ export type LaundryOption = 'yes' | 'no' | 'unsure';
 
 export type TripStatus = 'upcoming' | 'past';
 
+/** How the trip's packing list was created — not inferred from item count. */
+export type PackingMode = 'generated' | 'manual';
+
 export interface Trip {
   id: string;
   title: string;
@@ -32,6 +35,8 @@ export interface Trip {
   weather: TripWeather;
   items: PackingItem[];
   insights: string[];
+  packingMode: PackingMode;
+  /** Mirrors packingMode for Supabase schema — true when packingMode is 'generated'. */
   generated: boolean;
   status: TripStatus;
   image?: string;

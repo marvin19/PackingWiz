@@ -25,6 +25,14 @@ export function canProceedFromStep(step: number, draft: TripDraft): boolean {
   }
 }
 
-export function wizardContinueLabel(step: number, totalSteps: number): string {
+export function wizardContinueLabel(
+  step: number,
+  totalSteps: number,
+  options: { returnToSummary?: boolean } = {},
+): string {
+  if (options.returnToSummary) {
+    return 'Done';
+  }
+
   return step === totalSteps - 1 ? 'Review trip' : 'Continue';
 }

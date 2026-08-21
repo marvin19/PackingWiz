@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -26,6 +26,11 @@ import { TravelersStep } from '@/features/trip-creation/components/steps/travele
 import { TripContextStep } from '@/features/trip-creation/components/steps/trip-context-step';
 import { WIZARD_STEP_COUNT, WIZARD_STEP_TITLES } from '@/features/trip-creation/constants';
 import {
+  isWizardEditFromSummary,
+  parseWizardReturnToParam,
+  parseWizardStepParam,
+} from '@/features/trip-creation/utils/wizard-navigation';
+import {
   canProceedFromStep,
   wizardContinueLabel,
 } from '@/features/trip-creation/utils/wizard-validation';
@@ -36,11 +41,24 @@ import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function CreateTripScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ step?: string; returnTo?: string }>();
   const { draft, setDraft, draftWizardStep, setDraftWizardStep, markDraftReachedSummary } = useTrips();
+
+  const returnTo = parseWizardReturnToParam(params.returnTo);
+  const isEditingFromSummary = isWizardEditFromSummary(returnTo);
   const step = draftWizardStep;
 
   const canContinue = canProceedFromStep(step, draft);
-  const continueLabel = wizardContinueLabel(step, WIZARD_STEP_COUNT);
+  const continueLabel = wizardContinueLabel(step, WIZARD_STEP_COUNT, {
+    returnToSummary: isEditingFromSummary,
+  });
+
+  useEffect(() => {
+    const entryStep = parseWizardStepParam(params.step);
+    if (entryStep !== null) {
+      setDraftWizardStep(entryStep);
+    }
+  }, [params.step, setDraftWizardStep]);
 
   const setStep = useCallback(
     (value: number | ((current: number) => number)) => {
@@ -49,27 +67,53 @@ export function CreateTripScreen() {
     [draftWizardStep, setDraftWizardStep],
   );
 
+  const returnToSummary = useCallback(() => {
+    router.replace('/trip/summary');
+  }, [router]);
+
   const handleBack = useCallback(() => {
     blurActiveElement();
+    if (isEditingFromSummary) {
+      returnToSummary();
+      return;
+    }
+
     if (step === 0) {
       goBackOrReplace('/(tabs)');
       return;
     }
+
     setStep((current) => current - 1);
-  }, [setStep, step]);
+  }, [isEditingFromSummary, returnToSummary, setStep, step]);
 
   const handleContinue = useCallback(() => {
     if (!canContinue) {
       return;
     }
+
     blurActiveElement();
+
+    if (isEditingFromSummary) {
+      returnToSummary();
+      return;
+    }
+
     if (step === WIZARD_STEP_COUNT - 1) {
       markDraftReachedSummary();
       router.push('/trip/summary');
       return;
     }
+
     setStep((current) => current + 1);
-  }, [canContinue, markDraftReachedSummary, router, setStep, step]);
+  }, [
+    canContinue,
+    isEditingFromSummary,
+    markDraftReachedSummary,
+    returnToSummary,
+    router,
+    setStep,
+    step,
+  ]);
 
   const toggleTripContextTag = useCallback(
     (tag: string) => {
@@ -207,7 +251,7 @@ export function CreateTripScreen() {
 
   return (
     <AppScreen>
-      <ScreenHeader title="New trip" onBack={handleBack} />
+      <ScreenHeader title={isEditingFromSummary ? 'Edit trip' : 'New trip'} onBack={handleBack} />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

@@ -13,7 +13,7 @@ import { findActiveTrip, reconcileActiveTripId } from '@/domain/packing-stats';
 import type { ImportantItem } from '@/domain/important-item';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
-import type { Trip } from '@/domain/trip';
+import type { PackingMode, Trip } from '@/domain/trip';
 import { createPackingItemId } from '@/lib/id';
 import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
 import { useAuth } from '@/providers/auth-provider';
@@ -40,7 +40,7 @@ interface TripsContextValue {
   markDraftReachedSummary: () => void;
   resetDraft: () => void;
   refreshTrips: () => Promise<void>;
-  commitDraftTrip: () => Promise<Trip>;
+  commitDraftTrip: (packingMode?: PackingMode) => Promise<Trip>;
   togglePacked: (itemId: string) => void;
   setItemQuantity: (itemId: string, quantity: number) => void;
   toggleNeedToBuy: (itemId: string) => void;
@@ -73,6 +73,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
   const [isTripsLoading, setIsTripsLoading] = useState(true);
   const [repositoryError, setRepositoryError] = useState<string | null>(null);
   const tripsRef = useRef(trips);
+  const commitDraftInFlightRef = useRef<Promise<Trip> | null>(null);
 
   useEffect(() => {
     tripsRef.current = trips;
@@ -134,25 +135,47 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     setDraftWizardStep(WIZARD_STEP_COUNT - 1);
   }, []);
 
-  const commitDraftTrip = useCallback(async () => {
-    const assembled = await assembleTripFromDraft(
-      draft,
-      {
-        packingGenerator,
-        weatherService,
-      },
-      { importantItems: enabledImportantItems },
-    );
-    const saved = await tripRepository.createTrip(assembled);
-    setTrips((current) => {
-      const withoutDuplicate = current.filter((trip) => trip.id !== saved.id);
-      return [saved, ...withoutDuplicate];
-    });
-    setActiveTripId(saved.id);
-    setDraftState(createEmptyTripDraft());
-    setRepositoryError(null);
-    return saved;
-  }, [draft, enabledImportantItems, packingGenerator, weatherService, tripRepository]);
+  const commitDraftTrip = useCallback(
+    async (packingMode: PackingMode = 'generated') => {
+      if (commitDraftInFlightRef.current) {
+        return commitDraftInFlightRef.current;
+      }
+
+      const promise = (async () => {
+        const assembled = await assembleTripFromDraft(
+          draft,
+          {
+            packingGenerator,
+            weatherService,
+          },
+          { packingMode, importantItems: enabledImportantItems },
+        );
+        const saved = await tripRepository.createTrip(assembled);
+        setTrips((current) => {
+          const withoutDuplicate = current.filter((trip) => trip.id !== saved.id);
+          return [saved, ...withoutDuplicate];
+        });
+        setActiveTripId(saved.id);
+        setDraftState(createEmptyTripDraft());
+        setDraftWizardStep(0);
+        setDraftReachedSummary(false);
+        setRepositoryError(null);
+        return saved;
+      })().catch((error) => {
+        setRepositoryError(error instanceof Error ? error.message : 'Failed to create trip');
+        throw error;
+      });
+
+      commitDraftInFlightRef.current = promise;
+
+      try {
+        return await promise;
+      } finally {
+        commitDraftInFlightRef.current = null;
+      }
+    },
+    [draft, enabledImportantItems, packingGenerator, weatherService, tripRepository],
+  );
 
   const togglePacked = useCallback(
     (itemId: string) => {

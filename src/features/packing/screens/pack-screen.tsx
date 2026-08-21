@@ -241,16 +241,49 @@ export function PackScreen() {
           </ProgressRing>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="View trip overview and insights"
-          onPress={() => router.push('/(tabs)/pack/overview')}
-          style={[styles.overviewButton, { backgroundColor: theme.colors.secondary }]}>
-          <Feather name="list" size={14} color={theme.colors.secondaryForeground} />
-          <AppText variant="caption" color="secondaryForeground" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-            View trip overview & insights
-          </AppText>
-        </Pressable>
+        <View style={styles.headerNavRow}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="View trip overview and insights"
+            onPress={() => router.push('/(tabs)/pack/overview')}
+            style={({ pressed }) => [
+              styles.headerNavButton,
+              styles.headerNavPrimary,
+              { backgroundColor: theme.colors.secondary, opacity: pressed ? 0.92 : 1 },
+            ]}>
+            <Feather name="list" size={14} color={theme.colors.secondaryForeground} />
+            <AppText
+              variant="caption"
+              color="secondaryForeground"
+              numberOfLines={2}
+              style={[styles.headerNavLabel, { fontFamily: theme.fontFamilies.sansSemiBold }]}>
+              View trip overview & insights
+            </AppText>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Back to all trips"
+            onPress={() => router.navigate('/(tabs)')}
+            style={({ pressed }) => [
+              styles.headerNavButton,
+              styles.headerNavSecondary,
+              {
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+                opacity: pressed ? 0.92 : 1,
+              },
+            ]}>
+            <Feather name="arrow-left" size={14} color={theme.colors.mutedForeground} />
+            <AppText
+              variant="caption"
+              color="mutedForeground"
+              numberOfLines={2}
+              style={[styles.headerNavLabel, { fontFamily: theme.fontFamilies.sansSemiBold }]}>
+              Back to all trips
+            </AppText>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.filters}>
@@ -332,19 +365,26 @@ export function PackScreen() {
         }
         ListEmptyComponent={
           <View style={styles.listEmpty}>
-            <Feather name="star" size={28} color={theme.colors.mutedForeground} />
-            <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
-              {activeTrip.items.length === 0
-                ? 'Your packing list is empty. Add your first item to get started.'
-                : filter === 'buy'
+            <Feather name="briefcase" size={28} color={theme.colors.mutedForeground} />
+            {activeTrip.items.length === 0 ? (
+              <>
+                <AppText variant="bodySemiBold" style={styles.emptyTitle}>
+                  Your packing list is empty
+                </AppText>
+                <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
+                  Add your first item to start packing.
+                </AppText>
+                <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
+              </>
+            ) : (
+              <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
+                {filter === 'buy'
                   ? "Nothing on your shopping list — you're all set."
                   : filter === 'todo'
                     ? 'Nothing left to pack here. Nice work!'
                     : 'Nothing here. Nice work!'}
-            </AppText>
-            {activeTrip.items.length === 0 ? (
-              <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
-            ) : null}
+              </AppText>
+            )}
           </View>
         }
         renderSectionHeader={({ section }) => (
@@ -442,13 +482,30 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 6,
   },
-  overviewButton: {
+  headerNavRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  headerNavButton: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
     borderRadius: 9999,
+    paddingHorizontal: 12,
     paddingVertical: 8,
+    minHeight: 44,
+  },
+  headerNavPrimary: {},
+  headerNavSecondary: {
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  headerNavLabel: {
+    flexShrink: 1,
+    textAlign: 'center',
+    lineHeight: 16,
   },
   filters: {
     flexDirection: 'row',
@@ -500,6 +557,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
     paddingHorizontal: 12,
+  },
+  emptyTitle: {
+    textAlign: 'center',
   },
   itemWrap: {
     marginBottom: 8,

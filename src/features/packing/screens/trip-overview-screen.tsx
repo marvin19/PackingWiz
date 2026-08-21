@@ -69,7 +69,7 @@ export function TripOverviewScreen() {
 
   const days = durationDays(activeTrip.startDate, activeTrip.endDate);
   const remaining = stats.total - stats.packed;
-  const contextIcon = getTripContextIcon(activeTrip.tripContext[0]);
+  const tripContextIcon = getTripContextIcon(activeTrip.tripContext[0]);
   const accommodationIcon = getAccommodationIcon(activeTrip.accommodation);
   const destinationLabel = getDestinationLabel(activeTrip.destination);
   const countryLabel = getDestinationCountryLabel(activeTrip.destination);
@@ -143,7 +143,7 @@ export function TripOverviewScreen() {
         <View style={styles.factsGrid}>
           <View style={styles.factsRow}>
             <TripFact
-              icon={<Feather name={contextIcon} size={16} color={theme.colors.mutedForeground} />}
+              icon={<Feather name={tripContextIcon} size={16} color={theme.colors.mutedForeground} />}
               label="Trip context"
               value={getTripContextLabel(activeTrip.tripContext)}
             />

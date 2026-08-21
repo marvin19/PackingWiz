@@ -1,53 +1,49 @@
 import type { ReactNode } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { SummaryEditButton } from '@/features/trip-creation/components/summary-edit-button';
+import { tripFactCardStyles } from '@/features/trip-creation/components/trip-detail-card-styles';
 import { useTheme } from '@/hooks/use-theme';
 
 type TripFactProps = {
   icon: ReactNode;
   label: string;
   value: string;
+  editAccessibilityLabel?: string;
+  onEdit?: () => void;
 };
 
-export function TripFact({ icon, label, value }: TripFactProps) {
+export function TripFact({ icon, label, value, editAccessibilityLabel, onEdit }: TripFactProps) {
   const theme = useTheme();
 
   return (
     <View
       style={[
-        styles.card,
+        tripFactCardStyles.card,
         {
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.border,
         },
       ]}>
-      <View style={styles.labelRow}>
-        {icon}
-        <AppText variant="caption" color="mutedForeground" style={{ fontFamily: theme.fontFamilies.sansMedium }}>
-          {label}
-        </AppText>
+      <View style={tripFactCardStyles.row}>
+        <View style={tripFactCardStyles.iconSlot}>{icon}</View>
+        <View style={tripFactCardStyles.content}>
+          <AppText
+            variant="caption"
+            color="mutedForeground"
+            numberOfLines={1}
+            style={[tripFactCardStyles.label, { fontFamily: theme.fontFamilies.sansMedium }]}>
+            {label}
+          </AppText>
+          <AppText variant="bodySmall" numberOfLines={2} style={tripFactCardStyles.value}>
+            {value}
+          </AppText>
+        </View>
+        {onEdit && editAccessibilityLabel ? (
+          <SummaryEditButton accessibilityLabel={editAccessibilityLabel} onPress={onEdit} compact />
+        ) : null}
       </View>
-      <AppText variant="bodySmall" numberOfLines={2} style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-        {value}
-      </AppText>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    flex: 1,
-    minWidth: 0,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 4,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-});

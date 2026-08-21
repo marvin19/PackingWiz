@@ -87,6 +87,7 @@ export const mockTokyoTrip: Trip = {
     'Rain is common during your trip, so we added a compact umbrella and a light rain jacket.',
     'Because you are running a half marathon, we added race-day essentials like gels and your race confirmation.',
   ],
+  packingMode: 'generated',
   generated: true,
   status: 'upcoming',
 };
@@ -118,6 +119,7 @@ export const mockLisbonTrip: Trip = {
   },
   items: [],
   insights: [],
+  packingMode: 'generated',
   generated: true,
   status: 'past',
 };
@@ -149,6 +151,7 @@ export const mockMallorcaTrip: Trip = {
   },
   items: [],
   insights: [],
+  packingMode: 'generated',
   generated: true,
   status: 'past',
 };
