@@ -44,12 +44,19 @@ Operational guide for coding agents (Cursor, Codex, etc.) working in this reposi
 - Opening a trip from Trips or committing a new trip sets `activeTripId`; Profile tab navigation must **not** clear it
 - React trip state and `TripRepository` must stay consistent (see [ARCHITECTURE.md](./ARCHITECTURE.md))
 
+**Target (not yet implemented):** when a trip has multiple packing lists, also track the **active packing list** for Pack. Do not implement until the Multi-person Packing (MP) phases are explicitly requested.
+
 ### Important Items
 
-- Important master list = **user/profile** (`ImportantItemsPreferences`)
-- Trips store **snapshots** only; existing trips do **not** auto-update when master changes
-- User explicitly syncs via Pack stale notice (**Update this list** / **Keep current list**)
+**Target architecture:**
+
+- Important master list belongs to a **Packing Profile** (person), not the trip and not one global user list
+- Each **Packing List** receives a **snapshot** of that profile's enabled Important Items at creation
+- Existing list snapshots do **not** auto-update when the master changes
+- User explicitly syncs via Pack stale notice (**Update this list** / **Keep current list**) — conceptually per profile / packing list
 - Important items are **never AI-generated**
+
+**Current runtime (legacy):** Important master is user-global in `ProfileProvider` → `ImportantItemsPreferences`; snapshots live on `Trip.items`. Treat this as migration debt until MP4.
 
 ### UI / accessibility
 
@@ -60,24 +67,53 @@ Operational guide for coding agents (Cursor, Codex, etc.) working in this reposi
 
 - **Do not implement** future roadmap features unless explicitly requested
 - **Do not start** the next cleanup/integration phase automatically after finishing a task
+- **Do not implement** Multi-person Packing (MP1–MP5) unless explicitly requested
 
 ---
 
 ## Product invariants agents must respect
 
-See [PRODUCT.md](./PRODUCT.md) for full context. Non-negotiables:
+See [PRODUCT.md](./PRODUCT.md) for full context.
+
+### Target architecture (planned)
 
 | Topic | Rule |
 |-------|------|
-| Packing lists | One shared list per trip in MVP |
-| Travelers | Context + optional item assignment — **not** separate lists |
+| Trip | Shared journey container: name, destination, dates, trip context, accommodation/laundry, weather, bags, packing lists |
+| Trip name vs destination | Separate concepts — e.g. name "Hyttetur", destination "Norefjell, Norway" |
+| Packing Profile | Reusable person the user packs for (e.g. Anna, Emilie); may include name, age, `isSelf`; owns Important master |
+| Packing List | One per Packing Profile per trip; owns items and `packingMode: 'generated' \| 'manual'` |
+| Bags | Trip-level physical objects; may be shared; not Packing Profile objects |
+| Important | Per Packing Profile master + per Packing List snapshot; never AI-generated |
+| Essentials | Generated recommendations per packing list (person-aware) |
+| Trip context | Single canonical `tripContext: string[]`; destination/place must not be duplicated as tags |
+| Pack UX | Trip-level Overview; Pack is packing-list-level with in-Pack list switcher when multiple lists |
+| Home cards | Represent the **Trip**, not an individual packing list |
+| Gender | **Not** in MVP model — do not add |
+
+### Current runtime (until MP migration)
+
+The codebase still largely implements `Trip → PackingItem[]`. Agents must not assume the target model is live:
+
+| Topic | Current behavior |
+|-------|------------------|
+| Packing lists | Single flat list on `Trip.items` |
+| `packingMode` | On `Trip`, not per list |
+| Travelers | Wizard step "Who's coming?" → `travelers[]` + optional `assignedTo` on items |
+| Important master | User-global in Profile, not per Packing Profile |
+| Pack navigation | One active trip; no packing-list picker or switcher |
+| Trip name | Uses `Trip.title` today; separation from destination is incomplete |
+
+When changing current code, preserve existing behavior unless the user requests an MP phase. When designing new abstractions, align with the **target** model in [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+### Unchanged invariants
+
+| Topic | Rule |
+|-------|------|
 | Important vs Essentials | Different concepts, different sources |
-| Important | User-defined; master in Profile; snapshot per trip |
-| Essentials | Generated/mock recommendations per trip |
-| Trip context | Single canonical `tripContext: string[]` on trip/draft |
-| Destination | Structured `Destination` object — not a display string only |
-| Active trip | Explicit selection; Pack/Overview use `activeTripId` |
+| Active trip | Explicit selection; Overview uses `activeTripId` |
 | Shopping filter | Checkbox = purchased/handled (`needToBuy` cleared) — keep semantics clear |
+| No silent Important sync | Master changes require explicit user action on stale notice |
 
 ---
 
@@ -95,6 +131,8 @@ When implementing changes:
 6. Do **not** automatically continue to the next milestone/phase
 7. Do **not commit** unless explicitly asked
 8. Do **not push** unless explicitly asked
+
+For Multi-person Packing work: keep MP sub-phases (**MP1**–**MP5**) as separate, reviewable commits.
 
 ---
 
@@ -120,6 +158,7 @@ When asked for review **without** implementation:
 - Focus on: data loss, state consistency, architecture violations, accessibility, security, race conditions, regression risk
 - Include **file references** (path + line where helpful)
 - Distinguish **confirmed issues** from **suggestions**
+- Flag code that cements legacy `Trip.items` assumptions when MP migration is imminent
 
 ---
 

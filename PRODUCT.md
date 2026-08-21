@@ -13,7 +13,7 @@ PackingWiz is an intelligent packing-list app for **iOS and Android**.
 **Core loop:**
 
 ```
-Trip context → weather/climate → personalized packing list → user edits/packs → trip remains available
+Trip context → weather/climate → personalized packing list(s) → user edits/packs → trip remains available
 ```
 
 The packing list is the **initial product**. Broader travel-assistant features are future possibilities, not current scope.
@@ -24,34 +24,177 @@ The packing list is the **initial product**. Broader travel-assistant features a
 
 - Fast trip creation
 - AI should **reduce work**, not create configuration burden
-- **One shared list per trip**
+- **One or more packing lists per trip** — one list per person the user packs for
 - User always retains manual control
 - Weather context matters for list quality
 - Prefer **try-before-signup** direction (anonymous-first)
 - Avoid overbuilding before validating demand
 
-### Current vs planned
+Packing personalization is about **who you pack for**, not modeling every person who happens to travel.
 
-| Principle | Current implementation | Planned |
-|-----------|------------------------|---------|
-| Manually created empty list | All trips go through mock generation flow | Cleanup Phase 2 |
+### Current vs target
+
+| Area | Current implementation | Target (MP phases) |
+|------|------------------------|---------------------|
+| Packing lists | Single shared list on `Trip.items` | `Trip → PackingList[] → PackingItem[]` |
+| Who is modeled | Travelers + optional item assignment | Packing Profiles + one list per profile |
+| Important master | User-global in Profile | Per Packing Profile |
+| `packingMode` | Trip-level | Per Packing List |
+| Trip name | `Trip.title` (often mirrors destination) | Separate editable trip name vs destination |
+| Pack entry | Always one list | Direct Pack if one list; picker if multiple |
 | Try before signup | Mock mode needs no auth; Supabase mode uses anonymous auth | Full anonymous → account upgrade |
-| Registration | Not required in mock mode | Google/Apple/email upgrade path |
+
+---
+
+## Domain model (target)
+
+### 1. Trip
+
+A **Trip** represents the shared journey.
+
+**Owns:**
+
+- Trip name (user-facing label; may default sensibly and be editable)
+- Destination (structured place data)
+- Dates
+- Trip context tags
+- Accommodation / laundry context
+- Weather snapshot
+- Bags (trip-level physical objects)
+- One or more **Packing Lists**
+
+**Trip name and destination are separate concepts.**
+
+Example:
+
+| Field | Example |
+|-------|---------|
+| Trip name | Hyttetur |
+| Destination | Norefjell, Norway |
+| Trip context | Skiing, Family trip |
+
+Destination/place data will later drive weather and Places integration. **Do not duplicate destination names as trip-context tags.**
+
+### 2. Packing Profile
+
+A **Packing Profile** represents a person the user packs for across trips.
+
+Examples: Anna, Emilie.
+
+**Conceptually may own:**
+
+- `id`
+- `name`
+- Age / age information
+- Whether this is the user's own profile (`isSelf`)
+- **Important Items** (master list)
+
+**Not in MVP:** gender.
+
+The authenticated or anonymous user's own profile is also a Packing Profile ("Me"). Additional people may later be reusable across multiple trips.
+
+### 3. Important Items
+
+Important Items belong to a **Packing Profile**.
+
+They are **not**:
+
+- AI-generated
+- Trip-global
+- One global list shared by every traveler
+
+Example:
+
+**Anna**
+
+- House keys
+- Migraine medication
+- Contact lenses
+
+**Emilie**
+
+- Inhaler
+- Comfort toy
+
+Important Items remain **master/profile-level** data. Each new **Packing List** receives a snapshot of that profile's enabled Important Items. Existing list snapshots are **not** silently rewritten when the master changes.
+
+The existing explicit stale/sync concept (**Update this list** / **Keep current list**) remains applicable — per Packing Profile / Packing List.
+
+**Profile UX target:**
+
+| Profiles | Important Items entry |
+|----------|----------------------|
+| One | Profile → Important Items opens that profile's list directly |
+| Multiple | Profile → Important Items shows people first (e.g. "Anna — 3 items"), then that person's master list |
+
+### 4. Packing List
+
+A Trip may contain **one or more Packing Lists**. Each list belongs to one Packing Profile for that trip.
+
+Example:
+
+```
+Hyttetur
+├── Anna packing list
+└── Emilie packing list
+```
+
+Packing items belong to a **Packing List**, not directly to the Trip in the target architecture.
+
+**`packingMode: 'generated' | 'manual'`** belongs to the Packing List — allowing, for example, Anna generated and Emilie manual on the same trip.
+
+**Current runtime:** `Trip.items` and `Trip.packingMode` still exist; migration is planned in [ROADMAP.md](./ROADMAP.md) (MP1–MP5).
+
+### 5. Bags
+
+Bags remain **trip-level** physical objects. They do **not** become Packing Profile objects.
+
+Reason: a physical suitcase or backpack may contain items for multiple people.
+
+```
+Trip
+├── Bags
+│   ├── Shared suitcase
+│   ├── Anna carry-on
+│   └── Emilie backpack
+└── PackingLists
+    ├── Anna
+    └── Emilie
+```
+
+A bag may optionally have an owner as metadata; shared bags remain supported. Packing items may later optionally reference a bag. Bag assignment changes are **not** in current scope.
 
 ---
 
 ## Trip creation
 
-### 6-step wizard (implemented)
+### Current wizard (6 steps — implemented)
 
 1. **Destination & dates** — structured `Destination` + date range  
 2. **Trip context** — suggested/searchable/custom tags → `tripContext: string[]`  
 3. **Accommodation & laundry**  
-4. **Travelers** — presets + custom rows  
+4. **Travelers** — presets + custom rows *(legacy; to be replaced)*  
 5. **Bags**  
 6. **Additional information** (note)
 
 Flow: wizard → **Summary** → **Generating** (mock steps) → **Pack** tab with new trip active.
+
+### Target creation UX (MP2)
+
+Replace **"Who's coming?"** with **"Who are you packing for?"**
+
+| Default | Action |
+|---------|--------|
+| Me | Add someone |
+
+For an additional person, MVP fields are minimal:
+
+- Name
+- Age / age information
+
+**Do not ask for gender.** Goal: packing personalization, not full travel-party modeling.
+
+Trip name may receive a sensible default and should become editable separately from destination.
 
 ### Trip context tags
 
@@ -79,12 +222,12 @@ These are **different concepts**. Do not conflate them.
 | Source | User-defined personal must-haves |
 | Examples | Critical medication, house keys, personal equipment |
 | AI | **Never** inferred or generated |
-| Master list | Profile → Important Items management |
-| Enable/disable | `isEnabled` — when off, not injected into new trips; Pack hides Important section |
-| New trips | Receive a **snapshot** at generation (`mergeImportantItems`) |
-| Existing trips | Keep snapshot until user chooses **Update this list** |
+| Master list | **Target:** per Packing Profile · **Current:** Profile → Important Items (user-global) |
+| Enable/disable | When off, not injected into new lists for that profile |
+| New lists | Receive a **snapshot** at list creation |
+| Existing lists | Keep snapshot until user chooses **Update this list** |
 | Stale detection | Master changes → notice on Pack; no silent sync |
-| Empty master | Allowed (`isConfigured: true`, `items: []`) |
+| Empty master | Allowed |
 
 ### Essentials
 
@@ -92,48 +235,97 @@ These are **different concepts**. Do not conflate them.
 |--------|--------|
 | Source | PackingWiz recommendations (mock generator today; OpenAI later) |
 | Examples | Passport, wallet, charger |
-| Scope | Generated **per trip** into normal categories |
+| Scope | Generated **per packing list** (person-aware in target model) |
 
 ---
 
-## Packing behavior (implemented)
+## Packing behavior
 
-### Filters
+### Filters (implemented)
 
 - **All** — full list; checkbox toggles `packed`
 - **To pack** — unpacked items only
 - **Shopping** — `needToBuy` items; checkbox marks **purchased** (`needToBuy` → false)
 
-### Item capabilities (current)
+### Item capabilities
 
-- Toggle packed
-- Quantity (provider support exists; explicit item settings UI planned — Cleanup Phase 3)
-- Need to buy + purchased in Shopping view
-- Traveler assignment (`assignedTo`)
-- Add custom items
-- Delete items (provider support exists)
+**Current:** toggle packed, quantity, need to buy, traveler assignment (`assignedTo`), add/delete custom items, item settings sheet (in progress).
 
-### Planned (not implemented)
+**Target:** item operations scoped to the active Packing List; traveler assignment may be superseded or repurposed during MP migration.
+
+### Deferred item features
 
 - `need to wash` flag
-- Explicit per-item settings sheet (rename, quantity, assignment, delete in one place)
 
 ---
 
-## Active trip UX
+## Trip opening & navigation (target)
 
-- User **opens a trip from Trips** or **generates a new trip** → that trip becomes active
-- **Pack** and **Overview** operate on the active trip
+| Trip lists | Opening behavior |
+|------------|------------------|
+| Exactly one | Open trip → go directly to **Pack** |
+| Multiple | Open trip → lightweight **"Who are you packing for?"** picker with per-list progress hints |
+
+Example picker:
+
+```
+Anna      18 / 32 packed
+Emilie     9 / 24 packed
+```
+
+Inside Pack, provide a lightweight list switcher, e.g. **Packing for: Emilie ▾**. User should not need to return to Home to switch lists.
+
+- **Trip Overview** — trip-level (shared context, weather, bags, insights)
+- **Pack** — packing-list-level
+
+### Current active-trip UX (legacy)
+
+- User opens a trip from Trips or generates a new trip → that trip becomes active
+- **Pack** and **Overview** operate on the active trip's single flat item list
 - Navigating to **Profile** does not clear active trip
-- No trip selected → Pack shows **"No trip selected"** with link to Trips
-- No in-Pack trip picker (by design)
+- No trip selected → Pack shows **"No trip selected"**
+- No in-Pack packing-list picker or switcher yet
+
+---
+
+## Home / trip cards (target)
+
+Trip cards represent the **Trip**, not an individual Packing List.
+
+Example:
+
+```
+Hyttetur
+Norefjell · 5 days · 2 travelers
+```
+
+Progress may aggregate across lists where appropriate. **Detailed aggregate-progress rules are not finalized yet.**
+
+---
+
+## Packing generation (target)
+
+Generation boundary **per Packing List**:
+
+```
+Trip context
++ weather
++ Packing Profile / person context
++ that profile's Important Items
+→ PackingGenerator
+→ that person's Packing List
+```
+
+Each list can receive age/person-appropriate recommendations. OpenAI is **not** in scope until explicitly scheduled.
+
+**Current:** one generation call produces one flat `Trip.items` list; weather is trip-level (correct in both models).
 
 ---
 
 ## User / account direction (planned)
 
 - **Anonymous-first** preferred; data preserved on account upgrade
-- Onboarding likely gathers profile, preferences, Important Items
+- Onboarding likely gathers profile, preferences, Packing Profiles, Important Items
 - **Unit preferences:** `metricUnits` exists in mock Profile; Celsius/Fahrenheit split planned (Cleanup Phase 5)
 - **Current:** Profile preferences and Important master are **in-memory only** (lost on full reload in mock mode)
 
@@ -147,7 +339,7 @@ Priority when implemented:
 2. Destination image from provider  
 3. PackingWiz fallback (icon/tint by trip context — **current placeholder behavior**)
 
-User upload → Supabase Storage (planned). Destination provider TBD — do not lock to a vendor in product copy.
+User upload → Supabase Storage (planned). Destination provider TBD.
 
 ---
 
@@ -155,13 +347,33 @@ User upload → Supabase Storage (planned). Destination provider TBD — do not 
 
 Do not implement unless explicitly requested:
 
+- Gender on Packing Profile
+- Need to wash
+- Google Places / destination autocomplete
+- OpenAI packing generation
+- Supabase persistence implementation (beyond existing opt-in repo)
+- Image provider / user upload
 - Affiliate shopping / product URLs on items
 - Full i18n (English only today)
-- Multiple packing lists per traveler
 - Historical-trip reuse ("pack like last time")
 - AI tag suggestions
 - Advanced family sharing
 - Subscription / paywall
 - Broader travel planning (itinerary, bookings, etc.)
+- Finalized multi-list aggregate progress rules
 
 See [ROADMAP.md](./ROADMAP.md) for sequencing.
+
+---
+
+## Unresolved design questions
+
+Document for future product decisions — do not guess in implementation:
+
+1. **Aggregate progress on Home cards** — sum packed/total across lists vs show range vs primary list only
+2. **`travelers[]` migration** — remove vs keep as trip metadata separate from Packing Profiles
+3. **Profile reuse across trips** — when/how saved Packing Profiles attach to new trips vs one-off people
+4. **Active packing list state** — `activePackingListId` in provider vs route param vs derived from last-opened list
+5. **Anonymous "Me" profile** — creation timing (first launch vs first trip) and persistence before auth
+6. **Trip name default** — derive from destination, trip context, or user prompt
+7. **Item → bag assignment** — UX and whether assignment replaces or complements list ownership
