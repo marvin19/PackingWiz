@@ -1,6 +1,11 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
 import { createDestinationFromText } from '@/domain/destination';
+import {
+  seedLisbonWeather,
+  seedMallorcaWeather,
+  seedTokyoWeather,
+} from '@/mocks/seed-weather';
 
 function makeItem(
   id: string,
@@ -70,17 +75,7 @@ export const mockTokyoTrip: Trip = {
     { id: 'bag-shared', name: 'Shared checked suitcase', type: 'checked', ownerId: null },
   ],
   note: "We're running a half marathon during the trip and want to pack relatively light.",
-  weather: {
-    mode: 'climate',
-    summary: 'Typical October weather',
-    detail:
-      "Your trip is too far away for an accurate forecast, so we're using typical weather for this destination and time of year.",
-    high: 22,
-    low: 15,
-    rainfall: 'Moderate',
-    conditions: 'Mild with occasional rain',
-    days: [{ label: 'Typical high', icon: 'partly', high: 22, low: 15 }],
-  },
+  weather: seedTokyoWeather,
   items: tokyoItems,
   insights: [
     'Your hotel has laundry available, so we reduced the amount of clothing you need for 14 days.',
@@ -110,13 +105,7 @@ export const mockLisbonTrip: Trip = {
     { id: 'bag-l-2', name: 'Cabin bag', type: 'carryon', ownerId: 't-martin' },
   ],
   note: '',
-  weather: {
-    mode: 'forecast',
-    summary: 'Warm and sunny',
-    detail: 'A dry, bright few days perfect for exploring on foot.',
-    high: 24,
-    low: 16,
-  },
+  weather: seedLisbonWeather,
   items: [],
   insights: [],
   packingMode: 'generated',
@@ -142,13 +131,7 @@ export const mockMallorcaTrip: Trip = {
     { id: 'bag-m-2', name: 'Checked suitcase', type: 'checked', ownerId: null },
   ],
   note: '',
-  weather: {
-    mode: 'forecast',
-    summary: 'Hot and dry',
-    detail: 'Classic Mediterranean summer — plenty of beach days.',
-    high: 31,
-    low: 22,
-  },
+  weather: seedMallorcaWeather,
   items: [],
   insights: [],
   packingMode: 'generated',
