@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { useTheme } from '@/hooks/use-theme';
-import { screenPaddingHorizontal } from '@/theme/spacing';
+import { screenPaddingHorizontal, spacing } from '@/theme/spacing';
 
 type SummaryFooterProps = {
   onGenerate: () => void;
@@ -77,14 +77,14 @@ export function SummaryFooter({
 const styles = StyleSheet.create({
   footer: {
     borderTopWidth: StyleSheet.hairlineWidth,
-    paddingTop: 12,
-    gap: 10,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
   },
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: spacing.sm,
     borderRadius: 9999,
     paddingVertical: 14,
   },
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 9999,
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     minHeight: 44,
   },
 });

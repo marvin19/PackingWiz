@@ -3,8 +3,10 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import type { TripWeather } from '@/domain/weather';
+import { tripDetailCardStyles } from '@/features/trip-creation/components/trip-detail-card-styles';
 import { getWeatherFeatherIcon } from '@/features/trip-creation/utils/weather-icons';
 import { useTheme } from '@/hooks/use-theme';
+import { spacing } from '@/theme/spacing';
 
 type WeatherCardProps = {
   weather: TripWeather | null;
@@ -18,7 +20,7 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
     return (
       <View
         style={[
-          styles.card,
+          tripDetailCardStyles.card,
           styles.loadingCard,
           {
             backgroundColor: theme.colors.card,
@@ -42,14 +44,14 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
   return (
     <View
       style={[
-        styles.card,
+        tripDetailCardStyles.card,
         {
           backgroundColor: theme.colors.card,
           borderColor: theme.colors.border,
         },
       ]}>
-      <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
-        <View style={styles.headerTitle}>
+      <View style={[tripDetailCardStyles.header, { borderBottomColor: theme.colors.border }]}>
+        <View style={tripDetailCardStyles.headerTitle}>
           <Feather name="cloud-rain" size={16} color={theme.colors.primary} />
           <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
             {isForecast ? 'Forecast' : 'Typical weather'}
@@ -60,7 +62,7 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
         </AppText>
       </View>
 
-      <View style={styles.body}>
+      <View style={tripDetailCardStyles.body}>
         <AppText variant="bodySmall" color="mutedForeground" style={styles.detail}>
           {weather.detail}
         </AppText>
@@ -98,51 +100,28 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    overflow: 'hidden',
-    marginBottom: 20,
-  },
   loadingCard: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    paddingVertical: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  headerTitle: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  body: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
   },
   detail: {
     lineHeight: 20,
   },
   meta: {
-    marginTop: 8,
+    marginTop: spacing.sm,
     lineHeight: 18,
   },
   dayStrip: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 4,
-    marginTop: 12,
+    gap: spacing.xs,
+    marginTop: spacing.md,
   },
   dayColumn: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.xs,
   },
 });

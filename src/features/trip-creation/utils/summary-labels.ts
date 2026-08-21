@@ -1,4 +1,5 @@
 import { ACCOMMODATIONS, LAUNDRY_OPTIONS } from '@/domain/catalog';
+import type { Bag } from '@/domain/bag';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
 import { formatTripContext } from '@/features/trips/utils/trip-context-icon';
 
@@ -23,4 +24,16 @@ export function getLaundryLabel(id: LaundryOption | null): string {
 
 export function getTravelerCountLabel(count: number): string {
   return `${count} ${count === 1 ? 'person' : 'people'}`;
+}
+
+export function getBagsSummaryLabel(bags: Bag[]): string {
+  if (bags.length === 0) {
+    return 'None added';
+  }
+
+  if (bags.length === 1) {
+    return bags[0].name;
+  }
+
+  return `${bags.length} bags`;
 }
