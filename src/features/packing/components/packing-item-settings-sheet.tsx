@@ -188,7 +188,11 @@ export function PackingItemSettingsSheet({
           <Pressable
             accessibilityRole="switch"
             accessibilityState={{ checked: item.needToBuy }}
-            accessibilityLabel="Need to buy"
+            accessibilityLabel={
+              item.needToBuy
+                ? `Mark ${item.name} as not need to buy`
+                : `Mark ${item.name} as need to buy`
+            }
             onPress={() => toggleNeedToBuy(item.id)}
             style={[
               styles.toggleRow,
@@ -216,6 +220,7 @@ export function PackingItemSettingsSheet({
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
                 <AssignChip
                   label="Shared"
+                  itemName={item.name}
                   active={!item.assignedTo}
                   onPress={() => assignItem(item.id, null)}
                 />
@@ -223,6 +228,7 @@ export function PackingItemSettingsSheet({
                   <AssignChip
                     key={traveler.id}
                     label={traveler.name}
+                    itemName={item.name}
                     active={item.assignedTo === traveler.id}
                     onPress={() => assignItem(item.id, traveler.id)}
                   />
@@ -255,19 +261,27 @@ export function PackingItemSettingsSheet({
 
 function AssignChip({
   label,
+  itemName,
   active,
   onPress,
 }: {
   label: string;
+  itemName: string;
   active: boolean;
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const assignmentTarget = label === 'Shared' ? 'shared' : label;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected: active }}
+      accessibilityLabel={
+        active
+          ? `${itemName} assigned to ${assignmentTarget}`
+          : `Assign ${itemName} to ${assignmentTarget}`
+      }
       onPress={onPress}
       style={[
         styles.assignChip,

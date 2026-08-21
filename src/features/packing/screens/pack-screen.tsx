@@ -22,6 +22,7 @@ import { ImportantItemsEmptyCard } from '@/features/packing/components/important
 import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
 import { ImportantSnapshotNotice } from '@/features/packing/components/important-snapshot-notice';
 import { PackedCelebration } from '@/features/packing/components/packed-celebration';
+import { PackingItemSettingsSheet } from '@/features/packing/components/packing-item-settings-sheet';
 import { PackingCategoryHeader } from '@/features/packing/components/packing-category-section';
 import {
   PackingItemRow,
@@ -71,6 +72,15 @@ export function PackScreen() {
   const [adding, setAdding] = useState(false);
   const [importantSetupVisible, setImportantSetupVisible] = useState(false);
   const [dismissNoticeVisible, setDismissNoticeVisible] = useState(false);
+  const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
+
+  const settingsItem = useMemo(() => {
+    if (!settingsItemId || !activeTrip) {
+      return null;
+    }
+
+    return activeTrip.items.find((item) => item.id === settingsItemId) ?? null;
+  }, [activeTrip, settingsItemId]);
 
   const stats = packingStats(activeTrip);
   const buyCount = activeTrip?.items.filter((item) => item.needToBuy).length ?? 0;
@@ -186,6 +196,22 @@ export function PackScreen() {
 
     dismissImportantStaleNotice(activeTrip.id, importantMasterVersion);
   }, [activeTrip, dismissImportantStaleNotice, importantMasterVersion]);
+
+  const handleOpenItemSettings = useCallback(
+    (itemId: string) => {
+      const item = activeTrip?.items.find((entry) => entry.id === itemId);
+      if (!item) {
+        return;
+      }
+
+      setSettingsItemId(itemId);
+    },
+    [activeTrip],
+  );
+
+  const handleCloseItemSettings = useCallback(() => {
+    setSettingsItemId(null);
+  }, []);
 
   if (!activeTrip) {
     const isMissingActiveTrip = Boolean(activeTripId);
@@ -424,6 +450,7 @@ export function PackScreen() {
               travelers={activeTrip.travelers}
               checkboxIntent={checkboxIntent}
               onCheckboxPress={handleCheckboxPress}
+              onOpenSettings={handleOpenItemSettings}
             />
           </View>
         )}
@@ -452,6 +479,15 @@ export function PackScreen() {
         onClose={() => setImportantSetupVisible(false)}
         onSave={handleSaveImportantItems}
       />
+      {settingsItem ? (
+        <PackingItemSettingsSheet
+          key={settingsItem.id}
+          item={settingsItem}
+          travelers={activeTrip.travelers}
+          visible
+          onClose={handleCloseItemSettings}
+        />
+      ) : null}
     </AppScreen>
   );
 }

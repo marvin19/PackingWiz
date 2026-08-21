@@ -496,10 +496,13 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
+      const originalIndex = trip?.items.findIndex((entry) => entry.id === itemId) ?? -1;
+      const item = originalIndex >= 0 ? trip?.items[originalIndex] : undefined;
       if (!trip || !item || isImportantPackingItem(item)) {
         return;
       }
+
+      const deletedItem = { ...item };
 
       setTrips((current) =>
         current.map((entry) =>
@@ -511,11 +514,19 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       void tripRepository.deletePackingItem(activeTripId, itemId).catch((error) => {
         setTrips((current) =>
-          current.map((entry) =>
-            entry.id === activeTripId
-              ? { ...entry, items: [...entry.items, item] }
-              : entry,
-          ),
+          current.map((entry) => {
+            if (entry.id !== activeTripId) {
+              return entry;
+            }
+
+            if (entry.items.some((entryItem) => entryItem.id === itemId)) {
+              return entry;
+            }
+
+            const restoredItems = [...entry.items];
+            restoredItems.splice(Math.min(originalIndex, restoredItems.length), 0, deletedItem);
+            return { ...entry, items: restoredItems };
+          }),
         );
         setRepositoryError(error instanceof Error ? error.message : 'Failed to delete item');
       });

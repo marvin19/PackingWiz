@@ -1,12 +1,10 @@
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
-import { PackingItemSettingsSheet } from '@/features/packing/components/packing-item-settings-sheet';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -17,6 +15,7 @@ type PackingItemRowProps = {
   travelers: Traveler[];
   checkboxIntent: PackingCheckboxIntent;
   onCheckboxPress: (itemId: string) => void;
+  onOpenSettings: (itemId: string) => void;
 };
 
 export function PackingItemRow({
@@ -24,10 +23,10 @@ export function PackingItemRow({
   travelers,
   checkboxIntent,
   onCheckboxPress,
+  onOpenSettings,
 }: PackingItemRowProps) {
   const theme = useTheme();
   const { setItemQuantity, deletePackingItem } = useTrips();
-  const [settingsVisible, setSettingsVisible] = useState(false);
 
   const assigned = travelers.find((traveler) => traveler.id === item.assignedTo);
   const isImportant = isImportantPackingItem(item);
@@ -40,8 +39,7 @@ export function PackingItemRow({
       : `Mark ${item.name} as packed`;
 
   return (
-    <>
-      <View
+    <View
         style={[
           styles.card,
           {
@@ -174,7 +172,7 @@ export function PackingItemRow({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Packing item settings for ${item.name}`}
-              onPress={() => setSettingsVisible(true)}
+              onPress={() => onOpenSettings(item.id)}
               style={({ pressed }) => [
                 styles.iconButton,
                 { backgroundColor: theme.colors.muted, opacity: pressed ? 0.85 : 1 },
@@ -184,15 +182,6 @@ export function PackingItemRow({
           </View>
         </View>
       </View>
-
-      <PackingItemSettingsSheet
-        key={settingsVisible ? `${item.id}-open` : `${item.id}-closed`}
-        item={item}
-        travelers={travelers}
-        visible={settingsVisible}
-        onClose={() => setSettingsVisible(false)}
-      />
-    </>
   );
 }
 
