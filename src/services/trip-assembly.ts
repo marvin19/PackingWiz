@@ -23,15 +23,20 @@ export async function assembleTripFromDraft(
   },
   options: AssembleTripOptions,
 ): Promise<Trip> {
-  const weather = await services.weatherService.getWeatherForTrip({ draft });
-
+  let weather: Trip['weather'];
   let generatedItems: Trip['items'] = [];
   let insights: string[] = [];
 
   if (options.packingMode === 'generated') {
-    const packing = await services.packingGenerator.generate({ draft });
+    const [weatherResult, packing] = await Promise.all([
+      services.weatherService.getWeatherForTrip({ draft }),
+      services.packingGenerator.generate({ draft }),
+    ]);
+    weather = weatherResult;
     generatedItems = packing.items;
     insights = packing.insights;
+  } else {
+    weather = await services.weatherService.getWeatherForTrip({ draft });
   }
 
   const items = mergeImportantItems(generatedItems, options.importantItems ?? []);

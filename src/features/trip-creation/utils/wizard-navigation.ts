@@ -36,7 +36,7 @@ export function wizardStepIndexForKey(stepKey: WizardStepKey): number {
 }
 
 export function isWizardStepKey(value: string): value is WizardStepKey {
-  return value in WIZARD_STEP_KEYS;
+  return Object.hasOwn(WIZARD_STEP_KEYS, value);
 }
 
 export function parseWizardStepParam(raw: string | string[] | undefined): number | null {

@@ -24,7 +24,7 @@ import {
   getTravelerCountLabel,
   getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
-import { getCategoryIcon } from '@/features/packing/utils/category-icons';
+import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTheme } from '@/hooks/use-theme';
 import { useTrips } from '@/hooks/use-trips';
 import { blurActiveElement } from '@/lib/blur-active-element';
@@ -43,7 +43,7 @@ export function TripSummaryScreen() {
 
   const destinationLabel = getDestinationLabel(draft.destination);
   const countryLabel = getDestinationCountryLabel(draft.destination);
-  const tripContextIcon = getCategoryIcon('Clothing');
+  const tripContextIcon = getTripContextIcon(draft.tripContext[0]);
   const accommodationIcon = getAccommodationIcon(draft.accommodation ?? 'hotel');
   const packingInIcon = getBagIcon('carryon');
   const weatherKey = `${destinationLabel}-${draft.startDate}-${draft.endDate}-${countryLabel}`;

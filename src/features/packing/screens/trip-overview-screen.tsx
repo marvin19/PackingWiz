@@ -25,7 +25,7 @@ import {
   getLaundryLabel,
   getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
-import { getCategoryIcon } from '@/features/packing/utils/category-icons';
+import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { goBackOrReplace } from '@/lib/safe-navigation';
@@ -69,7 +69,7 @@ export function TripOverviewScreen() {
 
   const days = durationDays(activeTrip.startDate, activeTrip.endDate);
   const remaining = stats.total - stats.packed;
-  const tripContextIcon = getCategoryIcon('Clothing');
+  const tripContextIcon = getTripContextIcon(activeTrip.tripContext[0]);
   const accommodationIcon = getAccommodationIcon(activeTrip.accommodation);
   const destinationLabel = getDestinationLabel(activeTrip.destination);
   const countryLabel = getDestinationCountryLabel(activeTrip.destination);
