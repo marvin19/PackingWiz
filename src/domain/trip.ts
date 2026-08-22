@@ -21,6 +21,7 @@ export type PackingMode = 'generated' | 'manual';
 
 export interface Trip {
   id: string;
+  /** User-facing trip name — today often mirrors destination; MP1B will rename to `name`. */
   title: string;
   destination: Destination;
   startDate: string;
