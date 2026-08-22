@@ -1,5 +1,6 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { normalizeTrip } from '@/domain/trip-compatibility';
 import { clonePackingItem, cloneTrip } from '@/lib/clone-trip';
 import { createPackingItemId } from '@/lib/id';
 
@@ -15,7 +16,7 @@ export class MockTripRepository implements TripRepository {
   private trips: Trip[];
 
   constructor(initialTrips: Trip[] = mockSeedTrips) {
-    this.trips = initialTrips.map((trip) => cloneTrip(trip));
+    this.trips = initialTrips.map((trip) => normalizeTrip(cloneTrip(trip)));
   }
 
   async getAll(): Promise<Trip[]> {
@@ -29,20 +30,27 @@ export class MockTripRepository implements TripRepository {
 
   async save(trip: Trip): Promise<Trip> {
     const index = this.trips.findIndex((entry) => entry.id === trip.id);
-    const normalized = cloneTrip(trip);
+    const normalized = normalizeTrip(cloneTrip(trip));
 
     if (index >= 0) {
       const existing = this.trips[index];
-      this.trips[index] = cloneTrip({
-        ...existing,
-        ...normalized,
-        status: normalized.status ?? existing.status,
-        travelers: normalized.travelers.length > 0 ? normalized.travelers : existing.travelers,
-        bags: normalized.bags.length > 0 ? normalized.bags : existing.bags,
-        weather: normalized.weather ?? existing.weather,
-        insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
-        items: normalized.items,
-      });
+      this.trips[index] = normalizeTrip(
+        cloneTrip({
+          ...existing,
+          ...normalized,
+          status: normalized.status ?? existing.status,
+          travelers: normalized.travelers.length > 0 ? normalized.travelers : existing.travelers,
+          bags: normalized.bags.length > 0 ? normalized.bags : existing.bags,
+          weather: normalized.weather ?? existing.weather,
+          insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
+          items: normalized.items,
+          packingLists: normalized.packingLists,
+          name: normalized.name,
+          title: normalized.title,
+          packingMode: normalized.packingMode,
+          generated: normalized.generated,
+        }),
+      );
       return cloneTrip(this.trips[index]);
     }
 
@@ -57,10 +65,12 @@ export class MockTripRepository implements TripRepository {
     }
 
     const existing = this.trips[index];
-    const updated = cloneTrip({
-      ...existing,
-      items: items.map((item) => clonePackingItem(item)),
-    });
+    const updated = normalizeTrip(
+      cloneTrip({
+        ...existing,
+        items: items.map((item) => clonePackingItem(item)),
+      }),
+    );
     this.trips[index] = updated;
     return cloneTrip(updated);
   }
@@ -78,29 +88,36 @@ export class MockTripRepository implements TripRepository {
     itemId: string,
     patch: PackingItemPatch,
   ): Promise<PackingItem> {
-    const trip = this.trips.find((entry) => entry.id === tripId);
-    if (!trip) {
+    const index = this.trips.findIndex((entry) => entry.id === tripId);
+    if (index < 0) {
       throw new Error('Trip not found');
     }
 
-    const index = trip.items.findIndex((item) => item.id === itemId);
-    if (index < 0) {
+    const trip = this.trips[index];
+    const itemIndex = trip.items.findIndex((item) => item.id === itemId);
+    if (itemIndex < 0) {
       throw new Error('Packing item not found');
     }
 
-    const updated: PackingItem = { ...trip.items[index], ...patch };
-    trip.items = trip.items.map((item, itemIndex) =>
-      itemIndex === index ? updated : clonePackingItem(item),
+    const updated: PackingItem = { ...trip.items[itemIndex], ...patch };
+    this.trips[index] = normalizeTrip(
+      cloneTrip({
+        ...trip,
+        items: trip.items.map((item, currentIndex) =>
+          currentIndex === itemIndex ? updated : clonePackingItem(item),
+        ),
+      }),
     );
     return clonePackingItem(updated);
   }
 
   async addPackingItem(tripId: string, input: NewPackingItemInput): Promise<PackingItem> {
-    const trip = this.trips.find((entry) => entry.id === tripId);
-    if (!trip) {
+    const index = this.trips.findIndex((entry) => entry.id === tripId);
+    if (index < 0) {
       throw new Error('Trip not found');
     }
 
+    const trip = this.trips[index];
     const newItem: PackingItem = {
       id: input.id ?? createPackingItemId(),
       name: input.name.trim(),
@@ -112,17 +129,28 @@ export class MockTripRepository implements TripRepository {
       note: input.note,
     };
 
-    trip.items = [...trip.items.map(clonePackingItem), clonePackingItem(newItem)];
+    this.trips[index] = normalizeTrip(
+      cloneTrip({
+        ...trip,
+        items: [...trip.items.map(clonePackingItem), clonePackingItem(newItem)],
+      }),
+    );
     return clonePackingItem(newItem);
   }
 
   async deletePackingItem(tripId: string, itemId: string): Promise<void> {
-    const trip = this.trips.find((entry) => entry.id === tripId);
-    if (!trip) {
+    const index = this.trips.findIndex((entry) => entry.id === tripId);
+    if (index < 0) {
       throw new Error('Trip not found');
     }
 
-    trip.items = trip.items.filter((item) => item.id !== itemId).map(clonePackingItem);
+    const trip = this.trips[index];
+    this.trips[index] = normalizeTrip(
+      cloneTrip({
+        ...trip,
+        items: trip.items.filter((item) => item.id !== itemId).map(clonePackingItem),
+      }),
+    );
   }
 }
 

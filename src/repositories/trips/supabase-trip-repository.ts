@@ -1,6 +1,7 @@
+import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
-import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import { getTripName } from '@/domain/trip-name';
 import { createPackingItemId, ensureTripUuid } from '@/lib/id';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -64,7 +65,7 @@ export class SupabaseTripRepository implements TripRepository {
       const { error } = await this.client
         .from('trips')
         .update({
-          title: trip.title,
+          title: getTripName(trip),
           destination: getDestinationLabel(trip.destination),
           country: getDestinationCountryLabel(trip.destination),
           start_date: trip.startDate,

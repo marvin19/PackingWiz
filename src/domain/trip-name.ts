@@ -4,19 +4,18 @@ import type { Trip } from '@/domain/trip';
 
 /**
  * User-facing trip label (e.g. "Hyttetur") — distinct from the destination place
- * (e.g. "Norefjell, Norway"). Legacy trips store this in `Trip.title`; MP1B will
- * introduce `Trip.name` and migrate callers off `title`.
+ * (e.g. "Norefjell, Norway").
  */
 export type TripName = string;
 
-/** Read the trip's display name from the current legacy `title` field. */
-export function getTripName(trip: Pick<Trip, 'title'>): string {
-  return trip.title.trim();
+/** Read the trip's display name. Prefers `name`; falls back to legacy `title`. */
+export function getTripName(trip: Pick<Trip, 'name' | 'title'>): string {
+  return (trip.name || trip.title).trim();
 }
 
 /**
  * Fallback name when the user has not entered a trip name.
- * Matches current assembly behavior (`assembleTripFromDraft` copies destination label).
+ * Matches current assembly behavior (destination label until explicit naming exists).
  */
 export function suggestDefaultTripNameFromDestination(destination: Destination): string {
   return getDestinationLabel(destination) || 'New trip';

@@ -7,6 +7,7 @@ export * from '@/domain/packing-profile';
 export * from '@/domain/packing-stats';
 export * from '@/domain/traveler';
 export * from '@/domain/trip';
+export * from '@/domain/trip-compatibility';
 export * from '@/domain/trip-draft';
 export * from '@/domain/trip-name';
 export * from '@/domain/weather';

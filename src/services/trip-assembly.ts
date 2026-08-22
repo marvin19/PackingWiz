@@ -1,7 +1,9 @@
-import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import { getDestinationCountryLabel } from '@/domain/destination';
 import type { ImportantItem } from '@/domain/important-item';
 import type { PackingMode, Trip } from '@/domain/trip';
 import type { TripDraft } from '@/domain/trip-draft';
+import { normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
+import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
 import type { PackingGenerator } from '@/services/packing/packing-generator';
 import type { WeatherService } from '@/services/weather/weather-service';
@@ -40,11 +42,11 @@ export async function assembleTripFromDraft(
   }
 
   const items = mergeImportantItems(generatedItems, options.importantItems ?? []);
-  const destinationLabel = getDestinationLabel(draft.destination) || 'New trip';
+  const tripName = suggestDefaultTripNameFromDestination(draft.destination);
 
-  return {
+  const legacyTrip: TripLike = {
     id: `trip-${Date.now()}`,
-    title: destinationLabel,
+    title: tripName,
     destination: draft.destination,
     startDate: draft.startDate,
     endDate: draft.endDate,
@@ -61,6 +63,8 @@ export async function assembleTripFromDraft(
     generated: options.packingMode === 'generated',
     status: 'upcoming',
   };
+
+  return normalizeTrip(legacyTrip);
 }
 
 export function getTripCountryLabel(trip: Trip): string {

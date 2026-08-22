@@ -1,6 +1,7 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
 import { createDestinationFromText } from '@/domain/destination';
+import { normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
 import {
   seedLisbonWeather,
   seedMallorcaWeather,
@@ -56,7 +57,7 @@ const tokyoItems: PackingItem[] = [
   }),
 ];
 
-export const mockTokyoTrip: Trip = {
+const mockTokyoTripInput: TripLike = {
   id: 'tokyo-kyoto',
   title: 'Tokyo & Kyoto',
   destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
@@ -87,7 +88,9 @@ export const mockTokyoTrip: Trip = {
   status: 'upcoming',
 };
 
-export const mockLisbonTrip: Trip = {
+export const mockTokyoTrip: Trip = normalizeTrip(mockTokyoTripInput);
+
+const mockLisbonTripInput: TripLike = {
   id: 'lisbon',
   title: 'Lisbon City Break',
   destination: createDestinationFromText('Lisbon', 'Portugal'),
@@ -113,7 +116,9 @@ export const mockLisbonTrip: Trip = {
   status: 'past',
 };
 
-export const mockMallorcaTrip: Trip = {
+export const mockLisbonTrip: Trip = normalizeTrip(mockLisbonTripInput);
+
+const mockMallorcaTripInput: TripLike = {
   id: 'mallorca',
   title: 'Mallorca Beach',
   destination: createDestinationFromText('Mallorca', 'Spain'),
@@ -138,5 +143,7 @@ export const mockMallorcaTrip: Trip = {
   generated: true,
   status: 'past',
 };
+
+export const mockMallorcaTrip: Trip = normalizeTrip(mockMallorcaTripInput);
 
 export const mockSeedTrips: Trip[] = [mockTokyoTrip, mockLisbonTrip, mockMallorcaTrip];

@@ -1,6 +1,7 @@
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
+import type { PackingList } from '@/domain/packing-list';
 import type { Traveler } from '@/domain/traveler';
 import type { TripWeather } from '@/domain/weather';
 
@@ -16,13 +17,13 @@ export type LaundryOption = 'yes' | 'no' | 'unsure';
 
 export type TripStatus = 'upcoming' | 'past';
 
-/** How the trip's packing list was created — not inferred from item count. */
+/** How a packing list was created — not inferred from item count. */
 export type PackingMode = 'generated' | 'manual';
 
 export interface Trip {
   id: string;
-  /** User-facing trip name — today often mirrors destination; MP1B will rename to `name`. */
-  title: string;
+  /** User-facing trip name — distinct from destination place name. */
+  name: string;
   destination: Destination;
   startDate: string;
   endDate: string;
@@ -34,11 +35,25 @@ export interface Trip {
   bags: Bag[];
   note: string;
   weather: TripWeather;
-  items: PackingItem[];
+  /** One or more packing lists; primary list is packingLists[0] during single-list compatibility. */
+  packingLists: PackingList[];
   insights: string[];
-  packingMode: PackingMode;
-  /** Mirrors packingMode for Supabase schema — true when packingMode is 'generated'. */
-  generated: boolean;
   status: TripStatus;
   image?: string;
+  /**
+   * @deprecated Migration mirror of `name`. Kept in sync by normalizeTrip — do not write independently.
+   */
+  title: string;
+  /**
+   * @deprecated Migration mirror of primary PackingList.items. Kept in sync by normalizeTrip.
+   */
+  items: PackingItem[];
+  /**
+   * @deprecated Migration mirror of primary PackingList.packingMode. Kept in sync by normalizeTrip.
+   */
+  packingMode: PackingMode;
+  /**
+   * @deprecated Mirrors primary list packingMode for Supabase schema — kept in sync by normalizeTrip.
+   */
+  generated: boolean;
 }

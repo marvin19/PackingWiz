@@ -6,7 +6,8 @@ import type { PackingMode } from '@/domain/trip';
  * One person's packing list within a trip.
  *
  * Target shape: a Trip owns one or more PackingLists; items and packingMode
- * live here rather than on Trip. Legacy runtime still uses flat Trip.items.
+ * live on PackingList. Legacy Trip.items / Trip.packingMode mirrors are kept
+ * in sync by normalizeTrip until MP1C migrates providers.
  */
 export interface PackingList {
   id: string;
