@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import type { TripWeather } from '@/domain/weather';
 import { tripDetailCardStyles } from '@/features/trip-creation/components/trip-detail-card-styles';
-import { getWeatherFeatherIcon } from '@/features/trip-creation/utils/weather-icons';
+import { getPrimaryWeatherIcon, getWeatherFeatherIcon } from '@/features/trip-creation/utils/weather-icons';
 import { useTheme } from '@/hooks/use-theme';
 import { spacing } from '@/theme/spacing';
 
@@ -40,6 +40,7 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
   }
 
   const isForecast = weather.mode === 'forecast';
+  const headerIcon = getWeatherFeatherIcon(getPrimaryWeatherIcon(weather));
 
   return (
     <View
@@ -52,20 +53,27 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
       ]}>
       <View style={[tripDetailCardStyles.header, { borderBottomColor: theme.colors.border }]}>
         <View style={tripDetailCardStyles.headerTitle}>
-          <Feather name="cloud-rain" size={16} color={theme.colors.primary} />
-          <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-            {isForecast ? 'Forecast' : 'Typical weather'}
-          </AppText>
+          <Feather name={headerIcon} size={20} color={theme.colors.primary} />
+          <View style={styles.headerCopy}>
+            <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+              {weather.summary}
+            </AppText>
+            <AppText variant="caption" color="mutedForeground">
+              {isForecast ? 'Forecast' : 'Typical weather'}
+            </AppText>
+          </View>
         </View>
-        <AppText variant="bodySmall" color="mutedForeground">
+        <AppText variant="bodySemiBold" color="primary" style={styles.temperature}>
           {weather.high}° / {weather.low}°
         </AppText>
       </View>
 
       <View style={tripDetailCardStyles.body}>
-        <AppText variant="bodySmall" color="mutedForeground" style={styles.detail}>
-          {weather.detail}
-        </AppText>
+        {weather.detail ? (
+          <AppText variant="bodySmall" color="mutedForeground" style={styles.detail}>
+            {weather.detail}
+          </AppText>
+        ) : null}
 
         {!isForecast && weather.rainfall ? (
           <AppText variant="caption" color="mutedForeground" style={styles.meta}>
@@ -108,6 +116,15 @@ const styles = StyleSheet.create({
   },
   detail: {
     lineHeight: 20,
+  },
+  headerCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 2,
+  },
+  temperature: {
+    fontFamily: 'Inter_600SemiBold',
+    flexShrink: 0,
   },
   meta: {
     marginTop: spacing.sm,

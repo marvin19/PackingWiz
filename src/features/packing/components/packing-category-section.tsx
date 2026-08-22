@@ -16,6 +16,7 @@ type PackingCategorySectionProps = {
   travelers: Traveler[];
   collapsed: boolean;
   onToggleCollapsed: () => void;
+  onOpenSettings: (itemId: string) => void;
   checkboxIntent?: PackingCheckboxIntent;
   onCheckboxPress?: (itemId: string) => void;
 };
@@ -122,6 +123,7 @@ export function PackingCategorySection({
   travelers,
   collapsed,
   onToggleCollapsed,
+  onOpenSettings,
   checkboxIntent = 'packed',
   onCheckboxPress,
 }: PackingCategorySectionProps) {
@@ -146,6 +148,7 @@ export function PackingCategorySection({
               travelers={travelers}
               checkboxIntent={checkboxIntent}
               onCheckboxPress={handleCheckboxPress}
+              onOpenSettings={onOpenSettings}
             />
           ))}
         </View>

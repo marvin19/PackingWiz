@@ -10,6 +10,7 @@ import {
 } from 'react';
 
 import { findActiveTrip, reconcileActiveTripId } from '@/domain/packing-stats';
+import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { ImportantItem } from '@/domain/important-item';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
@@ -43,6 +44,7 @@ interface TripsContextValue {
   commitDraftTrip: (packingMode?: PackingMode) => Promise<Trip>;
   togglePacked: (itemId: string) => void;
   setItemQuantity: (itemId: string, quantity: number) => void;
+  renamePackingItem: (itemId: string, name: string) => void;
   toggleNeedToBuy: (itemId: string) => void;
   markItemPurchased: (itemId: string) => void;
   assignItem: (itemId: string, travelerId: string | null) => void;
@@ -278,6 +280,63 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     [activeTripId, tripRepository],
   );
 
+  const renamePackingItem = useCallback(
+    (itemId: string, name: string) => {
+      if (!activeTripId) {
+        return;
+      }
+
+      const trimmed = name.trim();
+      if (!trimmed) {
+        return;
+      }
+
+      const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
+      const item = trip?.items.find((entry) => entry.id === itemId);
+      if (!trip || !item || isImportantPackingItem(item)) {
+        return;
+      }
+
+      if (item.name === trimmed) {
+        return;
+      }
+
+      const previousName = item.name;
+
+      setTrips((current) =>
+        current.map((entry) =>
+          entry.id === activeTripId
+            ? {
+                ...entry,
+                items: entry.items.map((entryItem) =>
+                  entryItem.id === itemId ? { ...entryItem, name: trimmed } : entryItem,
+                ),
+              }
+            : entry,
+        ),
+      );
+
+      void tripRepository
+        .updatePackingItem(activeTripId, itemId, { name: trimmed })
+        .catch((error) => {
+          setTrips((current) =>
+            current.map((entry) =>
+              entry.id === activeTripId
+                ? {
+                    ...entry,
+                    items: entry.items.map((entryItem) =>
+                      entryItem.id === itemId ? { ...entryItem, name: previousName } : entryItem,
+                    ),
+                  }
+                : entry,
+            ),
+          );
+          setRepositoryError(error instanceof Error ? error.message : 'Failed to rename item');
+        });
+    },
+    [activeTripId, tripRepository],
+  );
+
   const toggleNeedToBuy = useCallback(
     (itemId: string) => {
       if (!activeTripId) {
@@ -437,10 +496,13 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
-      if (!trip || !item) {
+      const originalIndex = trip?.items.findIndex((entry) => entry.id === itemId) ?? -1;
+      const item = originalIndex >= 0 ? trip?.items[originalIndex] : undefined;
+      if (!trip || !item || isImportantPackingItem(item)) {
         return;
       }
+
+      const deletedItem = { ...item };
 
       setTrips((current) =>
         current.map((entry) =>
@@ -452,11 +514,19 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       void tripRepository.deletePackingItem(activeTripId, itemId).catch((error) => {
         setTrips((current) =>
-          current.map((entry) =>
-            entry.id === activeTripId
-              ? { ...entry, items: [...entry.items, item] }
-              : entry,
-          ),
+          current.map((entry) => {
+            if (entry.id !== activeTripId) {
+              return entry;
+            }
+
+            if (entry.items.some((entryItem) => entryItem.id === itemId)) {
+              return entry;
+            }
+
+            const restoredItems = [...entry.items];
+            restoredItems.splice(Math.min(originalIndex, restoredItems.length), 0, deletedItem);
+            return { ...entry, items: restoredItems };
+          }),
         );
         setRepositoryError(error instanceof Error ? error.message : 'Failed to delete item');
       });
@@ -642,6 +712,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       commitDraftTrip,
       togglePacked,
       setItemQuantity,
+      renamePackingItem,
       toggleNeedToBuy,
       markItemPurchased,
       assignItem,
@@ -666,6 +737,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       commitDraftTrip,
       togglePacked,
       setItemQuantity,
+      renamePackingItem,
       toggleNeedToBuy,
       markItemPurchased,
       assignItem,
