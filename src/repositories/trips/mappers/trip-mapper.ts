@@ -3,6 +3,8 @@ import type { Destination } from '@/domain/destination';
 import { createDestinationFromText, getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
+import { getTripPackingItems, getTripPackingMode, normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
+import { getTripName } from '@/domain/trip-name';
 import type {
   AccommodationId,
   LaundryOption,
@@ -169,7 +171,7 @@ export function mapTripRow(row: DbTripRow): Trip {
   const weatherSource = row.trip_weather;
   const weatherRow = Array.isArray(weatherSource) ? weatherSource[0] : weatherSource;
 
-  return {
+  const legacyTrip: TripLike = {
     id: row.id,
     title: row.title,
     destination: mapDestinationFromRow(row),
@@ -189,6 +191,8 @@ export function mapTripRow(row: DbTripRow): Trip {
     status: row.status as TripStatus,
     image: row.image ?? undefined,
   };
+
+  return normalizeTrip(legacyTrip);
 }
 
 function emptyWeather(): TripWeather {
@@ -203,35 +207,37 @@ function emptyWeather(): TripWeather {
 
 /** Payload for create_trip_with_details RPC — camelCase keys match function expectations */
 export function tripToCreatePayload(trip: Trip): Record<string, unknown> {
+  const normalized = normalizeTrip(trip);
+
   return {
-    id: trip.id,
-    title: trip.title,
-    destination: getDestinationLabel(trip.destination),
-    country: getDestinationCountryLabel(trip.destination),
-    startDate: trip.startDate,
-    endDate: trip.endDate,
+    id: normalized.id,
+    title: getTripName(normalized),
+    destination: getDestinationLabel(normalized.destination),
+    country: getDestinationCountryLabel(normalized.destination),
+    startDate: normalized.startDate,
+    endDate: normalized.endDate,
     types: [],
-    activities: trip.tripContext,
-    accommodation: trip.accommodation,
-    laundry: trip.laundry,
-    note: trip.note,
-    generated: trip.generated,
-    status: trip.status,
-    image: trip.image ?? null,
-    travelers: trip.travelers.map((traveler) => ({
+    activities: normalized.tripContext,
+    accommodation: normalized.accommodation,
+    laundry: normalized.laundry,
+    note: normalized.note,
+    generated: getTripPackingMode(normalized) === 'generated',
+    status: normalized.status,
+    image: normalized.image ?? null,
+    travelers: normalized.travelers.map((traveler) => ({
       id: traveler.id,
       name: traveler.name,
       role: traveler.role,
       age: traveler.age ?? null,
       birthDate: traveler.birthDate ?? null,
     })),
-    bags: trip.bags.map((bag) => ({
+    bags: normalized.bags.map((bag) => ({
       id: bag.id,
       name: bag.name,
       type: bag.type,
       ownerId: bag.ownerId,
     })),
-    items: trip.items.map((item) => ({
+    items: getTripPackingItems(normalized).map((item) => ({
       id: item.id,
       name: item.name,
       quantity: item.quantity,
@@ -241,8 +247,8 @@ export function tripToCreatePayload(trip: Trip): Record<string, unknown> {
       assignedTo: item.assignedTo,
       note: item.note ?? null,
     })),
-    weather: trip.weather,
-    insights: trip.insights,
+    weather: normalized.weather,
+    insights: normalized.insights,
   };
 }
 
@@ -304,4 +310,23 @@ export function newPackingItemToDbInsert(
     note: input.note ?? null,
     sort_order: input.sortOrder,
   };
+}
+
+/** Full flat packing_items row for primary-list snapshot sync. */
+export function packingItemToDbRow(
+  tripId: string,
+  item: PackingItem,
+  sortOrder: number,
+): Record<string, unknown> {
+  return newPackingItemToDbInsert(tripId, {
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    quantity: item.quantity,
+    packed: item.packed,
+    needToBuy: item.needToBuy,
+    assignedTo: item.assignedTo,
+    note: item.note,
+    sortOrder,
+  });
 }

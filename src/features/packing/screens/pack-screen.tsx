@@ -16,6 +16,7 @@ import {
 } from '@/domain/important-snapshot';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStats } from '@/domain/packing-stats';
+import { getTripPackingItems } from '@/domain/trip-compatibility';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
 import { FilterPill } from '@/features/packing/components/filter-pill';
 import { ImportantItemsEmptyCard } from '@/features/packing/components/important-items-empty-card';
@@ -74,16 +75,21 @@ export function PackScreen() {
   const [dismissNoticeVisible, setDismissNoticeVisible] = useState(false);
   const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
 
+  const packingItems = useMemo(
+    () => (activeTrip ? getTripPackingItems(activeTrip) : []),
+    [activeTrip],
+  );
+
   const settingsItem = useMemo(() => {
-    if (!settingsItemId || !activeTrip) {
+    if (!settingsItemId) {
       return null;
     }
 
-    return activeTrip.items.find((item) => item.id === settingsItemId) ?? null;
-  }, [activeTrip, settingsItemId]);
+    return packingItems.find((item) => item.id === settingsItemId) ?? null;
+  }, [packingItems, settingsItemId]);
 
   const stats = packingStats(activeTrip);
-  const buyCount = activeTrip?.items.filter((item) => item.needToBuy).length ?? 0;
+  const buyCount = packingItems.filter((item) => item.needToBuy).length;
   const { visible: celebrate, dismiss: dismissCelebration } = usePackedCelebration(
     activeTrip?.id ?? null,
     stats.pct,
@@ -98,8 +104,8 @@ export function PackScreen() {
       return false;
     }
 
-    return isImportantSnapshotStale(enabledImportantItems, activeTrip.items);
-  }, [activeTrip, enabledImportantItems, isImportantFeatureActive]);
+    return isImportantSnapshotStale(enabledImportantItems, packingItems);
+  }, [activeTrip, packingItems, enabledImportantItems, isImportantFeatureActive]);
 
   const showImportantStaleNotice = useMemo(() => {
     if (!activeTrip || !importantSnapshotStale) {
@@ -120,11 +126,11 @@ export function PackScreen() {
     }
 
     const visibleItems = isImportantFeatureActive
-      ? activeTrip.items
-      : activeTrip.items.filter((item) => !isImportantPackingItem(item));
+      ? packingItems
+      : packingItems.filter((item) => !isImportantPackingItem(item));
 
     return groupItemsByCategory(filterPackingItems(visibleItems, filter));
-  }, [activeTrip, filter, isImportantFeatureActive]);
+  }, [activeTrip, packingItems, filter, isImportantFeatureActive]);
 
   const sections = useMemo<PackSection[]>(
     () =>
@@ -199,14 +205,14 @@ export function PackScreen() {
 
   const handleOpenItemSettings = useCallback(
     (itemId: string) => {
-      const item = activeTrip?.items.find((entry) => entry.id === itemId);
+      const item = packingItems.find((entry) => entry.id === itemId);
       if (!item) {
         return;
       }
 
       setSettingsItemId(itemId);
     },
-    [activeTrip],
+    [packingItems],
   );
 
   const handleCloseItemSettings = useCallback(() => {
@@ -238,7 +244,7 @@ export function PackScreen() {
     setCollapsed((current) => ({ ...current, [category]: !current[category] }));
   };
 
-  const listEmpty = activeTrip.items.length === 0 || grouped.length === 0;
+  const listEmpty = packingItems.length === 0 || grouped.length === 0;
 
   return (
     <AppScreen style={styles.screen}>
@@ -392,7 +398,7 @@ export function PackScreen() {
         ListEmptyComponent={
           <View style={styles.listEmpty}>
             <Feather name="briefcase" size={28} color={theme.colors.mutedForeground} />
-            {activeTrip.items.length === 0 ? (
+            {packingItems.length === 0 ? (
               <>
                 <AppText variant="bodySemiBold" style={styles.emptyTitle}>
                   Your packing list is empty

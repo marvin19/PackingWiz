@@ -2,12 +2,26 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./src/*"
       ],
       "@/assets/*": [
         "./assets/*"
+      ]
+    }
+  },
+  "ts-node": {
+    "require": [
+      "tsconfig-paths/register"
+    ],
+    "compilerOptions": {
+      "module": "CommonJS",
+      "moduleResolution": "node",
+      "types": [
+        "node"
       ]
     }
   },
@@ -19,6 +33,7 @@
   ],
   "exclude": [
     "node_modules",
-    "v0-prototype"
+    "v0-prototype",
+    "scripts"
   ]
 }

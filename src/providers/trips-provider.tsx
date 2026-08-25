@@ -15,6 +15,14 @@ import type { ImportantItem } from '@/domain/important-item';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import type { PackingMode, Trip } from '@/domain/trip';
+import {
+  appendPrimaryPackingItem,
+  findTripPackingItem,
+  getTripPackingItems,
+  patchPrimaryPackingItem,
+  removePrimaryPackingItem,
+  replacePrimaryPackingItems,
+} from '@/domain/trip-compatibility';
 import { createPackingItemId } from '@/lib/id';
 import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
 import { useAuth } from '@/providers/auth-provider';
@@ -61,6 +69,10 @@ interface TripsContextValue {
 }
 
 const TripsContext = createContext<TripsContextValue | null>(null);
+
+function mapTripById(trips: Trip[], tripId: string, updater: (trip: Trip) => Trip): Trip[] {
+  return trips.map((entry) => (entry.id === tripId ? updater(entry) : entry));
+}
 
 export function TripsProvider({ children }: { children: ReactNode }) {
   const { tripRepository, packingGenerator, weatherService } = useServices();
@@ -186,7 +198,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
+      const item = trip ? findTripPackingItem(trip, itemId) : undefined;
       if (!trip || !item) {
         return;
       }
@@ -194,15 +206,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       const previousPacked = item.packed;
       const nextPacked = !previousPacked;
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? {
-                ...entry,
-                items: entry.items.map((entryItem) =>
-                  entryItem.id === itemId ? { ...entryItem, packed: nextPacked } : entryItem,
-                ),
-              }
-            : entry,
+        mapTripById(current, activeTripId, (entry) =>
+          patchPrimaryPackingItem(entry, itemId, { packed: nextPacked }),
         ),
       );
 
@@ -210,17 +215,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         .updatePackingItem(activeTripId, itemId, { packed: nextPacked })
         .catch((error) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.map((entryItem) =>
-                      entryItem.id === itemId
-                        ? { ...entryItem, packed: previousPacked }
-                        : entryItem,
-                    ),
-                  }
-                : entry,
+            mapTripById(current, activeTripId, (entry) =>
+              patchPrimaryPackingItem(entry, itemId, { packed: previousPacked }),
             ),
           );
           setRepositoryError(error instanceof Error ? error.message : 'Failed to update item');
@@ -236,7 +232,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
+      const item = trip ? findTripPackingItem(trip, itemId) : undefined;
       if (!trip || !item) {
         return;
       }
@@ -245,15 +241,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       const nextQuantity = Math.max(1, quantity);
 
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? {
-                ...entry,
-                items: entry.items.map((entryItem) =>
-                  entryItem.id === itemId ? { ...entryItem, quantity: nextQuantity } : entryItem,
-                ),
-              }
-            : entry,
+        mapTripById(current, activeTripId, (entry) =>
+          patchPrimaryPackingItem(entry, itemId, { quantity: nextQuantity }),
         ),
       );
 
@@ -261,17 +250,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         .updatePackingItem(activeTripId, itemId, { quantity: nextQuantity })
         .catch((error) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.map((entryItem) =>
-                      entryItem.id === itemId
-                        ? { ...entryItem, quantity: previousQuantity }
-                        : entryItem,
-                    ),
-                  }
-                : entry,
+            mapTripById(current, activeTripId, (entry) =>
+              patchPrimaryPackingItem(entry, itemId, { quantity: previousQuantity }),
             ),
           );
           setRepositoryError(error instanceof Error ? error.message : 'Failed to update quantity');
@@ -292,7 +272,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
+      const item = trip ? findTripPackingItem(trip, itemId) : undefined;
       if (!trip || !item || isImportantPackingItem(item)) {
         return;
       }
@@ -304,15 +284,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       const previousName = item.name;
 
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? {
-                ...entry,
-                items: entry.items.map((entryItem) =>
-                  entryItem.id === itemId ? { ...entryItem, name: trimmed } : entryItem,
-                ),
-              }
-            : entry,
+        mapTripById(current, activeTripId, (entry) =>
+          patchPrimaryPackingItem(entry, itemId, { name: trimmed }),
         ),
       );
 
@@ -320,15 +293,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         .updatePackingItem(activeTripId, itemId, { name: trimmed })
         .catch((error) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.map((entryItem) =>
-                      entryItem.id === itemId ? { ...entryItem, name: previousName } : entryItem,
-                    ),
-                  }
-                : entry,
+            mapTripById(current, activeTripId, (entry) =>
+              patchPrimaryPackingItem(entry, itemId, { name: previousName }),
             ),
           );
           setRepositoryError(error instanceof Error ? error.message : 'Failed to rename item');
@@ -344,7 +310,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
+      const item = trip ? findTripPackingItem(trip, itemId) : undefined;
       if (!trip || !item) {
         return;
       }
@@ -352,17 +318,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       const previousNeedToBuy = item.needToBuy;
       const nextNeedToBuy = !previousNeedToBuy;
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? {
-                ...entry,
-                items: entry.items.map((entryItem) =>
-                  entryItem.id === itemId
-                    ? { ...entryItem, needToBuy: nextNeedToBuy }
-                    : entryItem,
-                ),
-              }
-            : entry,
+        mapTripById(current, activeTripId, (entry) =>
+          patchPrimaryPackingItem(entry, itemId, { needToBuy: nextNeedToBuy }),
         ),
       );
 
@@ -370,17 +327,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         .updatePackingItem(activeTripId, itemId, { needToBuy: nextNeedToBuy })
         .catch((error) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.map((entryItem) =>
-                      entryItem.id === itemId
-                        ? { ...entryItem, needToBuy: previousNeedToBuy }
-                        : entryItem,
-                    ),
-                  }
-                : entry,
+            mapTripById(current, activeTripId, (entry) =>
+              patchPrimaryPackingItem(entry, itemId, { needToBuy: previousNeedToBuy }),
             ),
           );
           setRepositoryError(error instanceof Error ? error.message : 'Failed to update item');
@@ -396,21 +344,14 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
+      const item = trip ? findTripPackingItem(trip, itemId) : undefined;
       if (!trip || !item || !item.needToBuy) {
         return;
       }
 
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? {
-                ...entry,
-                items: entry.items.map((entryItem) =>
-                  entryItem.id === itemId ? { ...entryItem, needToBuy: false } : entryItem,
-                ),
-              }
-            : entry,
+        mapTripById(current, activeTripId, (entry) =>
+          patchPrimaryPackingItem(entry, itemId, { needToBuy: false }),
         ),
       );
 
@@ -418,17 +359,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         .updatePackingItem(activeTripId, itemId, { needToBuy: false })
         .catch((error) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.map((entryItem) =>
-                      entryItem.id === itemId
-                        ? { ...entryItem, needToBuy: true }
-                        : entryItem,
-                    ),
-                  }
-                : entry,
+            mapTripById(current, activeTripId, (entry) =>
+              patchPrimaryPackingItem(entry, itemId, { needToBuy: true }),
             ),
           );
           setRepositoryError(error instanceof Error ? error.message : 'Failed to update item');
@@ -444,7 +376,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const item = trip?.items.find((entry) => entry.id === itemId);
+      const item = trip ? findTripPackingItem(trip, itemId) : undefined;
       if (!trip || !item) {
         return;
       }
@@ -452,17 +384,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       const previousAssignedTo = item.assignedTo;
 
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? {
-                ...entry,
-                items: entry.items.map((entryItem) =>
-                  entryItem.id === itemId
-                    ? { ...entryItem, assignedTo: travelerId }
-                    : entryItem,
-                ),
-              }
-            : entry,
+        mapTripById(current, activeTripId, (entry) =>
+          patchPrimaryPackingItem(entry, itemId, { assignedTo: travelerId }),
         ),
       );
 
@@ -470,17 +393,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         .updatePackingItem(activeTripId, itemId, { assignedTo: travelerId })
         .catch((error) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.map((entryItem) =>
-                      entryItem.id === itemId
-                        ? { ...entryItem, assignedTo: previousAssignedTo }
-                        : entryItem,
-                    ),
-                  }
-                : entry,
+            mapTripById(current, activeTripId, (entry) =>
+              patchPrimaryPackingItem(entry, itemId, { assignedTo: previousAssignedTo }),
             ),
           );
           setRepositoryError(error instanceof Error ? error.message : 'Failed to assign item');
@@ -496,8 +410,9 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const trip = tripsRef.current.find((entry) => entry.id === activeTripId);
-      const originalIndex = trip?.items.findIndex((entry) => entry.id === itemId) ?? -1;
-      const item = originalIndex >= 0 ? trip?.items[originalIndex] : undefined;
+      const items = trip ? getTripPackingItems(trip) : [];
+      const originalIndex = items.findIndex((entry) => entry.id === itemId);
+      const item = originalIndex >= 0 ? items[originalIndex] : undefined;
       if (!trip || !item || isImportantPackingItem(item)) {
         return;
       }
@@ -505,27 +420,20 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       const deletedItem = { ...item };
 
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? { ...entry, items: entry.items.filter((entryItem) => entryItem.id !== itemId) }
-            : entry,
-        ),
+        mapTripById(current, activeTripId, (entry) => removePrimaryPackingItem(entry, itemId)),
       );
 
       void tripRepository.deletePackingItem(activeTripId, itemId).catch((error) => {
         setTrips((current) =>
-          current.map((entry) => {
-            if (entry.id !== activeTripId) {
+          mapTripById(current, activeTripId, (entry) => {
+            const currentItems = getTripPackingItems(entry);
+            if (currentItems.some((entryItem) => entryItem.id === itemId)) {
               return entry;
             }
 
-            if (entry.items.some((entryItem) => entryItem.id === itemId)) {
-              return entry;
-            }
-
-            const restoredItems = [...entry.items];
+            const restoredItems = [...currentItems];
             restoredItems.splice(Math.min(originalIndex, restoredItems.length), 0, deletedItem);
-            return { ...entry, items: restoredItems };
+            return replacePrimaryPackingItems(entry, restoredItems);
           }),
         );
         setRepositoryError(error instanceof Error ? error.message : 'Failed to delete item');
@@ -563,10 +471,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       };
 
       setTrips((current) =>
-        current.map((entry) =>
-          entry.id === activeTripId
-            ? { ...entry, items: [...entry.items, optimisticItem] }
-            : entry,
+        mapTripById(current, activeTripId, (entry) =>
+          appendPrimaryPackingItem(entry, optimisticItem),
         ),
       );
 
@@ -581,27 +487,19 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         })
         .then((saved) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.map((entryItem) =>
-                      entryItem.id === optimisticId ? saved : entryItem,
-                    ),
-                  }
-                : entry,
-            ),
+            mapTripById(current, activeTripId, (entry) => {
+              const items = getTripPackingItems(entry);
+              return replacePrimaryPackingItems(
+                entry,
+                items.map((entryItem) => (entryItem.id === optimisticId ? saved : entryItem)),
+              );
+            }),
           );
         })
         .catch((error) => {
           setTrips((current) =>
-            current.map((entry) =>
-              entry.id === activeTripId
-                ? {
-                    ...entry,
-                    items: entry.items.filter((entryItem) => entryItem.id !== optimisticId),
-                  }
-                : entry,
+            mapTripById(current, activeTripId, (entry) =>
+              removePrimaryPackingItem(entry, optimisticId),
             ),
           );
           setRepositoryError(error instanceof Error ? error.message : 'Failed to add item');
@@ -625,11 +523,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
           return current;
         }
 
-        previousItems = trip.items;
-        nextItems = mergeImportantItems(trip.items, importantItems);
+        previousItems = getTripPackingItems(trip);
+        nextItems = mergeImportantItems(previousItems, importantItems);
 
-        return current.map((entry) =>
-          entry.id === tripId ? { ...entry, items: nextItems! } : entry,
+        return mapTripById(current, tripId, (entry) =>
+          replacePrimaryPackingItems(entry, nextItems!),
         );
       });
 
@@ -639,9 +537,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       void tripRepository.updateTripPackingItems(tripId, nextItems).catch((error) => {
         setTrips((latest) =>
-          latest.map((entry) =>
-            entry.id === tripId ? { ...entry, items: previousItems! } : entry,
-          ),
+          mapTripById(latest, tripId, (entry) => replacePrimaryPackingItems(entry, previousItems!)),
         );
         setRepositoryError(
           error instanceof Error ? error.message : 'Failed to save important items',
@@ -662,11 +558,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
           return current;
         }
 
-        previousItems = trip.items;
-        nextItems = syncTripImportantSnapshot(trip.items, importantItems);
+        previousItems = getTripPackingItems(trip);
+        nextItems = syncTripImportantSnapshot(previousItems, importantItems);
 
-        return current.map((entry) =>
-          entry.id === tripId ? { ...entry, items: nextItems! } : entry,
+        return mapTripById(current, tripId, (entry) =>
+          replacePrimaryPackingItems(entry, nextItems!),
         );
       });
 
@@ -676,9 +572,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       void tripRepository.updateTripPackingItems(tripId, nextItems).catch((error) => {
         setTrips((latest) =>
-          latest.map((entry) =>
-            entry.id === tripId ? { ...entry, items: previousItems! } : entry,
-          ),
+          mapTripById(latest, tripId, (entry) => replacePrimaryPackingItems(entry, previousItems!)),
         );
         setRepositoryError(
           error instanceof Error ? error.message : 'Failed to sync important items',

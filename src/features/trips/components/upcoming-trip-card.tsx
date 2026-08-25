@@ -7,6 +7,7 @@ import { getDestinationCountryLabel } from '@/domain/destination';
 import { durationDays, formatRange } from '@/domain/dates';
 import { packingStats } from '@/domain/packing-stats';
 import type { Trip } from '@/domain/trip';
+import { getTripName } from '@/domain/trip-name';
 import { TripHeroImage } from '@/features/trips/components/trip-hero-image';
 import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,11 +28,12 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
   const days = durationDays(trip.startDate, trip.endDate);
   const typeIcon = getTripContextIcon(trip.tripContext[0]);
   const country = getDestinationCountryLabel(trip.destination);
+  const tripName = getTripName(trip);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${trip.title} packing list`}
+      accessibilityLabel={`Open ${tripName} packing list`}
       onPress={() => onPress(trip.id)}
       style={({ pressed }) => [
         styles.card,
@@ -60,7 +62,7 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
               styles.tripTitle,
               { color: '#FFFFFF', fontFamily: theme.fontFamilies.display },
             ]}>
-            {trip.title}
+            {tripName}
           </AppText>
           <View style={styles.locationRow}>
             <Feather name="map-pin" size={14} color="rgba(255,255,255,0.85)" />
@@ -90,7 +92,7 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
               {stats.packed} / {stats.total} packed
             </AppText>
           </View>
-          <ProgressBar value={stats.pct} accessibilityLabel={`${trip.title} packing progress`} />
+          <ProgressBar value={stats.pct} accessibilityLabel={`${tripName} packing progress`} />
         </View>
       </View>
     </Pressable>

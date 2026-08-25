@@ -1,6 +1,8 @@
+import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
-import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import { getTripPackingItems, getTripPackingMode, replacePrimaryPackingItems } from '@/domain/trip-compatibility';
+import { getTripName } from '@/domain/trip-name';
 import { createPackingItemId, ensureTripUuid } from '@/lib/id';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
@@ -9,6 +11,7 @@ import {
   mapTripRow,
   newPackingItemToDbInsert,
   packingItemPatchToDb,
+  packingItemToDbRow,
   tripToCreatePayload,
   type DbPackingItemRow,
   type DbTripRow,
@@ -64,7 +67,7 @@ export class SupabaseTripRepository implements TripRepository {
       const { error } = await this.client
         .from('trips')
         .update({
-          title: trip.title,
+          title: getTripName(trip),
           destination: getDestinationLabel(trip.destination),
           country: getDestinationCountryLabel(trip.destination),
           start_date: trip.startDate,
@@ -74,7 +77,7 @@ export class SupabaseTripRepository implements TripRepository {
           note: trip.note,
           types: [],
           activities: trip.tripContext,
-          generated: trip.generated,
+          generated: getTripPackingMode(trip) === 'generated',
           status: trip.status,
           image: trip.image ?? null,
         })
@@ -96,7 +99,59 @@ export class SupabaseTripRepository implements TripRepository {
       throw new Error('Trip not found');
     }
 
-    return this.save({ ...existing, items });
+    const updatedTrip = replacePrimaryPackingItems(existing, items);
+    await this.syncPrimaryPackingItems(tripId, getTripPackingItems(updatedTrip));
+
+    const reloaded = await this.getById(tripId);
+    if (!reloaded) {
+      throw new Error('Trip not found after packing items update');
+    }
+
+    return reloaded;
+  }
+
+  /**
+   * Replace the flat packing_items snapshot for a trip's primary list.
+   * Uses the current schema — one flat table, no PackingList rows.
+   */
+  private async syncPrimaryPackingItems(tripId: string, items: PackingItem[]): Promise<void> {
+    const { data: existingRows, error: readError } = await this.client
+      .from('packing_items')
+      .select('id')
+      .eq('trip_id', tripId);
+
+    if (readError) {
+      throw new Error(readError.message);
+    }
+
+    const existingIds = new Set((existingRows ?? []).map((row) => row.id as string));
+    const nextIds = new Set(items.map((item) => item.id));
+    const idsToDelete = [...existingIds].filter((id) => !nextIds.has(id));
+
+    if (idsToDelete.length > 0) {
+      const { error: deleteError } = await this.client
+        .from('packing_items')
+        .delete()
+        .eq('trip_id', tripId)
+        .in('id', idsToDelete);
+
+      if (deleteError) {
+        throw new Error(deleteError.message);
+      }
+    }
+
+    if (items.length === 0) {
+      return;
+    }
+
+    const rows = items.map((item, index) => packingItemToDbRow(tripId, item, index));
+    const { error: upsertError } = await this.client
+      .from('packing_items')
+      .upsert(rows, { onConflict: 'trip_id,id' });
+
+    if (upsertError) {
+      throw new Error(upsertError.message);
+    }
   }
 
   async createTrip(trip: Trip): Promise<Trip> {

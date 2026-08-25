@@ -1,13 +1,15 @@
 import { PACKING_CATEGORY_ORDER, type PackingCategory } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { getTripPackingItems } from '@/domain/trip-compatibility';
 
 export function packingStats(trip: Trip | null): { packed: number; total: number; pct: number } {
   if (!trip) {
     return { packed: 0, total: 0, pct: 0 };
   }
 
-  const packed = trip.items.filter((item) => item.packed).length;
-  const total = trip.items.length;
+  const items = getTripPackingItems(trip);
+  const packed = items.filter((item) => item.packed).length;
+  const total = items.length;
   const pct = total === 0 ? 0 : Math.round((packed / total) * 100);
 
   return { packed, total, pct };
@@ -18,7 +20,7 @@ export function shoppingCount(trip: Trip | null): number {
     return 0;
   }
 
-  return trip.items.filter((item) => item.needToBuy).length;
+  return getTripPackingItems(trip).filter((item) => item.needToBuy).length;
 }
 
 export type CategoryProgress = {
@@ -29,10 +31,12 @@ export type CategoryProgress = {
 };
 
 export function categoryBreakdown(trip: Trip): CategoryProgress[] {
+  const items = getTripPackingItems(trip);
+
   return PACKING_CATEGORY_ORDER.map((category) => {
-    const items = trip.items.filter((item) => item.category === category);
-    const packed = items.filter((item) => item.packed).length;
-    const total = items.length;
+    const categoryItems = items.filter((item) => item.category === category);
+    const packed = categoryItems.filter((item) => item.packed).length;
+    const total = categoryItems.length;
 
     return {
       category,
@@ -54,11 +58,13 @@ export type TravelerProgress = {
 };
 
 export function travelerBreakdown(trip: Trip): TravelerProgress[] {
+  const items = getTripPackingItems(trip);
+
   const buckets: TravelerProgress[] = [
     ...trip.travelers.map((traveler) => {
-      const items = trip.items.filter((item) => item.assignedTo === traveler.id);
-      const packed = items.filter((item) => item.packed).length;
-      const total = items.length;
+      const travelerItems = items.filter((item) => item.assignedTo === traveler.id);
+      const packed = travelerItems.filter((item) => item.packed).length;
+      const total = travelerItems.length;
 
       return {
         id: traveler.id,
@@ -71,9 +77,9 @@ export function travelerBreakdown(trip: Trip): TravelerProgress[] {
       };
     }),
     (() => {
-      const items = trip.items.filter((item) => !item.assignedTo);
-      const packed = items.filter((item) => item.packed).length;
-      const total = items.length;
+      const sharedItems = items.filter((item) => !item.assignedTo);
+      const packed = sharedItems.filter((item) => item.packed).length;
+      const total = sharedItems.length;
 
       return {
         id: 'shared',

@@ -1,5 +1,13 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import {
+  appendPrimaryPackingItem,
+  findTripPackingItem,
+  patchPrimaryPackingItem,
+  removePrimaryPackingItem,
+  replacePrimaryPackingItems,
+  type TripLike,
+} from '@/domain/trip-compatibility';
 import { clonePackingItem, cloneTrip } from '@/lib/clone-trip';
 import { createPackingItemId } from '@/lib/id';
 
@@ -10,11 +18,11 @@ import type {
 } from '@/repositories/trips/trip-repository';
 import { mockSeedTrips } from '@/mocks/seed-trips';
 
-/** In-memory only — resets to seed trips on full app reload in mock mode. */
+/** Persists the primary packing list only — no packingListId in repository API until MP5. */
 export class MockTripRepository implements TripRepository {
   private trips: Trip[];
 
-  constructor(initialTrips: Trip[] = mockSeedTrips) {
+  constructor(initialTrips: (Trip | TripLike)[] = mockSeedTrips) {
     this.trips = initialTrips.map((trip) => cloneTrip(trip));
   }
 
@@ -41,7 +49,7 @@ export class MockTripRepository implements TripRepository {
         bags: normalized.bags.length > 0 ? normalized.bags : existing.bags,
         weather: normalized.weather ?? existing.weather,
         insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
-        items: normalized.items,
+        packingLists: normalized.packingLists,
       });
       return cloneTrip(this.trips[index]);
     }
@@ -56,11 +64,10 @@ export class MockTripRepository implements TripRepository {
       throw new Error('Trip not found');
     }
 
-    const existing = this.trips[index];
-    const updated = cloneTrip({
-      ...existing,
-      items: items.map((item) => clonePackingItem(item)),
-    });
+    const updated = replacePrimaryPackingItems(
+      this.trips[index],
+      items.map((item) => clonePackingItem(item)),
+    );
     this.trips[index] = updated;
     return cloneTrip(updated);
   }
@@ -78,26 +85,25 @@ export class MockTripRepository implements TripRepository {
     itemId: string,
     patch: PackingItemPatch,
   ): Promise<PackingItem> {
-    const trip = this.trips.find((entry) => entry.id === tripId);
-    if (!trip) {
+    const index = this.trips.findIndex((entry) => entry.id === tripId);
+    if (index < 0) {
       throw new Error('Trip not found');
     }
 
-    const index = trip.items.findIndex((item) => item.id === itemId);
-    if (index < 0) {
+    const trip = this.trips[index];
+    const item = findTripPackingItem(trip, itemId);
+    if (!item) {
       throw new Error('Packing item not found');
     }
 
-    const updated: PackingItem = { ...trip.items[index], ...patch };
-    trip.items = trip.items.map((item, itemIndex) =>
-      itemIndex === index ? updated : clonePackingItem(item),
-    );
+    const updated: PackingItem = { ...item, ...patch };
+    this.trips[index] = patchPrimaryPackingItem(trip, itemId, patch);
     return clonePackingItem(updated);
   }
 
   async addPackingItem(tripId: string, input: NewPackingItemInput): Promise<PackingItem> {
-    const trip = this.trips.find((entry) => entry.id === tripId);
-    if (!trip) {
+    const index = this.trips.findIndex((entry) => entry.id === tripId);
+    if (index < 0) {
       throw new Error('Trip not found');
     }
 
@@ -112,17 +118,17 @@ export class MockTripRepository implements TripRepository {
       note: input.note,
     };
 
-    trip.items = [...trip.items.map(clonePackingItem), clonePackingItem(newItem)];
+    this.trips[index] = appendPrimaryPackingItem(this.trips[index], newItem);
     return clonePackingItem(newItem);
   }
 
   async deletePackingItem(tripId: string, itemId: string): Promise<void> {
-    const trip = this.trips.find((entry) => entry.id === tripId);
-    if (!trip) {
+    const index = this.trips.findIndex((entry) => entry.id === tripId);
+    if (index < 0) {
       throw new Error('Trip not found');
     }
 
-    trip.items = trip.items.filter((item) => item.id !== itemId).map(clonePackingItem);
+    this.trips[index] = removePrimaryPackingItem(this.trips[index], itemId);
   }
 }
 
