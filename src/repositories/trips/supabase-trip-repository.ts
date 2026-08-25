@@ -1,7 +1,7 @@
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
-import { replacePrimaryPackingItems } from '@/domain/trip-compatibility';
+import { getTripPackingMode, replacePrimaryPackingItems } from '@/domain/trip-compatibility';
 import { getTripName } from '@/domain/trip-name';
 import { createPackingItemId, ensureTripUuid } from '@/lib/id';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -76,7 +76,7 @@ export class SupabaseTripRepository implements TripRepository {
           note: trip.note,
           types: [],
           activities: trip.tripContext,
-          generated: trip.generated,
+          generated: getTripPackingMode(trip) === 'generated',
           status: trip.status,
           image: trip.image ?? null,
         })

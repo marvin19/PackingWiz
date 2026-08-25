@@ -51,11 +51,6 @@ export class MockTripRepository implements TripRepository {
           weather: normalized.weather ?? existing.weather,
           insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
           packingLists: normalized.packingLists,
-          name: normalized.name,
-          title: normalized.title,
-          items: normalized.items,
-          packingMode: normalized.packingMode,
-          generated: normalized.generated,
         }),
       );
       return cloneTrip(this.trips[index]);

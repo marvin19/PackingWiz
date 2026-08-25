@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { durationDays, formatRange } from '@/domain/dates';
 import type { Trip } from '@/domain/trip';
+import { getTripName } from '@/domain/trip-name';
 import { TripHeroImage } from '@/features/trips/components/trip-hero-image';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -15,11 +16,12 @@ type PastTripCardProps = {
 export function PastTripCard({ trip, onPress }: PastTripCardProps) {
   const theme = useTheme();
   const days = durationDays(trip.startDate, trip.endDate);
+  const tripName = getTripName(trip);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`View ${trip.title}`}
+      accessibilityLabel={`View ${tripName}`}
       disabled={!onPress}
       onPress={() => onPress?.(trip.id)}
       style={({ pressed }) => [
@@ -35,7 +37,7 @@ export function PastTripCard({ trip, onPress }: PastTripCardProps) {
       </View>
       <View style={styles.copy}>
         <AppText variant="bodySmall" numberOfLines={1} style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-          {trip.title}
+          {tripName}
         </AppText>
         <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
           {formatRange(trip.startDate, trip.endDate)} · {days} {days === 1 ? 'day' : 'days'}

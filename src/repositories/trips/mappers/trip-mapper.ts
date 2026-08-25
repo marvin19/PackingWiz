@@ -3,7 +3,7 @@ import type { Destination } from '@/domain/destination';
 import { createDestinationFromText, getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
-import { getTripPackingItems, normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
+import { getTripPackingItems, getTripPackingMode, normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
 import { getTripName } from '@/domain/trip-name';
 import type {
   AccommodationId,
@@ -221,7 +221,7 @@ export function tripToCreatePayload(trip: Trip): Record<string, unknown> {
     accommodation: normalized.accommodation,
     laundry: normalized.laundry,
     note: normalized.note,
-    generated: normalized.generated,
+    generated: getTripPackingMode(normalized) === 'generated',
     status: normalized.status,
     image: normalized.image ?? null,
     travelers: normalized.travelers.map((traveler) => ({
