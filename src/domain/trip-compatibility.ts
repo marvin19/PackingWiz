@@ -105,7 +105,7 @@ function resolveTripName(trip: TripLike): string {
 
 /**
  * True when the trip is still on the temporary MP1 single-list compatibility path.
- * Legacy Trip.items / Trip.packingMode may write through only in this case (until MP1C).
+ * Used to fill deterministic ids on the primary list during normalization.
  */
 function isLegacyCompatibilityShape(trip: TripLike): boolean {
   if (!trip.packingLists || trip.packingLists.length === 0) {
@@ -122,11 +122,10 @@ function isLegacyCompatibilityShape(trip: TripLike): boolean {
 /**
  * Normalize a trip to the target nested shape while keeping legacy mirrors in sync.
  *
- * Precedence (transitional until MP1C):
- * - no packingLists → build deterministic primary list from legacy fields
- * - single compatibility primary list → legacy items/mode write through to that list
- * - multiple lists or real/non-compatibility nested lists → packingLists authoritative;
- *   deprecated legacy fields are mirrors only
+ * Precedence:
+ * - no packingLists → build deterministic primary list from legacy ingress fields
+ * - compatibility or real nested lists present → primary PackingList is authoritative (MP1C+)
+ * - legacy Trip.items / Trip.packingMode are mirrored on output only
  */
 export function normalizeTrip(trip: TripLike): Trip {
   const name = resolveTripName(trip);
@@ -135,30 +134,24 @@ export function normalizeTrip(trip: TripLike): Trip {
 
   let packingLists: PackingList[];
 
-  if (isLegacyCompatibilityShape(trip)) {
+  if (!trip.packingLists || trip.packingLists.length === 0) {
+    packingLists = [
+      buildPrimaryPackingList(trip.id, trip.travelers, legacyPackingMode, legacyItems),
+    ];
+  } else if (isLegacyCompatibilityShape(trip)) {
     const profileSnapshot = buildPrimaryProfileSnapshot(trip.id, trip.travelers);
+    const existing = clonePackingList(trip.packingLists[0]);
 
-    if (!trip.packingLists || trip.packingLists.length === 0) {
-      packingLists = [
-        buildPrimaryPackingList(trip.id, trip.travelers, legacyPackingMode, legacyItems),
-      ];
-    } else {
-      // Single deterministic compatibility list — legacy write-through until MP1C.
-      const existing = clonePackingList(trip.packingLists[0]);
-      packingLists = [
-        {
-          ...existing,
-          id: primaryPackingListId(trip.id),
-          packingProfileId: existing.packingProfileId || profileSnapshot.id,
-          profileSnapshot: existing.profileSnapshot ?? profileSnapshot,
-          packingMode: legacyPackingMode,
-          items: legacyItems,
-        },
-      ];
-    }
+    packingLists = [
+      {
+        ...existing,
+        id: primaryPackingListId(trip.id),
+        packingProfileId: existing.packingProfileId || profileSnapshot.id,
+        profileSnapshot: existing.profileSnapshot ?? profileSnapshot,
+      },
+    ];
   } else {
-    // Real nested / multi-list model — do not let legacy fields overwrite nested data.
-    packingLists = trip.packingLists!.map(clonePackingList);
+    packingLists = trip.packingLists.map(clonePackingList);
   }
 
   const primaryList = packingLists[0];
@@ -191,4 +184,59 @@ export function getTripPackingItems(trip: Trip): PackingItem[] {
 /** Packing mode for the compatibility single-list runtime (mirrors primary list). */
 export function getTripPackingMode(trip: Trip): PackingMode {
   return getPrimaryPackingList(trip).packingMode;
+}
+
+export function findTripPackingItem(trip: Trip, itemId: string): PackingItem | undefined {
+  return getTripPackingItems(trip).find((item) => item.id === itemId);
+}
+
+/** Update the primary packing list immutably; re-normalizes legacy compatibility mirrors. */
+export function updatePrimaryPackingList(
+  trip: Trip,
+  updater: (list: PackingList) => PackingList,
+): Trip {
+  const updatedPrimary = updater(clonePackingList(getPrimaryPackingList(trip)));
+
+  return normalizeTrip({
+    ...trip,
+    packingLists: [updatedPrimary, ...trip.packingLists.slice(1).map(clonePackingList)],
+    items: updatedPrimary.items,
+    packingMode: updatedPrimary.packingMode,
+  });
+}
+
+/** Replace all items on the primary packing list. */
+export function replacePrimaryPackingItems(trip: Trip, items: PackingItem[]): Trip {
+  return updatePrimaryPackingList(trip, (list) => ({
+    ...list,
+    items: items.map(cloneItem),
+  }));
+}
+
+/** Patch one item on the primary packing list by id. */
+export function patchPrimaryPackingItem(
+  trip: Trip,
+  itemId: string,
+  patch: Partial<PackingItem>,
+): Trip {
+  return updatePrimaryPackingList(trip, (list) => ({
+    ...list,
+    items: list.items.map((item) => (item.id === itemId ? { ...item, ...patch } : cloneItem(item))),
+  }));
+}
+
+/** Append one item to the primary packing list. */
+export function appendPrimaryPackingItem(trip: Trip, item: PackingItem): Trip {
+  return updatePrimaryPackingList(trip, (list) => ({
+    ...list,
+    items: [...list.items.map(cloneItem), cloneItem(item)],
+  }));
+}
+
+/** Remove one item from the primary packing list by id. */
+export function removePrimaryPackingItem(trip: Trip, itemId: string): Trip {
+  return updatePrimaryPackingList(trip, (list) => ({
+    ...list,
+    items: list.items.filter((item) => item.id !== itemId),
+  }));
 }

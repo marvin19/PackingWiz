@@ -1,6 +1,13 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
-import { normalizeTrip } from '@/domain/trip-compatibility';
+import {
+  appendPrimaryPackingItem,
+  findTripPackingItem,
+  normalizeTrip,
+  patchPrimaryPackingItem,
+  removePrimaryPackingItem,
+  replacePrimaryPackingItems,
+} from '@/domain/trip-compatibility';
 import { clonePackingItem, cloneTrip } from '@/lib/clone-trip';
 import { createPackingItemId } from '@/lib/id';
 
@@ -11,7 +18,7 @@ import type {
 } from '@/repositories/trips/trip-repository';
 import { mockSeedTrips } from '@/mocks/seed-trips';
 
-/** In-memory only — resets to seed trips on full app reload in mock mode. */
+/** Persists the primary packing list only — no packingListId in repository API until MP5. */
 export class MockTripRepository implements TripRepository {
   private trips: Trip[];
 
@@ -43,10 +50,10 @@ export class MockTripRepository implements TripRepository {
           bags: normalized.bags.length > 0 ? normalized.bags : existing.bags,
           weather: normalized.weather ?? existing.weather,
           insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
-          items: normalized.items,
           packingLists: normalized.packingLists,
           name: normalized.name,
           title: normalized.title,
+          items: normalized.items,
           packingMode: normalized.packingMode,
           generated: normalized.generated,
         }),
@@ -64,12 +71,9 @@ export class MockTripRepository implements TripRepository {
       throw new Error('Trip not found');
     }
 
-    const existing = this.trips[index];
-    const updated = normalizeTrip(
-      cloneTrip({
-        ...existing,
-        items: items.map((item) => clonePackingItem(item)),
-      }),
+    const updated = replacePrimaryPackingItems(
+      this.trips[index],
+      items.map((item) => clonePackingItem(item)),
     );
     this.trips[index] = updated;
     return cloneTrip(updated);
@@ -94,20 +98,13 @@ export class MockTripRepository implements TripRepository {
     }
 
     const trip = this.trips[index];
-    const itemIndex = trip.items.findIndex((item) => item.id === itemId);
-    if (itemIndex < 0) {
+    const item = findTripPackingItem(trip, itemId);
+    if (!item) {
       throw new Error('Packing item not found');
     }
 
-    const updated: PackingItem = { ...trip.items[itemIndex], ...patch };
-    this.trips[index] = normalizeTrip(
-      cloneTrip({
-        ...trip,
-        items: trip.items.map((item, currentIndex) =>
-          currentIndex === itemIndex ? updated : clonePackingItem(item),
-        ),
-      }),
-    );
+    const updated: PackingItem = { ...item, ...patch };
+    this.trips[index] = patchPrimaryPackingItem(trip, itemId, patch);
     return clonePackingItem(updated);
   }
 
@@ -117,7 +114,6 @@ export class MockTripRepository implements TripRepository {
       throw new Error('Trip not found');
     }
 
-    const trip = this.trips[index];
     const newItem: PackingItem = {
       id: input.id ?? createPackingItemId(),
       name: input.name.trim(),
@@ -129,12 +125,7 @@ export class MockTripRepository implements TripRepository {
       note: input.note,
     };
 
-    this.trips[index] = normalizeTrip(
-      cloneTrip({
-        ...trip,
-        items: [...trip.items.map(clonePackingItem), clonePackingItem(newItem)],
-      }),
-    );
+    this.trips[index] = appendPrimaryPackingItem(this.trips[index], newItem);
     return clonePackingItem(newItem);
   }
 
@@ -144,13 +135,7 @@ export class MockTripRepository implements TripRepository {
       throw new Error('Trip not found');
     }
 
-    const trip = this.trips[index];
-    this.trips[index] = normalizeTrip(
-      cloneTrip({
-        ...trip,
-        items: trip.items.filter((item) => item.id !== itemId).map(clonePackingItem),
-      }),
-    );
+    this.trips[index] = removePrimaryPackingItem(this.trips[index], itemId);
   }
 }
 

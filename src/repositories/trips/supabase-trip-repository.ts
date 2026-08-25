@@ -1,6 +1,7 @@
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { replacePrimaryPackingItems } from '@/domain/trip-compatibility';
 import { getTripName } from '@/domain/trip-name';
 import { createPackingItemId, ensureTripUuid } from '@/lib/id';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -97,7 +98,7 @@ export class SupabaseTripRepository implements TripRepository {
       throw new Error('Trip not found');
     }
 
-    return this.save({ ...existing, items });
+    return this.save(replacePrimaryPackingItems(existing, items));
   }
 
   async createTrip(trip: Trip): Promise<Trip> {

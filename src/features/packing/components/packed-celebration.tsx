@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppText } from '@/components/ui/app-text';
 import { getDestinationLabel } from '@/domain/destination';
 import type { Trip } from '@/domain/trip';
+import { getTripPackingItems } from '@/domain/trip-compatibility';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
@@ -19,7 +20,7 @@ type PackedCelebrationProps = {
 export function PackedCelebration({ visible, trip, onViewOverview, onDismiss }: PackedCelebrationProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const total = trip.items.length;
+  const total = getTripPackingItems(trip).length;
   const [reduceMotion, setReduceMotion] = useState(false);
 
   useEffect(() => {
