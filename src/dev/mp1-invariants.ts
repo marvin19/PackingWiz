@@ -1,4 +1,5 @@
-import { cloneTrip } from '@/lib/clone-trip';
+import { createDestinationFromText } from '@/domain/destination';
+import { getTripName } from '@/domain/trip-name';
 import {
   getPrimaryPackingList,
   getTripPackingItems,
@@ -7,7 +8,9 @@ import {
   primaryPackingListId,
   primaryPackingProfileId,
   normalizeTrip,
+  type TripLike,
 } from '@/domain/trip-compatibility';
+import { cloneTrip } from '@/lib/clone-trip';
 import {
   createMultiListFixtureTrip,
   multiListFixtureSecondaryListId,
@@ -19,6 +22,17 @@ function assert(condition: boolean, message: string): void {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function verifyTripNameWhitespaceFallback(): void {
+  assert(
+    getTripName({ name: '   ', title: 'Lisbon' }) === 'Lisbon',
+    'whitespace-only name falls back to title',
+  );
+  assert(
+    getTripName({ name: 'Tokyo & Kyoto', title: 'Other' }) === 'Tokyo & Kyoto',
+    'normal name behavior unchanged',
+  );
 }
 
 function verifySeedTrips(): void {
@@ -77,6 +91,102 @@ function verifyCloneRoundTrip(): void {
   );
 }
 
+function verifyLegacyTripNormalization(): void {
+  const legacyTrip: TripLike = {
+    id: 'legacy-trip',
+    title: 'Legacy Trip',
+    destination: createDestinationFromText('Lisbon', 'Portugal'),
+    startDate: '2026-01-01',
+    endDate: '2026-01-05',
+    tripContext: ['Vacation'],
+    accommodation: 'hotel',
+    laundry: 'no',
+    travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],
+    bags: [],
+    note: '',
+    weather: {
+      mode: 'climate',
+      summary: 'Mild',
+      detail: '',
+      high: 20,
+      low: 10,
+    },
+    items: [
+      {
+        id: 'legacy-item-1',
+        name: 'Passport',
+        quantity: 1,
+        category: 'Essentials',
+        packed: false,
+        needToBuy: false,
+        assignedTo: null,
+      },
+    ],
+    insights: [],
+    packingMode: 'generated',
+    generated: true,
+    status: 'upcoming',
+  };
+
+  const cloned = cloneTrip(legacyTrip);
+  assert(cloned.packingLists.length === 1, 'legacy trip clone produces nested primary list');
+  assert(
+    cloned.packingLists[0].id === primaryPackingListId('legacy-trip'),
+    'legacy trip clone uses stable primary list id',
+  );
+  assert(getTripPackingItems(cloned).length === 1, 'legacy trip items preserved through clone');
+}
+
+async function verifyLegacyTripThroughMockRepository(): Promise<void> {
+  const legacyTrip: TripLike = {
+    id: 'legacy-repo-trip',
+    title: 'Legacy Repo Trip',
+    destination: createDestinationFromText('Oslo', 'Norway'),
+    startDate: '2026-02-01',
+    endDate: '2026-02-05',
+    tripContext: ['City break'],
+    accommodation: 'hotel',
+    laundry: 'no',
+    travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],
+    bags: [],
+    note: '',
+    weather: {
+      mode: 'climate',
+      summary: 'Cold',
+      detail: '',
+      high: 0,
+      low: -5,
+    },
+    items: [
+      {
+        id: 'legacy-repo-item',
+        name: 'Coat',
+        quantity: 1,
+        category: 'Clothing',
+        packed: false,
+        needToBuy: false,
+        assignedTo: null,
+      },
+    ],
+    insights: [],
+    packingMode: 'manual',
+    generated: false,
+    status: 'upcoming',
+  };
+
+  const repo = new MockTripRepository([legacyTrip]);
+  const loaded = await repo.getById('legacy-repo-trip');
+  assert(loaded !== null, 'legacy trip loads from mock repository');
+  const normalized = loaded!;
+
+  assert(normalized.packingLists.length === 1, 'mock repository normalizes legacy trip');
+  assert(
+    normalized.packingLists[0].id === primaryPackingListId('legacy-repo-trip'),
+    'mock repository preserves stable primary list id',
+  );
+  assert(getTripPackingItems(normalized).length === 1, 'mock repository preserves legacy items');
+}
+
 function verifyMultiListPreservation(): void {
   const fixture = createMultiListFixtureTrip();
   const secondaryBefore = fixture.packingLists[1];
@@ -119,10 +229,13 @@ async function verifyMockRepository(): Promise<void> {
   );
 }
 
-/** MP1 regression checks for seeds, clone, multi-list safety, and mock repository. */
+/** MP1 regression checks for seeds, clone, legacy ingress, multi-list safety, and mock repository. */
 export async function runMp1InvariantChecks(): Promise<void> {
+  verifyTripNameWhitespaceFallback();
   verifySeedTrips();
+  verifyLegacyTripNormalization();
   verifyCloneRoundTrip();
   verifyMultiListPreservation();
+  await verifyLegacyTripThroughMockRepository();
   await verifyMockRepository();
 }

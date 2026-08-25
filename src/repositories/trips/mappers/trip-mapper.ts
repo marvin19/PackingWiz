@@ -311,3 +311,22 @@ export function newPackingItemToDbInsert(
     sort_order: input.sortOrder,
   };
 }
+
+/** Full flat packing_items row for primary-list snapshot sync. */
+export function packingItemToDbRow(
+  tripId: string,
+  item: PackingItem,
+  sortOrder: number,
+): Record<string, unknown> {
+  return newPackingItemToDbInsert(tripId, {
+    id: item.id,
+    name: item.name,
+    category: item.category,
+    quantity: item.quantity,
+    packed: item.packed,
+    needToBuy: item.needToBuy,
+    assignedTo: item.assignedTo,
+    note: item.note,
+    sortOrder,
+  });
+}

@@ -3,10 +3,10 @@ import type { Trip } from '@/domain/trip';
 import {
   appendPrimaryPackingItem,
   findTripPackingItem,
-  normalizeTrip,
   patchPrimaryPackingItem,
   removePrimaryPackingItem,
   replacePrimaryPackingItems,
+  type TripLike,
 } from '@/domain/trip-compatibility';
 import { clonePackingItem, cloneTrip } from '@/lib/clone-trip';
 import { createPackingItemId } from '@/lib/id';
@@ -22,8 +22,8 @@ import { mockSeedTrips } from '@/mocks/seed-trips';
 export class MockTripRepository implements TripRepository {
   private trips: Trip[];
 
-  constructor(initialTrips: Trip[] = mockSeedTrips) {
-    this.trips = initialTrips.map((trip) => normalizeTrip(cloneTrip(trip)));
+  constructor(initialTrips: (Trip | TripLike)[] = mockSeedTrips) {
+    this.trips = initialTrips.map((trip) => cloneTrip(trip));
   }
 
   async getAll(): Promise<Trip[]> {
@@ -37,22 +37,20 @@ export class MockTripRepository implements TripRepository {
 
   async save(trip: Trip): Promise<Trip> {
     const index = this.trips.findIndex((entry) => entry.id === trip.id);
-    const normalized = normalizeTrip(cloneTrip(trip));
+    const normalized = cloneTrip(trip);
 
     if (index >= 0) {
       const existing = this.trips[index];
-      this.trips[index] = normalizeTrip(
-        cloneTrip({
-          ...existing,
-          ...normalized,
-          status: normalized.status ?? existing.status,
-          travelers: normalized.travelers.length > 0 ? normalized.travelers : existing.travelers,
-          bags: normalized.bags.length > 0 ? normalized.bags : existing.bags,
-          weather: normalized.weather ?? existing.weather,
-          insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
-          packingLists: normalized.packingLists,
-        }),
-      );
+      this.trips[index] = cloneTrip({
+        ...existing,
+        ...normalized,
+        status: normalized.status ?? existing.status,
+        travelers: normalized.travelers.length > 0 ? normalized.travelers : existing.travelers,
+        bags: normalized.bags.length > 0 ? normalized.bags : existing.bags,
+        weather: normalized.weather ?? existing.weather,
+        insights: normalized.insights.length > 0 ? normalized.insights : existing.insights,
+        packingLists: normalized.packingLists,
+      });
       return cloneTrip(this.trips[index]);
     }
 

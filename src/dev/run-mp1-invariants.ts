@@ -1,4 +1,4 @@
-import { runMp1InvariantChecks } from '@/domain/mp1-invariants';
+import { runMp1InvariantChecks } from '@/dev/mp1-invariants';
 
 runMp1InvariantChecks()
   .then(() => {
