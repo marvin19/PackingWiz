@@ -26,6 +26,11 @@ export type AssembleTripOptions = {
  *
  * MP2B: one PackingList per selected PackingProfile; weather fetched once per trip.
  * Important Items (temporary): merged only onto the self/Me list until MP4.
+ *
+ * Weather before generation is intentional: target PackingGenerator input includes
+ * TripWeather (PRODUCT.md / ARCHITECTURE.md). Fetch once per trip, then generate
+ * per profile — do not parallelize weather with generation until weather is passed
+ * into PackingGenerationInput and consumers no longer depend on implicit ordering.
  */
 export async function assembleTripFromDraft(
   rawDraft: TripDraft,

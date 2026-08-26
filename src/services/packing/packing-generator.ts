@@ -6,6 +6,10 @@ export interface PackingGenerationInput {
   draft: TripDraft;
   /** Person this list is generated for (MP2B+). */
   profile: PackingProfile;
+  /**
+   * Target architecture (PRODUCT.md): generation uses trip context + weather + profile.
+   * TripWeather will be added here when OpenAI/mock generators consume it explicitly.
+   */
 }
 
 export interface PackingGenerationResult {

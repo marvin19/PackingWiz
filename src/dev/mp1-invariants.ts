@@ -16,7 +16,7 @@ import {
   normalizeTripDraft,
   patchDraftPackingProfiles,
 } from '@/domain/trip-draft-profiles';
-import { packingListIdForTripProfile } from '@/domain/trip-packing-lists';
+import { packingListIdForTripProfile, uniquePackingProfilesById } from '@/domain/trip-packing-lists';
 import { cloneTrip } from '@/lib/clone-trip';
 import {
   createMultiListFixtureTrip,
@@ -32,6 +32,17 @@ function assert(condition: boolean, message: string): void {
   if (!condition) {
     throw new Error(message);
   }
+}
+
+function verifyDraftProfileIdUniqueness(): void {
+  const first = createDraftProfile('Alex', 10);
+  const second = createDraftProfile('Blake', 12);
+
+  assert(first.id !== second.id, 'rapid draft profile creation produces distinct ids');
+  assert(
+    uniquePackingProfilesById([first, second]).length === 2,
+    'profile dedupe keeps two rapidly created profiles with distinct ids',
+  );
 }
 
 function verifyTripNameWhitespaceFallback(): void {
@@ -356,6 +367,7 @@ async function verifyGenerationFailureAllOrNothing(): Promise<void> {
 /** MP1/MP2B regression checks for seeds, clone, legacy ingress, multi-list safety, and assembly. */
 export async function runMp1InvariantChecks(): Promise<void> {
   verifyTripNameWhitespaceFallback();
+  verifyDraftProfileIdUniqueness();
   verifySeedTrips();
   verifyLegacyTripNormalization();
   verifyCloneRoundTrip();

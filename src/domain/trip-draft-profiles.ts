@@ -1,6 +1,7 @@
 import type { PackingProfile } from '@/domain/packing-profile';
 import type { Traveler, TravelerRole } from '@/domain/traveler';
 import type { TripDraft } from '@/domain/trip-draft';
+import { createUuid } from '@/lib/id';
 
 /** Stable draft-scoped id for the default "Me" profile. */
 export const DRAFT_SELF_PROFILE_ID = 'draft-profile-self';
@@ -152,7 +153,7 @@ export function hasDuplicateDraftProfileName(
 
 export function createDraftProfile(name: string, age: number): PackingProfile {
   return {
-    id: `draft-profile-${Date.now()}`,
+    id: `draft-profile-${createUuid()}`,
     name: name.trim(),
     age,
     isSelf: false,
