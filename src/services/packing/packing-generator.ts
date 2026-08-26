@@ -1,8 +1,15 @@
 import type { TripDraft } from '@/domain/trip-draft';
+import type { PackingProfile } from '@/domain/packing-profile';
 import type { PackingItem } from '@/domain/packing-item';
 
 export interface PackingGenerationInput {
   draft: TripDraft;
+  /** Person this list is generated for (MP2B+). */
+  profile: PackingProfile;
+  /**
+   * Target architecture (PRODUCT.md): generation uses trip context + weather + profile.
+   * TripWeather will be added here when OpenAI/mock generators consume it explicitly.
+   */
 }
 
 export interface PackingGenerationResult {

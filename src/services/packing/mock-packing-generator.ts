@@ -12,8 +12,8 @@ export class MockPackingGenerator implements PackingGenerator {
     }
 
     return {
-      items: buildMockPackingList(input.draft),
-      insights: buildMockInsights(input.draft),
+      items: buildMockPackingList(input.draft, input.profile),
+      insights: buildMockInsights(input.draft, input.profile),
     };
   }
 }

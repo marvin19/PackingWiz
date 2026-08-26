@@ -1,7 +1,9 @@
 import { ACCOMMODATIONS, LAUNDRY_OPTIONS } from '@/domain/catalog';
 import type { Bag } from '@/domain/bag';
+import type { PackingProfile } from '@/domain/packing-profile';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
 import { formatTripContext } from '@/features/trips/utils/trip-context-icon';
+import { getPackingForSummaryLabel } from '@/domain/trip-draft-profiles';
 
 export function getTripContextLabel(tags: string[]): string {
   return formatTripContext(tags);
@@ -22,8 +24,12 @@ export function getLaundryLabel(id: LaundryOption | null): string {
   }
 }
 
-export function getTravelerCountLabel(count: number): string {
-  return `${count} ${count === 1 ? 'person' : 'people'}`;
+export function getPackingForLabel(profiles: PackingProfile[]): string {
+  if (profiles.length === 0) {
+    return 'None selected';
+  }
+
+  return getPackingForSummaryLabel(profiles);
 }
 
 export function getBagsSummaryLabel(bags: Bag[]): string {

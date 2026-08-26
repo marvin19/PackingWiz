@@ -155,6 +155,12 @@ export class SupabaseTripRepository implements TripRepository {
   }
 
   async createTrip(trip: Trip): Promise<Trip> {
+    if (trip.packingLists.length > 1) {
+      throw new Error(
+        'Multi-person trips are not supported in Supabase mode until MP5. Use mock persistence or pack for one person.',
+      );
+    }
+
     const tripWithUuid = { ...trip, id: ensureTripUuid(trip.id) };
     const payload = tripToCreatePayload(tripWithUuid);
 

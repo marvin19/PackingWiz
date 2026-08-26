@@ -1,4 +1,5 @@
 import type { PackingItem, PackingCategory } from '@/domain/packing-item';
+import type { PackingProfile } from '@/domain/packing-profile';
 import type { TripDraft } from '@/domain/trip-draft';
 
 let itemCounter = 0;
@@ -45,8 +46,9 @@ function includesContext(tags: string[], keyword: string): boolean {
 /**
  * Lightweight mock generator for development.
  * Returns a representative list without mirroring the v0 rule engine.
+ * Profile-aware: child profiles receive a small deterministic extra item (MP2B plumbing).
  */
-export function buildMockPackingList(draft: TripDraft): PackingItem[] {
+export function buildMockPackingList(draft: TripDraft, profile: PackingProfile): PackingItem[] {
   const days = tripDurationDays(draft);
   const laundry = draft.laundry === 'yes';
   const shirtCount = laundry ? Math.min(days, 6) : Math.min(days, 8);
@@ -93,6 +95,14 @@ export function buildMockPackingList(draft: TripDraft): PackingItem[] {
     items.push(createItem('Swimwear', 'Activities', { quantity: 2 }));
   }
 
+  if (profile.age !== undefined && profile.age < 18) {
+    items.push(
+      createItem('Child pajamas', 'Clothing', {
+        note: `Sized for ${profile.name} (${profile.age} ${profile.age === 1 ? 'year' : 'years'}).`,
+      }),
+    );
+  }
+
   if (draft.note.toLowerCase().includes('light')) {
     return items.filter((item) => item.name !== 'Sleepwear' || days > 5);
   }
@@ -100,7 +110,7 @@ export function buildMockPackingList(draft: TripDraft): PackingItem[] {
   return items;
 }
 
-export function buildMockInsights(draft: TripDraft): string[] {
+export function buildMockInsights(draft: TripDraft, profile: PackingProfile): string[] {
   const insights: string[] = [];
   const tags = draft.tripContext;
 
@@ -112,6 +122,10 @@ export function buildMockInsights(draft: TripDraft): string[] {
 
   if (includesContext(tags, 'run') || includesContext(tags, 'marathon')) {
     insights.push('Because you are running, we added race-day essentials to your list.');
+  }
+
+  if (profile.age !== undefined && profile.age < 18) {
+    insights.push(`We added child-sized essentials for ${profile.name}.`);
   }
 
   if (draft.note.toLowerCase().includes('light')) {

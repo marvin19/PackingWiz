@@ -2,18 +2,19 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
-import type { Traveler } from '@/domain/traveler';
+import type { PackingProfile } from '@/domain/packing-profile';
+import { formatPackingProfileLabel } from '@/domain/trip-draft-profiles';
 import { useTheme } from '@/hooks/use-theme';
 
-type TravelerRowProps = {
-  traveler: Traveler;
+type PackingProfileRowProps = {
+  profile: PackingProfile;
   canRemove: boolean;
   onRemove: () => void;
 };
 
-export function TravelerRow({ traveler, canRemove, onRemove }: TravelerRowProps) {
+export function PackingProfileRow({ profile, canRemove, onRemove }: PackingProfileRowProps) {
   const theme = useTheme();
-  const iconName = traveler.role === 'Child' ? 'smile' : 'user';
+  const label = formatPackingProfileLabel(profile);
 
   return (
     <View
@@ -24,21 +25,26 @@ export function TravelerRow({ traveler, canRemove, onRemove }: TravelerRowProps)
           borderColor: theme.colors.border,
         },
       ]}>
-      <View style={[styles.avatar, { backgroundColor: theme.colors.accent }]}>
-        <Feather name={iconName} size={16} color={theme.colors.primary} />
+      <View style={[styles.checkWrap, { backgroundColor: theme.colors.accent }]}>
+        <Feather name="check" size={14} color={theme.colors.primary} />
       </View>
       <View style={styles.copy}>
-        <AppText variant="bodySmall" numberOfLines={1} style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-          {traveler.name}
+        <AppText
+          variant="bodySmall"
+          numberOfLines={1}
+          style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+          {label}
         </AppText>
-        <AppText variant="caption" color="mutedForeground">
-          {traveler.role}
-        </AppText>
+        {profile.isSelf ? (
+          <AppText variant="caption" color="mutedForeground">
+            Your packing list
+          </AppText>
+        ) : null}
       </View>
       {canRemove ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Remove ${traveler.name}`}
+          accessibilityLabel={`Remove ${profile.name}`}
           onPress={onRemove}
           hitSlop={8}
           style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}>
@@ -59,7 +65,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  avatar: {
+  checkWrap: {
     width: 36,
     height: 36,
     borderRadius: 9999,
