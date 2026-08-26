@@ -175,6 +175,7 @@ export function TripSummaryScreen() {
         onManualCreate={handleManualCreate}
         manualCreateLoading={manualCreateLoading}
         manualCreateDisabled={manualCreateLoading}
+        multiplePackingLists={normalizedDraft.packingProfiles.length > 1}
       />
     </AppScreen>
   );

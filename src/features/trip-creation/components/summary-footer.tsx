@@ -11,6 +11,8 @@ type SummaryFooterProps = {
   onManualCreate: () => void;
   manualCreateDisabled?: boolean;
   manualCreateLoading?: boolean;
+  /** When more than one packing profile is selected (MP2B). */
+  multiplePackingLists?: boolean;
 };
 
 export function SummaryFooter({
@@ -18,9 +20,16 @@ export function SummaryFooter({
   onManualCreate,
   manualCreateDisabled = false,
   manualCreateLoading = false,
+  multiplePackingLists = false,
 }: SummaryFooterProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const generateLabel = multiplePackingLists
+    ? 'Generate my packing lists'
+    : 'Generate my packing list';
+  const manualLabel = multiplePackingLists
+    ? 'Create packing lists manually'
+    : 'Create packing list manually';
 
   return (
     <View
@@ -35,7 +44,7 @@ export function SummaryFooter({
       ]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Generate my packing list"
+        accessibilityLabel={generateLabel}
         onPress={onGenerate}
         style={({ pressed }) => [
           styles.primaryButton,
@@ -45,13 +54,13 @@ export function SummaryFooter({
         <AppText
           variant="body"
           style={{ color: theme.colors.primaryForeground, fontFamily: theme.fontFamilies.displayExtraBold }}>
-          Generate my packing list
+          {generateLabel}
         </AppText>
       </Pressable>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Create packing list manually"
+        accessibilityLabel={manualLabel}
         accessibilityState={{ disabled: manualCreateDisabled || manualCreateLoading }}
         disabled={manualCreateDisabled || manualCreateLoading}
         onPress={onManualCreate}
@@ -66,7 +75,7 @@ export function SummaryFooter({
           <ActivityIndicator size="small" color={theme.colors.primary} />
         ) : (
           <AppText variant="bodySmall" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-            Create packing list manually
+            {manualLabel}
           </AppText>
         )}
       </Pressable>

@@ -10,6 +10,13 @@ import {
   normalizeTrip,
   type TripLike,
 } from '@/domain/trip-compatibility';
+import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
+import {
+  createDraftProfile,
+  normalizeTripDraft,
+  patchDraftPackingProfiles,
+} from '@/domain/trip-draft-profiles';
+import { packingListIdForTripProfile } from '@/domain/trip-packing-lists';
 import { cloneTrip } from '@/lib/clone-trip';
 import {
   createMultiListFixtureTrip,
@@ -17,6 +24,9 @@ import {
 } from '@/mocks/multi-list-fixture';
 import { mockSeedTrips } from '@/mocks/seed-trips';
 import { MockTripRepository } from '@/repositories/trips/mock-trip-repository';
+import { mockPackingGenerator } from '@/services/packing/mock-packing-generator';
+import { assembleTripFromDraft } from '@/services/trip-assembly';
+import { mockWeatherService } from '@/services/weather/mock-weather-service';
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -229,7 +239,121 @@ async function verifyMockRepository(): Promise<void> {
   );
 }
 
-/** MP1 regression checks for seeds, clone, legacy ingress, multi-list safety, and mock repository. */
+function createAssemblyTestDraft(): TripDraft {
+  const base = createEmptyTripDraft();
+  const emilie = createDraftProfile('Emilie', 2);
+
+  return normalizeTripDraft({
+    ...base,
+    destination: createDestinationFromText('Lisbon', 'Portugal'),
+    startDate: '2026-06-01',
+    endDate: '2026-06-07',
+    tripContext: ['Vacation'],
+    accommodation: 'hotel',
+    laundry: 'no',
+    ...patchDraftPackingProfiles(base, [base.packingProfiles[0], emilie]),
+  });
+}
+
+async function verifyMultiProfileTripAssembly(): Promise<void> {
+  const draft = createAssemblyTestDraft();
+  const importantItems = [{ id: 'imp-keys', name: 'Keys', quantity: 1, enabled: true }];
+  const services = {
+    packingGenerator: mockPackingGenerator,
+    weatherService: mockWeatherService,
+  };
+
+  const soloBase = createAssemblyTestDraft();
+  const soloDraft = normalizeTripDraft({
+    ...soloBase,
+    ...patchDraftPackingProfiles(soloBase, [soloBase.packingProfiles[0]]),
+  });
+  const soloTrip = await assembleTripFromDraft(soloDraft, services, { packingMode: 'generated' });
+  assert(soloTrip.packingLists.length === 1, 'single profile creates one list');
+
+  const generated = await assembleTripFromDraft(draft, services, {
+    packingMode: 'generated',
+    importantItems,
+  });
+
+  assert(generated.packingLists.length === 2, 'two profiles create two packing lists');
+  assert(generated.packingLists[0].profileSnapshot.isSelf === true, 'primary list is self');
+  assert(generated.packingLists[1].profileSnapshot.name === 'Emilie', 'secondary snapshot name');
+  assert(
+    generated.packingLists[0].id === packingListIdForTripProfile(generated.id, generated.packingLists[0].profileSnapshot),
+    'self list uses primary list id',
+  );
+  assert(
+    generated.packingLists[0].id !== generated.packingLists[1].id,
+    'packing list ids are distinct',
+  );
+  assert(
+    generated.packingLists.every((list) => list.packingMode === 'generated'),
+    'generated mode on each list',
+  );
+  assert(
+    generated.packingLists[1].items.some((item) => item.name === 'Child pajamas'),
+    'child profile receives person-specific generated item',
+  );
+  assert(
+    generated.packingLists[0].items.some((item) => item.category === 'Important'),
+    'temporary Important rule: self list receives Important items',
+  );
+  assert(
+    !generated.packingLists[1].items.some((item) => item.category === 'Important'),
+    'temporary Important rule: non-self list has no Important items',
+  );
+  assert(generated.weather.summary.length > 0, 'weather is trip-level');
+
+  const manual = await assembleTripFromDraft(draft, services, {
+    packingMode: 'manual',
+    importantItems,
+  });
+  assert(manual.packingLists.length === 2, 'manual mode creates two lists');
+  assert(
+    manual.packingLists.every((list) => list.packingMode === 'manual'),
+    'manual mode stored on each list',
+  );
+  assert(manual.packingLists[1].items.length === 0, 'manual non-self list starts empty');
+
+  const repo = new MockTripRepository();
+  const saved = await repo.createTrip(generated);
+  assert(saved.packingLists.length === 2, 'mock repository preserves all lists on create');
+  const cloned = cloneTrip(saved);
+  assert(cloned.packingLists.length === 2, 'clone preserves all lists');
+  assert(
+    cloned.packingLists[1].profileSnapshot.age === 2,
+    'clone preserves secondary profile snapshot',
+  );
+
+  const secondaryBefore = saved.packingLists[1].items;
+  const itemId = saved.packingLists[0].items[0]?.id;
+  assert(Boolean(itemId), 'primary list has items to mutate');
+  const updated = patchPrimaryPackingItem(saved, itemId!, { packed: true });
+  assert(updated.packingLists[1].items.length === secondaryBefore.length, 'secondary list item count preserved');
+}
+
+async function verifyGenerationFailureAllOrNothing(): Promise<void> {
+  const draft = normalizeTripDraft({
+    ...createAssemblyTestDraft(),
+    note: 'GENERATION_FAIL',
+  });
+
+  let failed = false;
+  try {
+    await assembleTripFromDraft(
+      draft,
+      { packingGenerator: mockPackingGenerator, weatherService: mockWeatherService },
+      { packingMode: 'generated' },
+    );
+  } catch {
+    failed = true;
+  }
+
+  assert(failed, 'generator failure prevents partial trip assembly');
+}
+
+/** MP1/MP2B regression checks for seeds, clone, legacy ingress, multi-list safety, and assembly. */
 export async function runMp1InvariantChecks(): Promise<void> {
   verifyTripNameWhitespaceFallback();
   verifySeedTrips();
@@ -238,4 +362,6 @@ export async function runMp1InvariantChecks(): Promise<void> {
   verifyMultiListPreservation();
   await verifyLegacyTripThroughMockRepository();
   await verifyMockRepository();
+  await verifyMultiProfileTripAssembly();
+  await verifyGenerationFailureAllOrNothing();
 }
