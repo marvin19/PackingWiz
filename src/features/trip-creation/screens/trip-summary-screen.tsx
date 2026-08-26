@@ -21,9 +21,10 @@ import {
 import {
   getAccommodationLabel,
   getBagsSummaryLabel,
-  getTravelerCountLabel,
+  getPackingForLabel,
   getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
+import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTheme } from '@/hooks/use-theme';
 import { useTrips } from '@/hooks/use-trips';
@@ -34,19 +35,23 @@ export function TripSummaryScreen() {
   const router = useRouter();
   const theme = useTheme();
   const { draft, commitDraftTrip } = useTrips();
+  const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
   const [manualCreateLoading, setManualCreateLoading] = useState(false);
 
   const days = useMemo(
-    () => (draft.startDate && draft.endDate ? durationDays(draft.startDate, draft.endDate) : 0),
-    [draft.endDate, draft.startDate],
+    () =>
+      normalizedDraft.startDate && normalizedDraft.endDate
+        ? durationDays(normalizedDraft.startDate, normalizedDraft.endDate)
+        : 0,
+    [normalizedDraft.endDate, normalizedDraft.startDate],
   );
 
-  const destinationLabel = getDestinationLabel(draft.destination);
-  const countryLabel = getDestinationCountryLabel(draft.destination);
-  const tripContextIcon = getTripContextIcon(draft.tripContext[0]);
-  const accommodationIcon = getAccommodationIcon(draft.accommodation ?? 'hotel');
+  const destinationLabel = getDestinationLabel(normalizedDraft.destination);
+  const countryLabel = getDestinationCountryLabel(normalizedDraft.destination);
+  const tripContextIcon = getTripContextIcon(normalizedDraft.tripContext[0]);
+  const accommodationIcon = getAccommodationIcon(normalizedDraft.accommodation ?? 'hotel');
   const packingInIcon = getBagIcon('carryon');
-  const weatherKey = `${destinationLabel}-${draft.startDate}-${draft.endDate}-${countryLabel}`;
+  const weatherKey = `${destinationLabel}-${normalizedDraft.startDate}-${normalizedDraft.endDate}-${countryLabel}`;
 
   const openEdit = useCallback(
     (stepKey: WizardStepKey) => {
@@ -99,7 +104,7 @@ export function TripSummaryScreen() {
               </AppText>
               <AppText variant="bodySmall" color="mutedForeground" style={styles.heroMeta}>
                 {countryLabel ? `${countryLabel} · ` : ''}
-                {formatRange(draft.startDate, draft.endDate)}
+                {formatRange(normalizedDraft.startDate, normalizedDraft.endDate)}
                 {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
               </AppText>
             </View>
@@ -116,14 +121,14 @@ export function TripSummaryScreen() {
             <TripFact
               icon={<Feather name={tripContextIcon} size={16} color={theme.colors.mutedForeground} />}
               label="Trip context"
-              value={getTripContextLabel(draft.tripContext)}
+              value={getTripContextLabel(normalizedDraft.tripContext)}
               editAccessibilityLabel="Edit trip context"
               onEdit={() => openEdit('trip-context')}
             />
             <TripFact
               icon={<Feather name={accommodationIcon} size={16} color={theme.colors.mutedForeground} />}
               label="Staying in"
-              value={getAccommodationLabel(draft.accommodation)}
+              value={getAccommodationLabel(normalizedDraft.accommodation)}
               editAccessibilityLabel="Edit accommodation and laundry"
               onEdit={() => openEdit('accommodation')}
             />
@@ -131,31 +136,31 @@ export function TripSummaryScreen() {
           <View style={styles.factsRow}>
             <TripFact
               icon={<Feather name="users" size={16} color={theme.colors.mutedForeground} />}
-              label="Travelers"
-              value={getTravelerCountLabel(draft.travelers.length)}
-              editAccessibilityLabel="Edit travelers"
-              onEdit={() => openEdit('travelers')}
+              label="Packing for"
+              value={getPackingForLabel(normalizedDraft.packingProfiles)}
+              editAccessibilityLabel="Edit who you are packing for"
+              onEdit={() => openEdit('packing-profiles')}
             />
             <TripFact
               icon={<Feather name={packingInIcon} size={16} color={theme.colors.mutedForeground} />}
               label="Packing in"
-              value={getBagsSummaryLabel(draft.bags)}
+              value={getBagsSummaryLabel(normalizedDraft.bags)}
               editAccessibilityLabel="Edit bags"
               onEdit={() => openEdit('bags')}
             />
           </View>
         </View>
 
-        <WeatherPreview key={weatherKey} draft={draft} />
+        <WeatherPreview key={weatherKey} draft={normalizedDraft} />
 
         <SummaryDetailCard
           icon={<Feather name="file-text" size={16} color={theme.colors.primary} />}
           title="Additional information"
           editAccessibilityLabel="Edit additional information"
           onEdit={() => openEdit('note')}>
-          {draft.note ? (
+          {normalizedDraft.note ? (
             <AppText variant="bodySmall" color="mutedForeground" style={styles.noteBody}>
-              {draft.note}
+              {normalizedDraft.note}
             </AppText>
           ) : (
             <AppText variant="bodySmall" color="mutedForeground" style={styles.noteBody}>

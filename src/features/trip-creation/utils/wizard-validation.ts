@@ -1,22 +1,25 @@
 import { getDestinationLabel } from '@/domain/destination';
 import { isEndBeforeStart } from '@/domain/dates';
+import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import type { TripDraft } from '@/domain/trip-draft';
 
 export function canProceedFromStep(step: number, draft: TripDraft): boolean {
+  const normalizedDraft = normalizeTripDraft(draft);
+
   switch (step) {
     case 0:
       return (
-        getDestinationLabel(draft.destination).trim() !== '' &&
-        draft.startDate !== '' &&
-        draft.endDate !== '' &&
-        !isEndBeforeStart(draft.startDate, draft.endDate)
+        getDestinationLabel(normalizedDraft.destination).trim() !== '' &&
+        normalizedDraft.startDate !== '' &&
+        normalizedDraft.endDate !== '' &&
+        !isEndBeforeStart(normalizedDraft.startDate, normalizedDraft.endDate)
       );
     case 1:
-      return draft.tripContext.length > 0;
+      return normalizedDraft.tripContext.length > 0;
     case 2:
-      return draft.accommodation !== null && draft.laundry !== null;
+      return normalizedDraft.accommodation !== null && normalizedDraft.laundry !== null;
     case 3:
-      return draft.travelers.length > 0;
+      return normalizedDraft.packingProfiles.length > 0;
     case 4:
     case 5:
       return true;

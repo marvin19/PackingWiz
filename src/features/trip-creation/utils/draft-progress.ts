@@ -1,21 +1,29 @@
 import { getDestinationLabel } from '@/domain/destination';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
+import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { canProceedFromStep } from '@/features/trip-creation/utils/wizard-validation';
 import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
 
 export function isDraftInProgress(draft: TripDraft): boolean {
   const empty = createEmptyTripDraft();
+  const normalizedDraft = normalizeTripDraft(draft);
 
   return (
-    getDestinationLabel(draft.destination).trim() !== '' ||
-    draft.startDate !== '' ||
-    draft.endDate !== '' ||
-    draft.tripContext.length > 0 ||
-    draft.accommodation !== null ||
-    draft.laundry !== null ||
-    draft.bags.length > 0 ||
-    draft.note.trim() !== '' ||
-    draft.travelers.length !== empty.travelers.length
+    getDestinationLabel(normalizedDraft.destination).trim() !== '' ||
+    normalizedDraft.startDate !== '' ||
+    normalizedDraft.endDate !== '' ||
+    normalizedDraft.tripContext.length > 0 ||
+    normalizedDraft.accommodation !== null ||
+    normalizedDraft.laundry !== null ||
+    normalizedDraft.bags.length > 0 ||
+    normalizedDraft.note.trim() !== '' ||
+    normalizedDraft.packingProfiles.length !== empty.packingProfiles.length ||
+    normalizedDraft.packingProfiles.some(
+      (profile, index) =>
+        profile.id !== empty.packingProfiles[index]?.id ||
+        profile.name !== empty.packingProfiles[index]?.name ||
+        profile.age !== empty.packingProfiles[index]?.age,
+    )
   );
 }
 

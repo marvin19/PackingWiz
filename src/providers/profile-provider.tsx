@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import type { ImportantItem } from '@/domain/important-item';
+import type { PackingProfile } from '@/domain/packing-profile';
 import { buildImportantMasterVersion } from '@/domain/important-snapshot';
 import {
   dedupeImportantItemNames,
@@ -22,6 +23,7 @@ import {
   type UserPreferences,
 } from '@/domain/user-settings';
 import { createUuid } from '@/lib/id';
+import { mockSavedPackingProfiles } from '@/mocks/saved-packing-profiles';
 import { mockSavedTravelers } from '@/mocks/saved-travelers';
 
 type PreferenceKey = keyof UserPreferences;
@@ -29,6 +31,8 @@ type PreferenceKey = keyof UserPreferences;
 interface ProfileContextValue {
   preferences: UserPreferences;
   savedTravelers: SavedTravelerProfile[];
+  /** Session/mock reusable packing profiles (non-self) for trip creation. */
+  savedPackingProfiles: PackingProfile[];
   importantItems: ImportantItem[];
   enabledImportantItems: ImportantItem[];
   isImportantConfigured: boolean;
@@ -39,6 +43,7 @@ interface ProfileContextValue {
   importantUpdatedAt?: string;
   setPreference: (key: PreferenceKey, value: boolean) => void;
   addSavedTraveler: () => void;
+  rememberPackingProfile: (profile: PackingProfile) => void;
   saveImportantItems: (names: string[]) => ImportantItem[];
   setImportantEnabled: (enabled: boolean) => void;
   dismissImportantPrompt: () => void;
@@ -54,6 +59,8 @@ const ProfileContext = createContext<ProfileContextValue | null>(null);
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState<UserPreferences>(defaultUserPreferences);
   const [savedTravelers, setSavedTravelers] = useState<SavedTravelerProfile[]>(mockSavedTravelers);
+  const [savedPackingProfiles, setSavedPackingProfiles] =
+    useState<PackingProfile[]>(mockSavedPackingProfiles);
   const [importantItemsState, setImportantItemsState] = useState<ImportantItemsPreferences>(
     defaultImportantItemsPreferences,
   );
@@ -93,6 +100,33 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
           role: 'Adult',
         },
       ];
+    });
+  }, []);
+
+  const rememberPackingProfile = useCallback((profile: PackingProfile) => {
+    if (profile.isSelf) {
+      return;
+    }
+
+    const normalized: PackingProfile = {
+      ...profile,
+      isSelf: false,
+      name: profile.name.trim(),
+    };
+
+    setSavedPackingProfiles((current) => {
+      const byId = current.findIndex((entry) => entry.id === normalized.id);
+      if (byId >= 0) {
+        return current.map((entry, index) => (index === byId ? normalized : entry));
+      }
+
+      const nameKey = normalized.name.toLowerCase();
+      const byName = current.findIndex((entry) => entry.name.trim().toLowerCase() === nameKey);
+      if (byName >= 0) {
+        return current.map((entry, index) => (index === byName ? { ...normalized, id: entry.id } : entry));
+      }
+
+      return [...current, normalized];
     });
   }, []);
 
@@ -188,6 +222,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     () => ({
       preferences,
       savedTravelers,
+      savedPackingProfiles,
       importantItems: importantItemsState.items,
       enabledImportantItems,
       isImportantConfigured: importantItemsState.isConfigured,
@@ -198,6 +233,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       importantUpdatedAt: importantItemsState.updatedAt,
       setPreference,
       addSavedTraveler,
+      rememberPackingProfile,
       saveImportantItems,
       setImportantEnabled,
       dismissImportantPrompt,
@@ -223,10 +259,12 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       isImportantStaleNoticeDismissed,
       preferences,
       requestOpenImportantEditor,
+      rememberPackingProfile,
       resetImportantPromptDismissed,
       saveImportantItems,
-      setImportantEnabled,
+      savedPackingProfiles,
       savedTravelers,
+      setImportantEnabled,
       setPreference,
     ],
   );

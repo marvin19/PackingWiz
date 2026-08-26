@@ -2,6 +2,7 @@ import { getDestinationCountryLabel } from '@/domain/destination';
 import type { ImportantItem } from '@/domain/important-item';
 import type { PackingMode, Trip } from '@/domain/trip';
 import type { TripDraft } from '@/domain/trip-draft';
+import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
 import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
@@ -18,13 +19,14 @@ export type AssembleTripOptions = {
  * Generated mode requires PackingGenerator; manual mode skips it entirely.
  */
 export async function assembleTripFromDraft(
-  draft: TripDraft,
+  rawDraft: TripDraft,
   services: {
     packingGenerator: PackingGenerator;
     weatherService: WeatherService;
   },
   options: AssembleTripOptions,
 ): Promise<Trip> {
+  const draft = normalizeTripDraft(rawDraft);
   let weather: Trip['weather'];
   let generatedItems: Trip['items'] = [];
   let insights: string[] = [];

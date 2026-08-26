@@ -1,8 +1,13 @@
 import { emptyDestination } from '@/domain/destination';
+import type { PackingProfile } from '@/domain/packing-profile';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import type { Traveler } from '@/domain/traveler';
+import {
+  createDefaultSelfProfile,
+  profilesToTravelers,
+} from '@/domain/trip-draft-profiles';
 
 export { emptyDestination } from '@/domain/destination';
 
@@ -13,12 +18,20 @@ export interface TripDraft {
   tripContext: string[];
   accommodation: AccommodationId | null;
   laundry: LaundryOption | null;
+  /** Canonical people to pack for during trip creation (MP2A+). */
+  packingProfiles: PackingProfile[];
+  /**
+   * Temporary compatibility mirror for bags and trip assembly until MP5.
+   * Kept in sync from packingProfiles — do not treat as the list driver.
+   */
   travelers: Traveler[];
   bags: Bag[];
   note: string;
 }
 
 export function createEmptyTripDraft(): TripDraft {
+  const selfProfile = createDefaultSelfProfile();
+
   return {
     destination: emptyDestination(),
     startDate: '',
@@ -26,7 +39,8 @@ export function createEmptyTripDraft(): TripDraft {
     tripContext: [],
     accommodation: null,
     laundry: null,
-    travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],
+    packingProfiles: [selfProfile],
+    travelers: profilesToTravelers([selfProfile]),
     bags: [],
     note: '',
   };
