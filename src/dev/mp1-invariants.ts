@@ -1,13 +1,19 @@
+import { reconcileActivePackingListId } from '@/domain/active-packing-list';
 import { createDestinationFromText } from '@/domain/destination';
+import { packingStatsForList } from '@/domain/packing-stats';
 import { getTripName } from '@/domain/trip-name';
 import {
+  appendPackingListItem,
+  findPackingListById,
   getPrimaryPackingList,
   getTripPackingItems,
   getTripPackingMode,
+  patchPackingListItem,
   patchPrimaryPackingItem,
   primaryPackingListId,
   primaryPackingProfileId,
   normalizeTrip,
+  removePackingListItem,
   type TripLike,
 } from '@/domain/trip-compatibility';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
@@ -364,7 +370,132 @@ async function verifyGenerationFailureAllOrNothing(): Promise<void> {
   assert(failed, 'generator failure prevents partial trip assembly');
 }
 
-/** MP1/MP2B regression checks for seeds, clone, legacy ingress, multi-list safety, and assembly. */
+function verifyActiveListReconciliation(): void {
+  const single = mockSeedTrips[0];
+  const singleResolved = reconcileActivePackingListId(single.id, null, mockSeedTrips, {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(singleResolved.autoResolved === true, 'single-list trip auto-resolves active list');
+  assert(
+    singleResolved.activePackingListId === single.packingLists[0].id,
+    'single-list trip selects its only list',
+  );
+
+  const multi = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(multi).id;
+  const secondaryId = multi.packingLists[1].id;
+
+  const explicitMe = reconcileActivePackingListId(multi.id, primaryId, [multi], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(explicitMe.activePackingListId === primaryId, 'explicit Me list selection preserved');
+
+  const explicitEmilie = reconcileActivePackingListId(multi.id, secondaryId, [multi], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(
+    explicitEmilie.activePackingListId === secondaryId,
+    'explicit Emilie list selection preserved',
+  );
+
+  const fallback = reconcileActivePackingListId(multi.id, null, [multi], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(
+    fallback.activePackingListId === primaryId,
+    'multi-list Pack entry uses temporary primary compatibility fallback',
+  );
+  assert(fallback.selectionRequired === true, 'multi-list fallback marks selectionRequired');
+  assert(
+    fallback.usedPrimaryCompatibilityFallback === true,
+    'multi-list fallback flagged for MP3B',
+  );
+
+  const crossTrip = reconcileActivePackingListId(single.id, secondaryId, [single], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(
+    crossTrip.activePackingListId === single.packingLists[0].id,
+    'invalid list id from another trip is not carried over',
+  );
+}
+
+function verifyActiveListIsolation(): void {
+  const trip = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(trip).id;
+  const secondaryId = trip.packingLists[1].id;
+  const secondaryItemId = trip.packingLists[1].items[0].id;
+  const primaryBefore = [...getPrimaryPackingList(trip).items];
+
+  const toggled = patchPackingListItem(trip, secondaryId, secondaryItemId, { packed: false });
+  assert(
+    getPrimaryPackingList(toggled).items.every(
+      (item, index) => item.packed === primaryBefore[index]?.packed,
+    ),
+    'toggle on secondary list leaves primary list unchanged',
+  );
+
+  const added = appendPackingListItem(toggled, secondaryId, {
+    id: 'fixture-added-emilie',
+    name: 'Teddy bear',
+    quantity: 1,
+    category: 'Essentials',
+    packed: false,
+    needToBuy: false,
+    assignedTo: null,
+  });
+  assert(
+    !findPackingListById(added, primaryId)?.items.some((item) => item.id === 'fixture-added-emilie'),
+    'append on Emilie list does not appear on Me list',
+  );
+
+  const removed = removePackingListItem(added, secondaryId, 'fixture-added-emilie');
+  assert(
+    Boolean(findPackingListById(removed, secondaryId)?.items.some((item) => item.id === secondaryItemId)),
+    'delete on Emilie list keeps other Emilie items',
+  );
+  assert(
+    getPrimaryPackingList(removed).items.length === primaryBefore.length,
+    'delete on Emilie list leaves Me item count unchanged',
+  );
+}
+
+async function verifyActiveListRepositoryRoundTrip(): Promise<void> {
+  const trip = createMultiListFixtureTrip();
+  const secondaryId = trip.packingLists[1].id;
+  const secondaryItemId = trip.packingLists[1].items[0].id;
+
+  const repo = new MockTripRepository([trip]);
+  await repo.updatePackingItem(trip.id, secondaryItemId, { packed: false }, secondaryId);
+  await repo.addPackingItem(
+    trip.id,
+    {
+      name: 'Teddy bear',
+      category: 'Essentials',
+      id: 'repo-emilie-item',
+    },
+    secondaryId,
+  );
+
+  const reread = await repo.getById(trip.id);
+  assert(reread !== null, 'multi-list trip reloads after secondary mutations');
+  const saved = reread!;
+  assert(saved.packingLists.length === 2, 'repository preserves secondary list');
+  assert(
+    saved.packingLists[1].items.some((item) => item.name === 'Teddy bear'),
+    'secondary add survives repository round-trip',
+  );
+  assert(
+    saved.packingLists[1].items.find((item) => item.id === secondaryItemId)?.packed === false,
+    'secondary patch survives repository round-trip',
+  );
+  assert(
+    packingStatsForList(saved, secondaryId).total === saved.packingLists[1].items.length,
+    'list-scoped stats use active list items',
+  );
+}
+
+/** MP1/MP2B/MP3A regression checks for seeds, clone, legacy ingress, multi-list safety, assembly, and active list. */
 export async function runMp1InvariantChecks(): Promise<void> {
   verifyTripNameWhitespaceFallback();
   verifyDraftProfileIdUniqueness();
@@ -372,8 +503,11 @@ export async function runMp1InvariantChecks(): Promise<void> {
   verifyLegacyTripNormalization();
   verifyCloneRoundTrip();
   verifyMultiListPreservation();
+  verifyActiveListReconciliation();
+  verifyActiveListIsolation();
   await verifyLegacyTripThroughMockRepository();
   await verifyMockRepository();
   await verifyMultiProfileTripAssembly();
   await verifyGenerationFailureAllOrNothing();
+  await verifyActiveListRepositoryRoundTrip();
 }

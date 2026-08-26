@@ -15,8 +15,7 @@ import {
   isImportantPackingItem,
 } from '@/domain/important-snapshot';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
-import { packingStats } from '@/domain/packing-stats';
-import { getTripPackingItems } from '@/domain/trip-compatibility';
+import { packingStatsForList } from '@/domain/packing-stats';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
 import { FilterPill } from '@/features/packing/components/filter-pill';
 import { ImportantItemsEmptyCard } from '@/features/packing/components/important-items-empty-card';
@@ -51,7 +50,7 @@ export function PackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeTrip, activeTripId, togglePacked, markItemPurchased, injectImportantItemsIntoTrip, syncImportantSnapshotForTrip } =
+  const { activeTrip, activeTripId, activePackingList, activePackingListId, togglePacked, markItemPurchased, injectImportantItemsIntoTrip, syncImportantSnapshotForTrip } =
     useTrips();
   const {
     importantItems,
@@ -75,9 +74,11 @@ export function PackScreen() {
   const [dismissNoticeVisible, setDismissNoticeVisible] = useState(false);
   const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
 
+  const isSelfActiveList = activePackingList?.profileSnapshot.isSelf === true;
+
   const packingItems = useMemo(
-    () => (activeTrip ? getTripPackingItems(activeTrip) : []),
-    [activeTrip],
+    () => activePackingList?.items ?? [],
+    [activePackingList],
   );
 
   const settingsItem = useMemo(() => {
@@ -88,24 +89,29 @@ export function PackScreen() {
     return packingItems.find((item) => item.id === settingsItemId) ?? null;
   }, [packingItems, settingsItemId]);
 
-  const stats = packingStats(activeTrip);
+  const stats = packingStatsForList(activeTrip, activePackingListId);
   const buyCount = packingItems.filter((item) => item.needToBuy).length;
   const { visible: celebrate, dismiss: dismissCelebration } = usePackedCelebration(
     activeTrip?.id ?? null,
+    activePackingListId,
     stats.pct,
     stats.total,
   );
 
   const showImportantSetup =
-    Boolean(activeTrip) && !isImportantConfigured && !importantPromptDismissed && filter === 'all';
+    Boolean(activeTrip) &&
+    isSelfActiveList &&
+    !isImportantConfigured &&
+    !importantPromptDismissed &&
+    filter === 'all';
 
   const importantSnapshotStale = useMemo(() => {
-    if (!activeTrip || !isImportantFeatureActive) {
+    if (!activeTrip || !isImportantFeatureActive || !isSelfActiveList) {
       return false;
     }
 
     return isImportantSnapshotStale(enabledImportantItems, packingItems);
-  }, [activeTrip, packingItems, enabledImportantItems, isImportantFeatureActive]);
+  }, [activeTrip, packingItems, enabledImportantItems, isImportantFeatureActive, isSelfActiveList]);
 
   const showImportantStaleNotice = useMemo(() => {
     if (!activeTrip || !importantSnapshotStale) {
@@ -125,12 +131,12 @@ export function PackScreen() {
       return [];
     }
 
-    const visibleItems = isImportantFeatureActive
+    const visibleItems = isImportantFeatureActive && isSelfActiveList
       ? packingItems
       : packingItems.filter((item) => !isImportantPackingItem(item));
 
     return groupItemsByCategory(filterPackingItems(visibleItems, filter));
-  }, [activeTrip, packingItems, filter, isImportantFeatureActive]);
+  }, [activeTrip, packingItems, filter, isImportantFeatureActive, isSelfActiveList]);
 
   const sections = useMemo<PackSection[]>(
     () =>
@@ -251,6 +257,7 @@ export function PackScreen() {
       <PackedCelebration
         visible={celebrate}
         trip={activeTrip}
+        itemCount={stats.total}
         onDismiss={dismissCelebration}
         onViewOverview={() => {
           dismissCelebration();

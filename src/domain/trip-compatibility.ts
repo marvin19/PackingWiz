@@ -240,3 +240,84 @@ export function removePrimaryPackingItem(trip: Trip, itemId: string): Trip {
     items: list.items.filter((item) => item.id !== itemId),
   }));
 }
+
+/** Lookup a nested PackingList by id on a normalized trip. */
+export function findPackingListById(trip: Trip, listId: string): PackingList | undefined {
+  return trip.packingLists.find((list) => list.id === listId);
+}
+
+/** Items for a specific packing list; throws when the list id is missing. */
+export function getPackingListItems(trip: Trip, listId: string): PackingItem[] {
+  const list = findPackingListById(trip, listId);
+  if (!list) {
+    throw new Error(`Packing list not found: ${listId}`);
+  }
+
+  return list.items;
+}
+
+export function findPackingItemInList(
+  trip: Trip,
+  listId: string,
+  itemId: string,
+): PackingItem | undefined {
+  return getPackingListItems(trip, listId).find((item) => item.id === itemId);
+}
+
+/**
+ * Update one packing list immutably. Re-normalizes legacy mirrors when the primary list changes.
+ */
+export function updatePackingListById(
+  trip: Trip,
+  listId: string,
+  updater: (list: PackingList) => PackingList,
+): Trip {
+  const index = trip.packingLists.findIndex((list) => list.id === listId);
+  if (index < 0) {
+    throw new Error(`Packing list not found: ${listId}`);
+  }
+
+  const updatedList = updater(clonePackingList(trip.packingLists[index]));
+  const nextLists = trip.packingLists.map((list, listIndex) =>
+    listIndex === index ? updatedList : clonePackingList(list),
+  );
+
+  if (listId === getPrimaryPackingList(trip).id) {
+    return normalizeTrip({ ...trip, packingLists: nextLists });
+  }
+
+  return { ...trip, packingLists: nextLists };
+}
+
+export function replacePackingListItems(trip: Trip, listId: string, items: PackingItem[]): Trip {
+  return updatePackingListById(trip, listId, (list) => ({
+    ...list,
+    items: items.map(cloneItem),
+  }));
+}
+
+export function patchPackingListItem(
+  trip: Trip,
+  listId: string,
+  itemId: string,
+  patch: Partial<PackingItem>,
+): Trip {
+  return updatePackingListById(trip, listId, (list) => ({
+    ...list,
+    items: list.items.map((item) => (item.id === itemId ? { ...item, ...patch } : cloneItem(item))),
+  }));
+}
+
+export function appendPackingListItem(trip: Trip, listId: string, item: PackingItem): Trip {
+  return updatePackingListById(trip, listId, (list) => ({
+    ...list,
+    items: [...list.items.map(cloneItem), cloneItem(item)],
+  }));
+}
+
+export function removePackingListItem(trip: Trip, listId: string, itemId: string): Trip {
+  return updatePackingListById(trip, listId, (list) => ({
+    ...list,
+    items: list.items.filter((item) => item.id !== itemId),
+  }));
+}

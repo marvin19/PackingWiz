@@ -26,7 +26,16 @@ export interface TripRepository {
   /** Atomically inserts a new trip with travelers, bags, items, weather, and insights */
   createTrip(trip: Trip): Promise<Trip>;
   delete(id: string): Promise<void>;
-  updatePackingItem(tripId: string, itemId: string, patch: PackingItemPatch): Promise<PackingItem>;
-  addPackingItem(tripId: string, input: NewPackingItemInput): Promise<PackingItem>;
-  deletePackingItem(tripId: string, itemId: string): Promise<void>;
+  updatePackingItem(
+    tripId: string,
+    itemId: string,
+    patch: PackingItemPatch,
+    packingListId?: string,
+  ): Promise<PackingItem>;
+  addPackingItem(
+    tripId: string,
+    input: NewPackingItemInput,
+    packingListId?: string,
+  ): Promise<PackingItem>;
+  deletePackingItem(tripId: string, itemId: string, packingListId?: string): Promise<void>;
 }

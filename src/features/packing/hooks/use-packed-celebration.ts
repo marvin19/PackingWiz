@@ -1,14 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 
-export function usePackedCelebration(tripId: string | null, pct: number, total: number) {
+export function usePackedCelebration(
+  tripId: string | null,
+  packingListId: string | null,
+  pct: number,
+  total: number,
+) {
   const [visible, setVisible] = useState(false);
   const prevPctRef = useRef(pct);
-  const prevTripIdRef = useRef(tripId);
+  const prevScopeRef = useRef(`${tripId ?? ''}:${packingListId ?? ''}`);
   const dismissedForCompletionRef = useRef(false);
 
   useEffect(() => {
-    if (prevTripIdRef.current !== tripId) {
-      prevTripIdRef.current = tripId;
+    const scope = `${tripId ?? ''}:${packingListId ?? ''}`;
+    if (prevScopeRef.current !== scope) {
+      prevScopeRef.current = scope;
       prevPctRef.current = pct;
       dismissedForCompletionRef.current = false;
       setVisible(false);
@@ -24,7 +30,7 @@ export function usePackedCelebration(tripId: string | null, pct: number, total: 
     }
 
     prevPctRef.current = pct;
-  }, [pct, total, tripId]);
+  }, [pct, total, tripId, packingListId]);
 
   const dismiss = () => {
     dismissedForCompletionRef.current = true;

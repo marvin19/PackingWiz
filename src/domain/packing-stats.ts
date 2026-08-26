@@ -1,18 +1,41 @@
 import { PACKING_CATEGORY_ORDER, type PackingCategory } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
-import { getTripPackingItems } from '@/domain/trip-compatibility';
+import {
+  findPackingListById,
+  getTripPackingItems,
+} from '@/domain/trip-compatibility';
 
-export function packingStats(trip: Trip | null): { packed: number; total: number; pct: number } {
-  if (!trip) {
-    return { packed: 0, total: 0, pct: 0 };
-  }
+export type PackingProgress = { packed: number; total: number; pct: number };
 
-  const items = getTripPackingItems(trip);
+function progressFromItems(items: { packed: boolean }[]): PackingProgress {
   const packed = items.filter((item) => item.packed).length;
   const total = items.length;
   const pct = total === 0 ? 0 : Math.round((packed / total) * 100);
 
   return { packed, total, pct };
+}
+
+/** Trip-level stats using the primary list mirror — Overview / Home until MP3B aggregate decision. */
+export function packingStats(trip: Trip | null): PackingProgress {
+  if (!trip) {
+    return { packed: 0, total: 0, pct: 0 };
+  }
+
+  return progressFromItems(getTripPackingItems(trip));
+}
+
+/** Pack-scoped stats for one active PackingList (MP3A). */
+export function packingStatsForList(trip: Trip | null, listId: string | null): PackingProgress {
+  if (!trip || !listId) {
+    return { packed: 0, total: 0, pct: 0 };
+  }
+
+  const list = findPackingListById(trip, listId);
+  if (!list) {
+    return { packed: 0, total: 0, pct: 0 };
+  }
+
+  return progressFromItems(list.items);
 }
 
 export function shoppingCount(trip: Trip | null): number {

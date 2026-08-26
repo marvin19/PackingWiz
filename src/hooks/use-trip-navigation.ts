@@ -5,14 +5,14 @@ import { useTrips } from '@/hooks/use-trips';
 
 export function useTripNavigation() {
   const router = useRouter();
-  const { setActiveTripId, resetDraft, draftReachedSummary } = useTrips();
+  const { openPackingList, resetDraft, draftReachedSummary } = useTrips();
 
   const openTrip = useCallback(
     (tripId: string) => {
-      setActiveTripId(tripId);
+      openPackingList(tripId);
       router.navigate('/(tabs)/pack');
     },
-    [router, setActiveTripId],
+    [router, openPackingList],
   );
 
   const startCreateTrip = useCallback(() => {
