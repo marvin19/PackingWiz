@@ -17,6 +17,7 @@ import {
   type TripLike,
 } from '@/domain/trip-compatibility';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
+import type { Trip } from '@/domain/trip';
 import {
   createDraftProfile,
   normalizeTripDraft,
@@ -495,6 +496,146 @@ async function verifyActiveListRepositoryRoundTrip(): Promise<void> {
   );
 }
 
+function createCustomPrimaryListFixtureTrip(): Trip {
+  const tripId = 'fixture-custom-primary';
+  const customPrimaryId = 'custom-primary-list-uuid';
+  const secondaryId = `${tripId}-list-secondary`;
+
+  const input: TripLike = {
+    id: tripId,
+    name: 'Custom primary fixture',
+    title: 'Custom primary fixture',
+    destination: createDestinationFromText('Fixture', 'Nowhere'),
+    startDate: '2026-01-01',
+    endDate: '2026-01-05',
+    tripContext: ['Vacation'],
+    accommodation: 'hotel',
+    laundry: 'no',
+    travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],
+    bags: [],
+    note: '',
+    weather: {
+      mode: 'climate',
+      summary: 'Fixture weather',
+      detail: '',
+      high: 20,
+      low: 10,
+    },
+    packingLists: [
+      {
+        id: customPrimaryId,
+        packingProfileId: `${tripId}-profile-self`,
+        profileSnapshot: {
+          id: `${tripId}-profile-self`,
+          name: 'Me',
+          isSelf: true,
+        },
+        packingMode: 'generated',
+        items: [
+          {
+            id: 'custom-primary-item',
+            name: 'Custom primary item',
+            quantity: 1,
+            category: 'Essentials',
+            packed: false,
+            needToBuy: false,
+            assignedTo: null,
+            source: 'generated',
+          },
+        ],
+      },
+      {
+        id: secondaryId,
+        packingProfileId: `${tripId}-profile-emilie`,
+        profileSnapshot: {
+          id: `${tripId}-profile-emilie`,
+          name: 'Emilie',
+          isSelf: false,
+        },
+        packingMode: 'manual',
+        items: [
+          {
+            id: 'custom-secondary-item',
+            name: 'Secondary list item',
+            quantity: 1,
+            category: 'Clothing',
+            packed: true,
+            needToBuy: false,
+            assignedTo: null,
+            source: 'generated',
+          },
+        ],
+      },
+    ],
+    items: [],
+    insights: [],
+    packingMode: 'generated',
+    generated: true,
+    status: 'upcoming',
+  };
+
+  return normalizeTrip(input);
+}
+
+async function verifyCustomPrimaryListRepositoryResolution(): Promise<void> {
+  const trip = createCustomPrimaryListFixtureTrip();
+  const customPrimaryId = trip.packingLists[0].id;
+  const secondaryId = trip.packingLists[1].id;
+  const deterministicPrimaryId = primaryPackingListId(trip.id);
+
+  assert(
+    customPrimaryId !== deterministicPrimaryId,
+    'fixture uses non-deterministic primary list id',
+  );
+
+  const repo = new MockTripRepository([trip]);
+  const primaryItemId = trip.packingLists[0].items[0].id;
+  const before = await repo.getById(trip.id);
+  assert(before !== null, 'fixture trip loads');
+  const secondaryBefore = cloneTrip(before as Trip);
+
+  await repo.updatePackingItem(trip.id, primaryItemId, { packed: true });
+
+  const saved = await repo.getById(trip.id);
+  assert(saved !== null, 'custom primary mutation succeeds');
+  const updated = saved!;
+
+  assert(
+    updated.packingLists[0].id === customPrimaryId,
+    'mutation targets actual primary list id',
+  );
+  assert(
+    !updated.packingLists.some((list) => list.id === deterministicPrimaryId),
+    'deterministic primary list id is not created',
+  );
+  assert(
+    updated.packingLists[0].items.find((item) => item.id === primaryItemId)?.packed === true,
+    'custom primary item mutation applied',
+  );
+  assert(updated.packingLists.length === 2, 'secondary list preserved');
+  assert(
+    updated.packingLists[1].id === secondaryId,
+    'secondary list id unchanged',
+  );
+  assert(
+    updated.packingLists[1].items[0].packed === secondaryBefore.packingLists[1].items[0].packed,
+    'secondary list items unchanged',
+  );
+
+  const seedRepo = new MockTripRepository(mockSeedTrips);
+  const seedTrip = (await seedRepo.getAll())[0];
+  const seedItemId = getTripPackingItems(seedTrip)[0].id;
+  await seedRepo.updatePackingItem(seedTrip.id, seedItemId, {
+    packed: !getTripPackingItems(seedTrip)[0].packed,
+  });
+  const seedSaved = await seedRepo.getById(seedTrip.id);
+  assert(seedSaved !== null, 'deterministic seed trip mutation still works');
+  assert(
+    seedSaved!.packingLists[0].id === primaryPackingListId(seedTrip.id),
+    'seed trip keeps deterministic primary list id',
+  );
+}
+
 /** MP1/MP2B/MP3A regression checks for seeds, clone, legacy ingress, multi-list safety, assembly, and active list. */
 export async function runMp1InvariantChecks(): Promise<void> {
   verifyTripNameWhitespaceFallback();
@@ -510,4 +651,5 @@ export async function runMp1InvariantChecks(): Promise<void> {
   await verifyMultiProfileTripAssembly();
   await verifyGenerationFailureAllOrNothing();
   await verifyActiveListRepositoryRoundTrip();
+  await verifyCustomPrimaryListRepositoryResolution();
 }

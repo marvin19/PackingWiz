@@ -6,7 +6,6 @@ import {
   findPackingItemInList,
   getPrimaryPackingList,
   patchPackingListItem,
-  primaryPackingListId,
   removePackingListItem,
   removePrimaryPackingItem,
   replacePrimaryPackingItems,
@@ -23,7 +22,11 @@ import type {
 import { mockSeedTrips } from '@/mocks/seed-trips';
 
 function resolvePackingListId(trip: Trip, packingListId?: string): string {
-  return packingListId ?? primaryPackingListId(trip.id);
+  if (packingListId) {
+    return packingListId;
+  }
+
+  return getPrimaryPackingList(trip).id;
 }
 
 /** Persists all nested packing lists in memory — list-scoped item APIs supported (MP3A). */
