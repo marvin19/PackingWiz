@@ -1,16 +1,27 @@
+import { reconcileActivePackingListId } from '@/domain/active-packing-list';
 import { createDestinationFromText } from '@/domain/destination';
+import { packingStatsForList } from '@/domain/packing-stats';
+import { resolveTripPackEntry } from '@/domain/trip-pack-entry';
 import { getTripName } from '@/domain/trip-name';
 import {
+  appendPackingListItem,
+  findPackingItemInList,
+  findPackingListById,
+  getPackingListItems,
   getPrimaryPackingList,
   getTripPackingItems,
   getTripPackingMode,
+  patchPackingListItem,
   patchPrimaryPackingItem,
   primaryPackingListId,
   primaryPackingProfileId,
   normalizeTrip,
+  removePackingListItem,
+  requirePackingList,
   type TripLike,
 } from '@/domain/trip-compatibility';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
+import type { Trip } from '@/domain/trip';
 import {
   createDraftProfile,
   normalizeTripDraft,
@@ -364,7 +375,425 @@ async function verifyGenerationFailureAllOrNothing(): Promise<void> {
   assert(failed, 'generator failure prevents partial trip assembly');
 }
 
-/** MP1/MP2B regression checks for seeds, clone, legacy ingress, multi-list safety, and assembly. */
+function verifyActiveListReconciliation(): void {
+  const single = mockSeedTrips[0];
+  const singleResolved = reconcileActivePackingListId(single.id, null, mockSeedTrips, {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(singleResolved.autoResolved === true, 'single-list trip auto-resolves active list');
+  assert(
+    singleResolved.activePackingListId === single.packingLists[0].id,
+    'single-list trip selects its only list',
+  );
+
+  const multi = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(multi).id;
+  const secondaryId = multi.packingLists[1].id;
+
+  const explicitMe = reconcileActivePackingListId(multi.id, primaryId, [multi], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(explicitMe.activePackingListId === primaryId, 'explicit Me list selection preserved');
+
+  const explicitEmilie = reconcileActivePackingListId(multi.id, secondaryId, [multi], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(
+    explicitEmilie.activePackingListId === secondaryId,
+    'explicit Emilie list selection preserved',
+  );
+
+  const fallback = reconcileActivePackingListId(multi.id, null, [multi], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(
+    fallback.activePackingListId === primaryId,
+    'multi-list Pack entry uses temporary primary compatibility fallback',
+  );
+  assert(fallback.selectionRequired === true, 'multi-list fallback marks selectionRequired');
+  assert(
+    fallback.usedPrimaryCompatibilityFallback === true,
+    'multi-list fallback flagged for MP3B',
+  );
+
+  const crossTrip = reconcileActivePackingListId(single.id, secondaryId, [single], {
+    allowPrimaryCompatibilityFallback: true,
+  });
+  assert(
+    crossTrip.activePackingListId === single.packingLists[0].id,
+    'invalid list id from another trip is not carried over',
+  );
+}
+
+function verifyStaleActiveListSafeLookup(): void {
+  const multi = createMultiListFixtureTrip();
+  const staleListId = 'missing-list-id';
+  const primaryId = getPrimaryPackingList(multi).id;
+  const secondaryId = multi.packingLists[1].id;
+  const primaryItemId = getPrimaryPackingList(multi).items[0].id;
+  const secondaryItemId = multi.packingLists[1].items[0].id;
+
+  assert(findPackingListById(multi, staleListId) === undefined, 'stale list lookup returns undefined');
+
+  let safeLookupThrew = false;
+  try {
+    getPackingListItems(multi, staleListId);
+  } catch {
+    safeLookupThrew = true;
+  }
+  assert(!safeLookupThrew, 'stale list item read does not throw');
+  assert(getPackingListItems(multi, staleListId).length === 0, 'stale list item read returns empty');
+
+  assert(
+    findPackingItemInList(multi, staleListId, primaryItemId) === undefined,
+    'stale list item lookup returns undefined',
+  );
+
+  assert(findPackingListById(multi, secondaryId)?.id === secondaryId, 'valid list lookup still works');
+  assert(getPackingListItems(multi, primaryId).length > 0, 'valid list items still readable');
+  assert(
+    findPackingItemInList(multi, secondaryId, secondaryItemId)?.id === secondaryItemId,
+    'valid item lookup still works',
+  );
+
+  const reconciled = reconcileActivePackingListId(multi.id, staleListId, [multi], {
+    allowPrimaryCompatibilityFallback: false,
+  });
+  assert(reconciled.activePackingListId === null, 'stale active list clears without primary fallback');
+  assert(reconciled.selectionRequired === true, 'stale active list requires re-selection');
+  assert(
+    reconciled.usedPrimaryCompatibilityFallback === false,
+    'stale active list does not trigger compatibility fallback',
+  );
+
+  assert(
+    packingStatsForList(multi, staleListId).total === 0,
+    'stale active list stats are guarded to zero',
+  );
+
+  let strictLookupFailed = false;
+  try {
+    requirePackingList(multi, staleListId);
+  } catch {
+    strictLookupFailed = true;
+  }
+  assert(strictLookupFailed, 'strict packing list lookup still throws when missing');
+}
+
+function verifyTripPackEntry(): void {
+  const single = mockSeedTrips[0];
+  const singleEntry = resolveTripPackEntry(single.id, null, null, mockSeedTrips);
+  assert(singleEntry.destination === 'pack', 'single-list trip opens Pack directly');
+  assert(
+    singleEntry.activePackingListId === single.packingLists[0].id,
+    'single-list trip auto-selects its only list',
+  );
+
+  const multi = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(multi).id;
+  const secondaryId = multi.packingLists[1].id;
+
+  const unresolved = resolveTripPackEntry(multi.id, null, null, [multi]);
+  assert(unresolved.destination === 'select-list', 'multi-list unresolved entry requires picker');
+  assert(unresolved.activePackingListId === null, 'multi-list unresolved entry clears active list');
+
+  const pickEmilie = resolveTripPackEntry(multi.id, null, null, [multi], secondaryId);
+  assert(pickEmilie.destination === 'pack', 'explicit Emilie selection opens Pack');
+  assert(pickEmilie.activePackingListId === secondaryId, 'explicit Emilie list id resolved');
+
+  const pickMe = resolveTripPackEntry(multi.id, null, null, [multi], primaryId);
+  assert(pickMe.activePackingListId === primaryId, 'explicit Me list id resolved');
+
+  const preserve = resolveTripPackEntry(multi.id, multi.id, secondaryId, [multi]);
+  assert(
+    preserve.activePackingListId === secondaryId,
+    'in-trip navigation preserves valid active list without changing trip',
+  );
+
+  const crossTrip = resolveTripPackEntry(single.id, multi.id, secondaryId, [single]);
+  assert(
+    crossTrip.activePackingListId === single.packingLists[0].id,
+    'cross-trip list id from Trip A cannot leak into Trip B',
+  );
+
+  const meStats = packingStatsForList(multi, primaryId);
+  const emilieStats = packingStatsForList(multi, secondaryId);
+  assert(
+    meStats.total === getPrimaryPackingList(multi).items.length,
+    'Me picker progress uses Me list items',
+  );
+  assert(
+    emilieStats.total === multi.packingLists[1].items.length,
+    'Emilie picker progress uses Emilie list items',
+  );
+}
+
+function verifyActiveListIsolation(): void {
+  const trip = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(trip).id;
+  const secondaryId = trip.packingLists[1].id;
+  const secondaryItemId = trip.packingLists[1].items[0].id;
+  const primaryBefore = [...getPrimaryPackingList(trip).items];
+
+  const toggled = patchPackingListItem(trip, secondaryId, secondaryItemId, { packed: false });
+  assert(
+    getPrimaryPackingList(toggled).items.every(
+      (item, index) => item.packed === primaryBefore[index]?.packed,
+    ),
+    'toggle on secondary list leaves primary list unchanged',
+  );
+
+  const added = appendPackingListItem(toggled, secondaryId, {
+    id: 'fixture-added-emilie',
+    name: 'Teddy bear',
+    quantity: 1,
+    category: 'Essentials',
+    packed: false,
+    needToBuy: false,
+    assignedTo: null,
+  });
+  assert(
+    !findPackingListById(added, primaryId)?.items.some((item) => item.id === 'fixture-added-emilie'),
+    'append on Emilie list does not appear on Me list',
+  );
+
+  const removed = removePackingListItem(added, secondaryId, 'fixture-added-emilie');
+  assert(
+    Boolean(findPackingListById(removed, secondaryId)?.items.some((item) => item.id === secondaryItemId)),
+    'delete on Emilie list keeps other Emilie items',
+  );
+  assert(
+    getPrimaryPackingList(removed).items.length === primaryBefore.length,
+    'delete on Emilie list leaves Me item count unchanged',
+  );
+}
+
+async function verifyActiveListRepositoryRoundTrip(): Promise<void> {
+  const trip = createMultiListFixtureTrip();
+  const secondaryId = trip.packingLists[1].id;
+  const secondaryItemId = trip.packingLists[1].items[0].id;
+
+  const repo = new MockTripRepository([trip]);
+  await repo.updatePackingItem(trip.id, secondaryItemId, { packed: false }, secondaryId);
+  await repo.addPackingItem(
+    trip.id,
+    {
+      name: 'Teddy bear',
+      category: 'Essentials',
+      id: 'repo-emilie-item',
+    },
+    secondaryId,
+  );
+
+  const reread = await repo.getById(trip.id);
+  assert(reread !== null, 'multi-list trip reloads after secondary mutations');
+  const saved = reread!;
+  assert(saved.packingLists.length === 2, 'repository preserves secondary list');
+  assert(
+    saved.packingLists[1].items.some((item) => item.name === 'Teddy bear'),
+    'secondary add survives repository round-trip',
+  );
+  assert(
+    saved.packingLists[1].items.find((item) => item.id === secondaryItemId)?.packed === false,
+    'secondary patch survives repository round-trip',
+  );
+  assert(
+    packingStatsForList(saved, secondaryId).total === saved.packingLists[1].items.length,
+    'list-scoped stats use active list items',
+  );
+}
+
+function createCustomPrimaryListFixtureTrip(): Trip {
+  const tripId = 'fixture-custom-primary';
+  const customPrimaryId = 'custom-primary-list-uuid';
+  const secondaryId = `${tripId}-list-secondary`;
+
+  const input: TripLike = {
+    id: tripId,
+    name: 'Custom primary fixture',
+    title: 'Custom primary fixture',
+    destination: createDestinationFromText('Fixture', 'Nowhere'),
+    startDate: '2026-01-01',
+    endDate: '2026-01-05',
+    tripContext: ['Vacation'],
+    accommodation: 'hotel',
+    laundry: 'no',
+    travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],
+    bags: [],
+    note: '',
+    weather: {
+      mode: 'climate',
+      summary: 'Fixture weather',
+      detail: '',
+      high: 20,
+      low: 10,
+    },
+    packingLists: [
+      {
+        id: customPrimaryId,
+        packingProfileId: `${tripId}-profile-self`,
+        profileSnapshot: {
+          id: `${tripId}-profile-self`,
+          name: 'Me',
+          isSelf: true,
+        },
+        packingMode: 'generated',
+        items: [
+          {
+            id: 'custom-primary-item',
+            name: 'Custom primary item',
+            quantity: 1,
+            category: 'Essentials',
+            packed: false,
+            needToBuy: false,
+            assignedTo: null,
+            source: 'generated',
+          },
+        ],
+      },
+      {
+        id: secondaryId,
+        packingProfileId: `${tripId}-profile-emilie`,
+        profileSnapshot: {
+          id: `${tripId}-profile-emilie`,
+          name: 'Emilie',
+          isSelf: false,
+        },
+        packingMode: 'manual',
+        items: [
+          {
+            id: 'custom-secondary-item',
+            name: 'Secondary list item',
+            quantity: 1,
+            category: 'Clothing',
+            packed: true,
+            needToBuy: false,
+            assignedTo: null,
+            source: 'generated',
+          },
+        ],
+      },
+    ],
+    items: [],
+    insights: [],
+    packingMode: 'generated',
+    generated: true,
+    status: 'upcoming',
+  };
+
+  return normalizeTrip(input);
+}
+
+async function verifyCustomPrimaryListRepositoryResolution(): Promise<void> {
+  const trip = createCustomPrimaryListFixtureTrip();
+  const customPrimaryId = trip.packingLists[0].id;
+  const secondaryId = trip.packingLists[1].id;
+  const deterministicPrimaryId = primaryPackingListId(trip.id);
+
+  assert(
+    customPrimaryId !== deterministicPrimaryId,
+    'fixture uses non-deterministic primary list id',
+  );
+
+  const repo = new MockTripRepository([trip]);
+  const primaryItemId = trip.packingLists[0].items[0].id;
+  const before = await repo.getById(trip.id);
+  assert(before !== null, 'fixture trip loads');
+  const secondaryBefore = cloneTrip(before as Trip);
+
+  await repo.updatePackingItem(trip.id, primaryItemId, { packed: true });
+
+  const saved = await repo.getById(trip.id);
+  assert(saved !== null, 'custom primary mutation succeeds');
+  const updated = saved!;
+
+  assert(
+    updated.packingLists[0].id === customPrimaryId,
+    'mutation targets actual primary list id',
+  );
+  assert(
+    !updated.packingLists.some((list) => list.id === deterministicPrimaryId),
+    'deterministic primary list id is not created',
+  );
+  assert(
+    updated.packingLists[0].items.find((item) => item.id === primaryItemId)?.packed === true,
+    'custom primary item mutation applied',
+  );
+  assert(updated.packingLists.length === 2, 'secondary list preserved');
+  assert(
+    updated.packingLists[1].id === secondaryId,
+    'secondary list id unchanged',
+  );
+  assert(
+    updated.packingLists[1].items[0].packed === secondaryBefore.packingLists[1].items[0].packed,
+    'secondary list items unchanged',
+  );
+
+  const seedRepo = new MockTripRepository(mockSeedTrips);
+  const seedTrip = (await seedRepo.getAll())[0];
+  const seedItemId = getTripPackingItems(seedTrip)[0].id;
+  await seedRepo.updatePackingItem(seedTrip.id, seedItemId, {
+    packed: !getTripPackingItems(seedTrip)[0].packed,
+  });
+  const seedSaved = await seedRepo.getById(seedTrip.id);
+  assert(seedSaved !== null, 'deterministic seed trip mutation still works');
+  assert(
+    seedSaved!.packingLists[0].id === primaryPackingListId(seedTrip.id),
+    'seed trip keeps deterministic primary list id',
+  );
+}
+
+async function verifyPackingItemNoteRoundTrip(): Promise<void> {
+  const trip = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(trip).id;
+  const itemId = getPrimaryPackingList(trip).items[0].id;
+
+  const repo = new MockTripRepository([trip]);
+  await repo.updatePackingItem(
+    trip.id,
+    itemId,
+    { note: 'Green floral, beige and black' },
+    primaryId,
+  );
+
+  const saved = await repo.getById(trip.id);
+  assert(saved !== null, 'note mutation reloads trip');
+  const item = getPrimaryPackingList(saved!).items.find((entry) => entry.id === itemId);
+  assert(item?.note === 'Green floral, beige and black', 'mock repository preserves item note');
+
+  await repo.updatePackingItem(trip.id, itemId, { note: '' }, primaryId);
+  const cleared = await repo.getById(trip.id);
+  const clearedItem = getPrimaryPackingList(cleared!)!.items.find((entry) => entry.id === itemId);
+  assert(!clearedItem?.note, 'cleared note persists as empty');
+}
+
+async function verifyPackingItemSettingsBatchUpdate(): Promise<void> {
+  const trip = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(trip).id;
+  const itemId = getPrimaryPackingList(trip).items[0].id;
+
+  const repo = new MockTripRepository([trip]);
+  await repo.updatePackingItem(
+    trip.id,
+    itemId,
+    {
+      name: 'Updated name',
+      quantity: 3,
+      needToBuy: true,
+      note: 'Green trainers and black loafers',
+    },
+    primaryId,
+  );
+
+  const saved = await repo.getById(trip.id);
+  const item = getPrimaryPackingList(saved!).items.find((entry) => entry.id === itemId);
+  assert(item?.name === 'Updated name', 'batch settings update preserves name');
+  assert(item?.quantity === 3, 'batch settings update preserves quantity');
+  assert(item?.needToBuy === true, 'batch settings update preserves needToBuy');
+  assert(item?.note === 'Green trainers and black loafers', 'batch settings update preserves personal note');
+}
+
+/** MP1–MP3B regression checks for seeds, clone, legacy ingress, multi-list safety, assembly, and active list UX. */
 export async function runMp1InvariantChecks(): Promise<void> {
   verifyTripNameWhitespaceFallback();
   verifyDraftProfileIdUniqueness();
@@ -372,8 +801,16 @@ export async function runMp1InvariantChecks(): Promise<void> {
   verifyLegacyTripNormalization();
   verifyCloneRoundTrip();
   verifyMultiListPreservation();
+  verifyActiveListReconciliation();
+  verifyStaleActiveListSafeLookup();
+  verifyTripPackEntry();
+  verifyActiveListIsolation();
   await verifyLegacyTripThroughMockRepository();
   await verifyMockRepository();
   await verifyMultiProfileTripAssembly();
   await verifyGenerationFailureAllOrNothing();
+  await verifyActiveListRepositoryRoundTrip();
+  await verifyCustomPrimaryListRepositoryResolution();
+  await verifyPackingItemNoteRoundTrip();
+  await verifyPackingItemSettingsBatchUpdate();
 }

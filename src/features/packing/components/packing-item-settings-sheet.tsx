@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -14,8 +14,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppTextInput } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
+import { PrimaryButton } from '@/components/ui/primary-button';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { PackingItem } from '@/domain/packing-item';
+import {
+  canSavePackingItemSettings,
+  hasPackingItemSettingsChanges,
+  normalizePackingItemSettingsInput,
+} from '@/domain/packing-item-settings';
 import type { Traveler } from '@/domain/traveler';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
@@ -34,35 +40,69 @@ export function PackingItemSettingsSheet({
   visible,
   onClose,
 }: PackingItemSettingsSheetProps) {
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      {visible ? (
+        <PackingItemSettingsSheetBody
+          key={item.id}
+          item={item}
+          travelers={travelers}
+          onClose={onClose}
+        />
+      ) : null}
+    </Modal>
+  );
+}
+
+function PackingItemSettingsSheetBody({
+  item,
+  travelers,
+  onClose,
+}: Omit<PackingItemSettingsSheetProps, 'visible'>) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const {
-    renamePackingItem,
-    setItemQuantity,
-    toggleNeedToBuy,
-    assignItem,
-    deletePackingItem,
-  } = useTrips();
+  const { updatePackingItemSettings, deletePackingItem } = useTrips();
 
   const [name, setName] = useState(item.name);
+  const [quantity, setQuantity] = useState(item.quantity);
+  const [needToBuy, setNeedToBuy] = useState(item.needToBuy);
+  const [assignedTo, setAssignedTo] = useState<string | null>(item.assignedTo);
+  const [note, setNote] = useState(item.note ?? '');
   const [nameFocused, setNameFocused] = useState(false);
+  const [noteFocused, setNoteFocused] = useState(false);
 
   const isImportant = isImportantPackingItem(item);
   const showAssign = travelers.length > 1;
-  const trimmedName = name.trim();
-  const canConfirmRename = !isImportant && trimmedName.length > 0 && trimmedName !== item.name;
+
+  const stagedSettings = useMemo(
+    () =>
+      normalizePackingItemSettingsInput({
+        name,
+        quantity,
+        needToBuy,
+        assignedTo,
+        note,
+      }),
+    [assignedTo, name, needToBuy, note, quantity],
+  );
+
+  const hasChanges = hasPackingItemSettingsChanges(item, stagedSettings);
+  const canUpdate = canSavePackingItemSettings(item, stagedSettings);
 
   const handleClose = () => {
     onClose();
   };
 
-  const handleConfirmRename = () => {
-    if (!canConfirmRename) {
+  const handleUpdate = () => {
+    if (!canUpdate) {
       return;
     }
 
-    renamePackingItem(item.id, trimmedName);
-    Keyboard.dismiss();
+    const saved = updatePackingItemSettings(item.id, stagedSettings);
+    if (saved) {
+      Keyboard.dismiss();
+      onClose();
+    }
   };
 
   const handleDelete = () => {
@@ -71,38 +111,42 @@ export function PackingItemSettingsSheet({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.overlay}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close item settings"
-          onPress={handleClose}
-          style={styles.scrim}
-        />
-        <View
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.colors.background,
-              borderColor: theme.colors.border,
-              paddingBottom: Math.max(insets.bottom, theme.spacing.base),
-            },
-          ]}>
-          <View style={styles.sheetHeader}>
-            <AppText variant="bodySemiBold" numberOfLines={1} style={styles.sheetTitle}>
-              Item settings
-            </AppText>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Close item settings"
-              onPress={handleClose}
-              style={[styles.closeButton, { backgroundColor: theme.colors.muted }]}>
-              <Feather name="x" size={16} color={theme.colors.foreground} />
-            </Pressable>
-          </View>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.overlay}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Close item settings"
+        onPress={handleClose}
+        style={styles.scrim}
+      />
+      <View
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: theme.colors.background,
+            borderColor: theme.colors.border,
+            paddingBottom: Math.max(insets.bottom, theme.spacing.base),
+          },
+        ]}>
+        <View style={styles.sheetHeader}>
+          <AppText variant="bodySemiBold" numberOfLines={1} style={styles.sheetTitle}>
+            Item settings
+          </AppText>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Close item settings"
+            onPress={handleClose}
+            style={[styles.closeButton, { backgroundColor: theme.colors.muted }]}>
+            <Feather name="x" size={16} color={theme.colors.foreground} />
+          </Pressable>
+        </View>
 
+        <ScrollView
+          bounces={false}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}>
           <View style={styles.fieldBlock}>
             <AppText variant="sectionLabel" color="mutedForeground">
               Name
@@ -117,39 +161,16 @@ export function PackingItemSettingsSheet({
                 </AppText>
               </>
             ) : (
-              <View style={styles.renameRow}>
-                <View style={styles.renameInputWrap}>
-                  <AppTextInput
-                    value={name}
-                    onChangeText={setName}
-                    placeholder="Item name"
-                    focused={nameFocused}
-                    onFocus={() => setNameFocused(true)}
-                    onBlur={() => setNameFocused(false)}
-                    returnKeyType="done"
-                    onSubmitEditing={handleConfirmRename}
-                  />
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Confirm rename to ${trimmedName || item.name}`}
-                  accessibilityState={{ disabled: !canConfirmRename }}
-                  disabled={!canConfirmRename}
-                  onPress={handleConfirmRename}
-                  style={({ pressed }) => [
-                    styles.confirmButton,
-                    {
-                      backgroundColor: canConfirmRename ? theme.colors.primary : theme.colors.muted,
-                      opacity: !canConfirmRename ? 0.45 : pressed ? 0.9 : 1,
-                    },
-                  ]}>
-                  <Feather
-                    name="check"
-                    size={18}
-                    color={canConfirmRename ? theme.colors.primaryForeground : theme.colors.mutedForeground}
-                  />
-                </Pressable>
-              </View>
+              <AppTextInput
+                value={name}
+                onChangeText={setName}
+                placeholder="Item name"
+                focused={nameFocused}
+                onFocus={() => setNameFocused(true)}
+                onBlur={() => setNameFocused(false)}
+                returnKeyType="done"
+                onSubmitEditing={() => Keyboard.dismiss()}
+              />
             )}
           </View>
 
@@ -161,24 +182,24 @@ export function PackingItemSettingsSheet({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Decrease quantity of ${item.name}`}
-                disabled={item.quantity <= 1}
-                onPress={() => setItemQuantity(item.id, item.quantity - 1)}
+                disabled={quantity <= 1}
+                onPress={() => setQuantity((current) => Math.max(1, current - 1))}
                 style={[
                   styles.quantityButton,
                   {
                     backgroundColor: theme.colors.muted,
-                    opacity: item.quantity <= 1 ? 0.35 : 1,
+                    opacity: quantity <= 1 ? 0.35 : 1,
                   },
                 ]}>
                 <Feather name="minus" size={14} color={theme.colors.foreground} />
               </Pressable>
               <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold, minWidth: 24, textAlign: 'center' }}>
-                {item.quantity}
+                {quantity}
               </AppText>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`Increase quantity of ${item.name}`}
-                onPress={() => setItemQuantity(item.id, item.quantity + 1)}
+                onPress={() => setQuantity((current) => current + 1)}
                 style={[styles.quantityButton, { backgroundColor: theme.colors.muted }]}>
                 <Feather name="plus" size={14} color={theme.colors.foreground} />
               </Pressable>
@@ -187,17 +208,17 @@ export function PackingItemSettingsSheet({
 
           <Pressable
             accessibilityRole="switch"
-            accessibilityState={{ checked: item.needToBuy }}
+            accessibilityState={{ checked: needToBuy }}
             accessibilityLabel={
-              item.needToBuy
+              needToBuy
                 ? `Mark ${item.name} as not need to buy`
                 : `Mark ${item.name} as need to buy`
             }
-            onPress={() => toggleNeedToBuy(item.id)}
+            onPress={() => setNeedToBuy((current) => !current)}
             style={[
               styles.toggleRow,
               {
-                backgroundColor: item.needToBuy ? `${theme.colors.buy}26` : theme.colors.muted,
+                backgroundColor: needToBuy ? `${theme.colors.buy}26` : theme.colors.muted,
                 borderColor: theme.colors.border,
               },
             ]}>
@@ -206,9 +227,9 @@ export function PackingItemSettingsSheet({
               Need to buy
             </AppText>
             <Feather
-              name={item.needToBuy ? 'check-circle' : 'circle'}
+              name={needToBuy ? 'check-circle' : 'circle'}
               size={18}
-              color={item.needToBuy ? theme.colors.buyForeground : theme.colors.mutedForeground}
+              color={needToBuy ? theme.colors.buyForeground : theme.colors.mutedForeground}
             />
           </Pressable>
 
@@ -221,20 +242,54 @@ export function PackingItemSettingsSheet({
                 <AssignChip
                   label="Shared"
                   itemName={item.name}
-                  active={!item.assignedTo}
-                  onPress={() => assignItem(item.id, null)}
+                  active={!assignedTo}
+                  onPress={() => setAssignedTo(null)}
                 />
                 {travelers.map((traveler) => (
                   <AssignChip
                     key={traveler.id}
                     label={traveler.name}
                     itemName={item.name}
-                    active={item.assignedTo === traveler.id}
-                    onPress={() => assignItem(item.id, traveler.id)}
+                    active={assignedTo === traveler.id}
+                    onPress={() => setAssignedTo(traveler.id)}
                   />
                 ))}
               </ScrollView>
             </View>
+          ) : null}
+
+          {!isImportant ? (
+            <View style={styles.fieldBlock}>
+              <AppText variant="sectionLabel" color="mutedForeground">
+                Personal note
+              </AppText>
+              <AppTextInput
+                value={note}
+                onChangeText={setNote}
+                placeholder="Optional details, e.g. colors or variants"
+                focused={noteFocused}
+                onFocus={() => setNoteFocused(true)}
+                onBlur={() => setNoteFocused(false)}
+                multiline
+                accessibilityLabel="Personal item note"
+              />
+              <AppText variant="caption" color="mutedForeground" style={styles.helperCopy}>
+                Optional — helpful when quantity covers multiple variants.
+              </AppText>
+            </View>
+          ) : null}
+        </ScrollView>
+
+        <View style={styles.footer}>
+          <PrimaryButton
+            label="Update item"
+            onPress={handleUpdate}
+            disabled={!canUpdate}
+          />
+          {!hasChanges && !canUpdate ? (
+            <AppText variant="caption" color="mutedForeground" style={styles.footerHint}>
+              No changes to save.
+            </AppText>
           ) : null}
 
           {isImportant ? (
@@ -254,8 +309,8 @@ export function PackingItemSettingsSheet({
             </Pressable>
           )}
         </View>
-      </KeyboardAvoidingView>
-    </Modal>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -315,13 +370,14 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: screenPaddingHorizontal,
     paddingTop: 12,
-    gap: 12,
+    maxHeight: '88%',
   },
   sheetHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+    marginBottom: 12,
   },
   sheetTitle: {
     flex: 1,
@@ -334,25 +390,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  scrollContent: {
+    gap: 12,
+    paddingBottom: 8,
+  },
   fieldBlock: {
     gap: 8,
-  },
-  renameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  renameInputWrap: {
-    flex: 1,
-    minWidth: 0,
-  },
-  confirmButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 9999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
   },
   helperCopy: {
     lineHeight: 18,
@@ -386,6 +429,14 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     paddingHorizontal: 12,
     paddingVertical: 6,
+  },
+  footer: {
+    gap: 10,
+    paddingTop: 12,
+  },
+  footerHint: {
+    textAlign: 'center',
+    lineHeight: 16,
   },
   deleteButton: {
     flexDirection: 'row',

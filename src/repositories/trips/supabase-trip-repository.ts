@@ -1,7 +1,12 @@
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
-import { getTripPackingItems, getTripPackingMode, replacePrimaryPackingItems } from '@/domain/trip-compatibility';
+import {
+  getTripPackingItems,
+  getTripPackingMode,
+  primaryPackingListId,
+  replacePrimaryPackingItems,
+} from '@/domain/trip-compatibility';
 import { getTripName } from '@/domain/trip-name';
 import { createPackingItemId, ensureTripUuid } from '@/lib/id';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -33,6 +38,20 @@ const TRIP_SELECT = `
 
 export class SupabaseTripRepository implements TripRepository {
   constructor(private readonly client: SupabaseClient) {}
+
+  /**
+   * Supabase stores one flat packing_items table (primary list only) until MP5.
+   * Reject list-scoped mutations targeting a non-primary list so secondary items
+   * are never silently flattened into the primary row set.
+   */
+  private assertPrimaryListTarget(tripId: string, packingListId?: string): void {
+    const targetListId = packingListId ?? primaryPackingListId(tripId);
+    if (targetListId !== primaryPackingListId(tripId)) {
+      throw new Error(
+        'Supabase persistence supports the primary packing list only until MP5. Use mock persistence for multi-list trips.',
+      );
+    }
+  }
 
   async getAll(): Promise<Trip[]> {
     const { data, error } = await this.client
@@ -192,7 +211,10 @@ export class SupabaseTripRepository implements TripRepository {
     tripId: string,
     itemId: string,
     patch: PackingItemPatch,
+    packingListId?: string,
   ): Promise<PackingItem> {
+    this.assertPrimaryListTarget(tripId, packingListId);
+
     const dbPatch = packingItemPatchToDb(patch);
     const { data, error } = await this.client
       .from('packing_items')
@@ -209,7 +231,13 @@ export class SupabaseTripRepository implements TripRepository {
     return mapPackingItemRow(data as DbPackingItemRow);
   }
 
-  async addPackingItem(tripId: string, input: NewPackingItemInput): Promise<PackingItem> {
+  async addPackingItem(
+    tripId: string,
+    input: NewPackingItemInput,
+    packingListId?: string,
+  ): Promise<PackingItem> {
+    this.assertPrimaryListTarget(tripId, packingListId);
+
     const { count, error: countError } = await this.client
       .from('packing_items')
       .select('*', { count: 'exact', head: true })
@@ -245,7 +273,13 @@ export class SupabaseTripRepository implements TripRepository {
     return mapPackingItemRow(data as DbPackingItemRow);
   }
 
-  async deletePackingItem(tripId: string, itemId: string): Promise<void> {
+  async deletePackingItem(
+    tripId: string,
+    itemId: string,
+    packingListId?: string,
+  ): Promise<void> {
+    this.assertPrimaryListTarget(tripId, packingListId);
+
     const { error } = await this.client
       .from('packing_items')
       .delete()

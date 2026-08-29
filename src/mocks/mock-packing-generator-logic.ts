@@ -57,9 +57,7 @@ export function buildMockPackingList(draft: TripDraft, profile: PackingProfile):
   const items: PackingItem[] = [
     createItem('Passport', 'Essentials'),
     createItem('Wallet & cards', 'Essentials'),
-    createItem('Travel insurance', 'Essentials', {
-      note: 'Keep a digital and printed copy just in case.',
-    }),
+    createItem('Travel insurance', 'Essentials'),
     createItem('Medication', 'Essentials'),
     createItem('Local cash', 'Essentials'),
     createItem('T-shirts', 'Clothing', { quantity: shirtCount }),
@@ -68,9 +66,7 @@ export function buildMockPackingList(draft: TripDraft, profile: PackingProfile):
     createItem('Socks', 'Clothing', { quantity: laundry ? Math.min(days, 7) : days }),
     createItem('Lightweight jacket', 'Clothing'),
     createItem('Sleepwear', 'Clothing'),
-    createItem('Walking shoes', 'Shoes', {
-      note: 'Comfort matters for long days on foot.',
-    }),
+    createItem('Walking shoes', 'Shoes'),
     createItem('Toothbrush & paste', 'Toiletries'),
     createItem('Deodorant', 'Toiletries'),
     createItem('Sunscreen', 'Toiletries'),
@@ -97,9 +93,7 @@ export function buildMockPackingList(draft: TripDraft, profile: PackingProfile):
 
   if (profile.age !== undefined && profile.age < 18) {
     items.push(
-      createItem('Child pajamas', 'Clothing', {
-        note: `Sized for ${profile.name} (${profile.age} ${profile.age === 1 ? 'year' : 'years'}).`,
-      }),
+      createItem('Child pajamas', 'Clothing'),
     );
   }
 

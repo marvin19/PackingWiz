@@ -9,10 +9,18 @@ import { screenPaddingHorizontal } from '@/theme/spacing';
 type ScreenHeaderProps = {
   title: string;
   onBack?: () => void;
+  onClose?: () => void;
+  closeAccessibilityLabel?: string;
   border?: boolean;
 };
 
-export function ScreenHeader({ title, onBack, border = false }: ScreenHeaderProps) {
+export function ScreenHeader({
+  title,
+  onBack,
+  onClose,
+  closeAccessibilityLabel = 'Close',
+  border = false,
+}: ScreenHeaderProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -43,7 +51,17 @@ export function ScreenHeader({ title, onBack, border = false }: ScreenHeaderProp
         {title}
       </AppText>
 
-      <View style={styles.backPlaceholder} />
+      {onClose ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={closeAccessibilityLabel}
+          onPress={onClose}
+          style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
+          <Feather name="x" size={22} color={theme.colors.foreground} />
+        </Pressable>
+      ) : (
+        <View style={styles.backPlaceholder} />
+      )}
     </View>
   );
 }

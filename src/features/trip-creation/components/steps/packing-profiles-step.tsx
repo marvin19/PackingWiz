@@ -6,7 +6,7 @@ import { AppText } from '@/components/ui/app-text';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { availableSavedPackingProfiles } from '@/domain/trip-draft-profiles';
 import type { TripDraft } from '@/domain/trip-draft';
-import { AddPackingProfileForm } from '@/features/trip-creation/components/add-packing-profile-form';
+import { AddPackingProfileSheet } from '@/features/trip-creation/components/add-packing-profile-sheet';
 import { PackingProfileRow } from '@/features/trip-creation/components/packing-profile-row';
 import { SavedPackingProfileRow } from '@/features/trip-creation/components/saved-packing-profile-row';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,7 +27,7 @@ export function PackingProfilesStep({
   onRemoveProfile,
 }: PackingProfilesStepProps) {
   const theme = useTheme();
-  const [addingProfile, setAddingProfile] = useState(false);
+  const [addProfileVisible, setAddProfileVisible] = useState(false);
 
   const availableSavedProfiles = useMemo(
     () => availableSavedPackingProfiles(savedPackingProfiles, draft.packingProfiles),
@@ -73,31 +73,27 @@ export function PackingProfilesStep({
         </View>
       ) : null}
 
-      {addingProfile ? (
-        <AddPackingProfileForm
-          existingProfiles={draft.packingProfiles}
-          onAdd={(name, age, rememberForFutureTrips) => {
-            onAddProfile(name, age, rememberForFutureTrips);
-            setAddingProfile(false);
-          }}
-          onCancel={() => setAddingProfile(false)}
-        />
-      ) : (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Add someone new"
-          onPress={() => setAddingProfile(true)}
-          style={({ pressed }) => [
-            styles.addTrigger,
-            { borderColor: theme.colors.border },
-            pressed && styles.pressed,
-          ]}>
-          <Feather name="plus" size={16} color={theme.colors.primary} />
-          <AppText variant="bodySmall" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-            Add someone new
-          </AppText>
-        </Pressable>
-      )}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Add someone new"
+        onPress={() => setAddProfileVisible(true)}
+        style={({ pressed }) => [
+          styles.addTrigger,
+          { borderColor: theme.colors.border },
+          pressed && styles.pressed,
+        ]}>
+        <Feather name="plus" size={16} color={theme.colors.primary} />
+        <AppText variant="bodySmall" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+          Add someone new
+        </AppText>
+      </Pressable>
+
+      <AddPackingProfileSheet
+        visible={addProfileVisible}
+        existingProfiles={draft.packingProfiles}
+        onAdd={onAddProfile}
+        onClose={() => setAddProfileVisible(false)}
+      />
 
       <View style={[styles.infoBanner, { backgroundColor: theme.colors.muted }]}>
         <Feather name="users" size={16} color={theme.colors.primary} style={styles.infoIcon} />

@@ -1,9 +1,12 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
 import {
+  appendPackingListItem,
   appendPrimaryPackingItem,
-  findTripPackingItem,
-  patchPrimaryPackingItem,
+  findPackingItemInList,
+  getPrimaryPackingList,
+  patchPackingListItem,
+  removePackingListItem,
   removePrimaryPackingItem,
   replacePrimaryPackingItems,
   type TripLike,
@@ -18,7 +21,15 @@ import type {
 } from '@/repositories/trips/trip-repository';
 import { mockSeedTrips } from '@/mocks/seed-trips';
 
-/** Persists the primary packing list only — no packingListId in repository API until MP5. */
+function resolvePackingListId(trip: Trip, packingListId?: string): string {
+  if (packingListId) {
+    return packingListId;
+  }
+
+  return getPrimaryPackingList(trip).id;
+}
+
+/** Persists all nested packing lists in memory — list-scoped item APIs supported (MP3A). */
 export class MockTripRepository implements TripRepository {
   private trips: Trip[];
 
@@ -84,6 +95,7 @@ export class MockTripRepository implements TripRepository {
     tripId: string,
     itemId: string,
     patch: PackingItemPatch,
+    packingListId?: string,
   ): Promise<PackingItem> {
     const index = this.trips.findIndex((entry) => entry.id === tripId);
     if (index < 0) {
@@ -91,22 +103,29 @@ export class MockTripRepository implements TripRepository {
     }
 
     const trip = this.trips[index];
-    const item = findTripPackingItem(trip, itemId);
+    const listId = resolvePackingListId(trip, packingListId);
+    const item = findPackingItemInList(trip, listId, itemId);
     if (!item) {
       throw new Error('Packing item not found');
     }
 
     const updated: PackingItem = { ...item, ...patch };
-    this.trips[index] = patchPrimaryPackingItem(trip, itemId, patch);
+    this.trips[index] = patchPackingListItem(trip, listId, itemId, patch);
     return clonePackingItem(updated);
   }
 
-  async addPackingItem(tripId: string, input: NewPackingItemInput): Promise<PackingItem> {
+  async addPackingItem(
+    tripId: string,
+    input: NewPackingItemInput,
+    packingListId?: string,
+  ): Promise<PackingItem> {
     const index = this.trips.findIndex((entry) => entry.id === tripId);
     if (index < 0) {
       throw new Error('Trip not found');
     }
 
+    const trip = this.trips[index];
+    const listId = resolvePackingListId(trip, packingListId);
     const newItem: PackingItem = {
       id: input.id ?? createPackingItemId(),
       name: input.name.trim(),
@@ -118,17 +137,29 @@ export class MockTripRepository implements TripRepository {
       note: input.note,
     };
 
-    this.trips[index] = appendPrimaryPackingItem(this.trips[index], newItem);
+    this.trips[index] =
+      listId === getPrimaryPackingList(trip).id
+        ? appendPrimaryPackingItem(trip, newItem)
+        : appendPackingListItem(trip, listId, newItem);
     return clonePackingItem(newItem);
   }
 
-  async deletePackingItem(tripId: string, itemId: string): Promise<void> {
+  async deletePackingItem(
+    tripId: string,
+    itemId: string,
+    packingListId?: string,
+  ): Promise<void> {
     const index = this.trips.findIndex((entry) => entry.id === tripId);
     if (index < 0) {
       throw new Error('Trip not found');
     }
 
-    this.trips[index] = removePrimaryPackingItem(this.trips[index], itemId);
+    const trip = this.trips[index];
+    const listId = resolvePackingListId(trip, packingListId);
+    this.trips[index] =
+      listId === getPrimaryPackingList(trip).id
+        ? removePrimaryPackingItem(trip, itemId)
+        : removePackingListItem(trip, listId, itemId);
   }
 }
 

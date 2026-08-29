@@ -19,6 +19,7 @@ export interface PackingItem {
   needToBuy: boolean;
   /** Traveler id, or null when shared / unassigned */
   assignedTo: string | null;
+  /** User-authored personal note (variants, reminders, etc.) */
   note?: string;
   /** Distinguishes user-defined Important Items from AI/generated suggestions */
   source?: PackingItemSource;
