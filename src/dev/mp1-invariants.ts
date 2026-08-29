@@ -5,7 +5,9 @@ import { resolveTripPackEntry } from '@/domain/trip-pack-entry';
 import { getTripName } from '@/domain/trip-name';
 import {
   appendPackingListItem,
+  findPackingItemInList,
   findPackingListById,
+  getPackingListItems,
   getPrimaryPackingList,
   getTripPackingItems,
   getTripPackingMode,
@@ -15,6 +17,7 @@ import {
   primaryPackingProfileId,
   normalizeTrip,
   removePackingListItem,
+  requirePackingList,
   type TripLike,
 } from '@/domain/trip-compatibility';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
@@ -422,6 +425,61 @@ function verifyActiveListReconciliation(): void {
   );
 }
 
+function verifyStaleActiveListSafeLookup(): void {
+  const multi = createMultiListFixtureTrip();
+  const staleListId = 'missing-list-id';
+  const primaryId = getPrimaryPackingList(multi).id;
+  const secondaryId = multi.packingLists[1].id;
+  const primaryItemId = getPrimaryPackingList(multi).items[0].id;
+  const secondaryItemId = multi.packingLists[1].items[0].id;
+
+  assert(findPackingListById(multi, staleListId) === undefined, 'stale list lookup returns undefined');
+
+  let safeLookupThrew = false;
+  try {
+    getPackingListItems(multi, staleListId);
+  } catch {
+    safeLookupThrew = true;
+  }
+  assert(!safeLookupThrew, 'stale list item read does not throw');
+  assert(getPackingListItems(multi, staleListId).length === 0, 'stale list item read returns empty');
+
+  assert(
+    findPackingItemInList(multi, staleListId, primaryItemId) === undefined,
+    'stale list item lookup returns undefined',
+  );
+
+  assert(findPackingListById(multi, secondaryId)?.id === secondaryId, 'valid list lookup still works');
+  assert(getPackingListItems(multi, primaryId).length > 0, 'valid list items still readable');
+  assert(
+    findPackingItemInList(multi, secondaryId, secondaryItemId)?.id === secondaryItemId,
+    'valid item lookup still works',
+  );
+
+  const reconciled = reconcileActivePackingListId(multi.id, staleListId, [multi], {
+    allowPrimaryCompatibilityFallback: false,
+  });
+  assert(reconciled.activePackingListId === null, 'stale active list clears without primary fallback');
+  assert(reconciled.selectionRequired === true, 'stale active list requires re-selection');
+  assert(
+    reconciled.usedPrimaryCompatibilityFallback === false,
+    'stale active list does not trigger compatibility fallback',
+  );
+
+  assert(
+    packingStatsForList(multi, staleListId).total === 0,
+    'stale active list stats are guarded to zero',
+  );
+
+  let strictLookupFailed = false;
+  try {
+    requirePackingList(multi, staleListId);
+  } catch {
+    strictLookupFailed = true;
+  }
+  assert(strictLookupFailed, 'strict packing list lookup still throws when missing');
+}
+
 function verifyTripPackEntry(): void {
   const single = mockSeedTrips[0];
   const singleEntry = resolveTripPackEntry(single.id, null, null, mockSeedTrips);
@@ -744,6 +802,7 @@ export async function runMp1InvariantChecks(): Promise<void> {
   verifyCloneRoundTrip();
   verifyMultiListPreservation();
   verifyActiveListReconciliation();
+  verifyStaleActiveListSafeLookup();
   verifyTripPackEntry();
   verifyActiveListIsolation();
   await verifyLegacyTripThroughMockRepository();

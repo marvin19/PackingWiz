@@ -1,8 +1,8 @@
-# # PackingWiz — roadmap
+# PackingWiz — roadmap
 
 Current status and intended sequencing. Order may change based on user testing.
 
-**Related:** [[AGENTS.md](http://AGENTS.md)](<./[AGENTS.md](http://AGENTS.md)>) · [[PRODUCT.md](http://PRODUCT.md)](<./[PRODUCT.md](http://PRODUCT.md)>) · [[ARCHITECTURE.md](http://ARCHITECTURE.md)](<./[ARCHITECTURE.md](http://ARCHITECTURE.md)>)
+**Related:** [AGENTS.md](./AGENTS.md) · [PRODUCT.md](./PRODUCT.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)
 
 ---
 

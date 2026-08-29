@@ -246,14 +246,24 @@ export function findPackingListById(trip: Trip, listId: string): PackingList | u
   return trip.packingLists.find((list) => list.id === listId);
 }
 
-/** Items for a specific packing list; throws when the list id is missing. */
-export function getPackingListItems(trip: Trip, listId: string): PackingItem[] {
+/** Strict lookup for mutation paths — throws when the list id is missing. */
+export function requirePackingList(trip: Trip, listId: string): PackingList {
   const list = findPackingListById(trip, listId);
   if (!list) {
     throw new Error(`Packing list not found: ${listId}`);
   }
 
-  return list.items;
+  return list;
+}
+
+/** Items for a specific packing list; returns [] when the list id is missing. */
+export function getPackingListItems(trip: Trip, listId: string): PackingItem[] {
+  return findPackingListById(trip, listId)?.items ?? [];
+}
+
+/** Strict items lookup for mutation paths — throws when the list id is missing. */
+export function getPackingListItemsOrThrow(trip: Trip, listId: string): PackingItem[] {
+  return requirePackingList(trip, listId).items;
 }
 
 export function findPackingItemInList(
@@ -261,7 +271,12 @@ export function findPackingItemInList(
   listId: string,
   itemId: string,
 ): PackingItem | undefined {
-  return getPackingListItems(trip, listId).find((item) => item.id === itemId);
+  const list = findPackingListById(trip, listId);
+  if (!list) {
+    return undefined;
+  }
+
+  return list.items.find((item) => item.id === itemId);
 }
 
 /**
