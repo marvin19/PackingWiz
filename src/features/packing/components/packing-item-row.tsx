@@ -2,10 +2,8 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
-import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
-import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 
 export type PackingCheckboxIntent = 'packed' | 'purchased';
@@ -26,10 +24,8 @@ export function PackingItemRow({
   onOpenSettings,
 }: PackingItemRowProps) {
   const theme = useTheme();
-  const { setItemQuantity, deletePackingItem } = useTrips();
 
   const assigned = travelers.find((traveler) => traveler.id === item.assignedTo);
-  const isImportant = isImportantPackingItem(item);
   const isPurchasedIntent = checkboxIntent === 'purchased';
   const checkboxChecked = isPurchasedIntent ? false : item.packed;
   const checkboxLabel = isPurchasedIntent
@@ -37,49 +33,56 @@ export function PackingItemRow({
     : item.packed
       ? `Mark ${item.name} as not packed`
       : `Mark ${item.name} as packed`;
+  const personalNote = item.note?.trim();
 
   return (
     <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: item.packed ? theme.colors.muted : theme.colors.card,
-            borderColor: item.source === 'important' ? `${theme.colors.important}66` : theme.colors.border,
-            opacity: item.packed ? 0.92 : 1,
-          },
-        ]}>
-        <View style={styles.mainRow}>
-          <Pressable
-            accessibilityRole="checkbox"
-            accessibilityLabel={checkboxLabel}
-            accessibilityState={{ checked: checkboxChecked }}
-            onPress={() => onCheckboxPress(item.id)}
+      style={[
+        styles.card,
+        {
+          backgroundColor: item.packed ? theme.colors.muted : theme.colors.card,
+          borderColor: item.source === 'important' ? `${theme.colors.important}66` : theme.colors.border,
+          opacity: item.packed ? 0.92 : 1,
+        },
+      ]}>
+      <View style={styles.mainRow}>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={checkboxLabel}
+          accessibilityState={{ checked: checkboxChecked }}
+          onPress={() => onCheckboxPress(item.id)}
+          style={[
+            styles.checkButton,
+            {
+              borderColor: checkboxChecked ? theme.colors.success : theme.colors.border,
+              backgroundColor: checkboxChecked ? theme.colors.success : theme.colors.card,
+            },
+          ]}>
+          {checkboxChecked ? (
+            <Feather name="check" size={16} color={theme.colors.primaryForeground} />
+          ) : null}
+        </Pressable>
+
+        <View style={styles.nameBlock}>
+          <AppText
+            variant="bodySmall"
             style={[
-              styles.checkButton,
+              styles.titleText,
               {
-                borderColor: checkboxChecked ? theme.colors.success : theme.colors.border,
-                backgroundColor: checkboxChecked ? theme.colors.success : theme.colors.card,
+                fontFamily: theme.fontFamilies.sansMedium,
+                color: item.packed ? theme.colors.mutedForeground : theme.colors.foreground,
+                textDecorationLine: item.packed ? 'line-through' : 'none',
               },
             ]}>
-            {checkboxChecked ? (
-              <Feather name="check" size={16} color={theme.colors.primaryForeground} />
+            {item.name}
+            {item.quantity > 1 ? (
+              <AppText variant="caption" color="mutedForeground" style={styles.quantitySuffix}>
+                {` · ×${item.quantity}`}
+              </AppText>
             ) : null}
-          </Pressable>
+          </AppText>
 
-          <View style={styles.nameBlock}>
-            <AppText
-              variant="bodySmall"
-              numberOfLines={1}
-              style={[
-                styles.name,
-                {
-                  fontFamily: theme.fontFamilies.sansMedium,
-                  color: item.packed ? theme.colors.mutedForeground : theme.colors.foreground,
-                  textDecorationLine: item.packed ? 'line-through' : 'none',
-                },
-              ]}>
-              {item.name}
-            </AppText>
+          {(item.source === 'important' || item.needToBuy || assigned) ? (
             <View style={styles.metaRow}>
               {item.source === 'important' ? (
                 <View style={[styles.importantBadge, { backgroundColor: `${theme.colors.important}26` }]}>
@@ -104,84 +107,41 @@ export function PackingItemRow({
                   </AppText>
                 </View>
               ) : null}
-              {item.quantity > 1 ? (
-                <AppText variant="micro" color="mutedForeground" style={{ fontFamily: theme.fontFamilies.sansMedium }}>
-                  ×{item.quantity}
-                </AppText>
-              ) : null}
             </View>
-            {item.note ? (
-              <View style={[styles.noteBox, { backgroundColor: `${theme.colors.accent}66` }]}>
-                <Feather name="info" size={12} color={theme.colors.primary} />
-                <AppText variant="caption" color="accentForeground" style={styles.noteText}>
-                  {item.note}
-                </AppText>
-              </View>
-            ) : null}
-          </View>
+          ) : null}
 
-          <View style={styles.actionsColumn}>
-            {!isImportant ? (
-              <>
-                <View style={styles.quantityControls}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Decrease quantity of ${item.name}`}
-                    disabled={item.quantity <= 1}
-                    onPress={() => setItemQuantity(item.id, item.quantity - 1)}
-                    style={({ pressed }) => [
-                      styles.iconButton,
-                      {
-                        backgroundColor: theme.colors.muted,
-                        opacity: item.quantity <= 1 ? 0.35 : pressed ? 0.85 : 1,
-                      },
-                    ]}>
-                    <Feather name="minus" size={14} color={theme.colors.foreground} />
-                  </Pressable>
-                  <AppText variant="micro" style={[styles.quantityLabel, { fontFamily: theme.fontFamilies.sansSemiBold }]}>
-                    {item.quantity}
-                  </AppText>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Increase quantity of ${item.name}`}
-                    onPress={() => setItemQuantity(item.id, item.quantity + 1)}
-                    style={({ pressed }) => [
-                      styles.iconButton,
-                      { backgroundColor: theme.colors.muted, opacity: pressed ? 0.85 : 1 },
-                    ]}>
-                    <Feather name="plus" size={14} color={theme.colors.foreground} />
-                  </Pressable>
-                </View>
-
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Delete ${item.name}`}
-                  onPress={() => deletePackingItem(item.id)}
-                  style={({ pressed }) => [
-                    styles.iconButton,
-                    {
-                      backgroundColor: `${theme.colors.destructive}14`,
-                      opacity: pressed ? 0.85 : 1,
-                    },
-                  ]}>
-                  <Feather name="trash-2" size={15} color={theme.colors.destructive} />
-                </Pressable>
-              </>
-            ) : null}
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`Packing item settings for ${item.name}`}
-              onPress={() => onOpenSettings(item.id)}
-              style={({ pressed }) => [
-                styles.iconButton,
-                { backgroundColor: theme.colors.muted, opacity: pressed ? 0.85 : 1 },
-              ]}>
-              <Feather name="more-horizontal" size={18} color={theme.colors.foreground} />
-            </Pressable>
-          </View>
+          {personalNote ? (
+            <View style={styles.personalNoteRow}>
+              <Feather
+                name="file-text"
+                size={11}
+                color={theme.colors.mutedForeground}
+                style={styles.personalNoteIcon}
+              />
+              <AppText
+                variant="caption"
+                color="mutedForeground"
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                style={styles.personalNoteText}>
+                {personalNote}
+              </AppText>
+            </View>
+          ) : null}
         </View>
+
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Packing item settings for ${item.name}`}
+          onPress={() => onOpenSettings(item.id)}
+          style={({ pressed }) => [
+            styles.iconButton,
+            { backgroundColor: theme.colors.muted, opacity: pressed ? 0.85 : 1 },
+          ]}>
+          <Feather name="more-horizontal" size={18} color={theme.colors.foreground} />
+        </Pressable>
       </View>
+    </View>
   );
 }
 
@@ -193,7 +153,7 @@ const styles = StyleSheet.create({
   },
   mainRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -206,20 +166,41 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    marginTop: 1,
   },
   nameBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 4,
+    gap: 2,
   },
-  name: {
+  titleText: {
     flexShrink: 1,
+  },
+  quantitySuffix: {
+    fontFamily: 'Inter_500Medium',
   },
   metaRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: 6,
+    marginTop: 2,
+  },
+  personalNoteRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 5,
+    marginTop: 4,
+  },
+  personalNoteIcon: {
+    marginTop: 2,
+    flexShrink: 0,
+    opacity: 0.85,
+  },
+  personalNoteText: {
+    flex: 1,
+    minWidth: 0,
+    lineHeight: 18,
   },
   buyBadge: {
     flexDirection: 'row',
@@ -242,37 +223,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
   },
-  noteBox: {
-    flexDirection: 'row',
-    gap: 6,
-    borderRadius: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  noteText: {
-    flex: 1,
-    lineHeight: 16,
-  },
-  actionsColumn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    flexShrink: 0,
-  },
-  quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  quantityLabel: {
-    minWidth: 14,
-    textAlign: 'center',
-  },
   iconButton: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     borderRadius: 9999,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 });

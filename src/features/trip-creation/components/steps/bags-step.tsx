@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { SectionTitle } from '@/components/ui/section-title';
 import { BAG_TYPES } from '@/domain/catalog';
 import type { Bag, BagType } from '@/domain/bag';
 import type { TripDraft } from '@/domain/trip-draft';
@@ -55,16 +56,19 @@ export function BagsStep({ draft, onAddBag, onUpdateBag, onRemoveBag }: BagsStep
       </View>
 
       {draft.bags.length > 0 ? (
-        <View style={styles.bagList}>
-          {draft.bags.map((bag) => (
-            <BagRow
-              key={bag.id}
-              bag={bag}
-              travelers={draft.travelers}
-              onUpdate={(patch) => onUpdateBag(bag.id, patch)}
-              onRemove={() => onRemoveBag(bag.id)}
-            />
-          ))}
+        <View style={styles.bagListSection}>
+          <SectionTitle>Selected</SectionTitle>
+          <View style={styles.bagList}>
+            {draft.bags.map((bag) => (
+              <BagRow
+                key={bag.id}
+                bag={bag}
+                travelers={draft.travelers}
+                onUpdate={(patch) => onUpdateBag(bag.id, patch)}
+                onRemove={() => onRemoveBag(bag.id)}
+              />
+            ))}
+          </View>
         </View>
       ) : (
         <View
@@ -109,8 +113,12 @@ const styles = StyleSheet.create({
     borderRadius: 9999,
     borderWidth: StyleSheet.hairlineWidth,
   },
+  bagListSection: {
+    gap: 0,
+  },
   bagList: {
     gap: 10,
+    marginTop: -4,
   },
   emptyState: {
     borderWidth: StyleSheet.hairlineWidth,

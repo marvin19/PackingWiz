@@ -32,30 +32,13 @@ function makeItem(
 const tokyoItems: PackingItem[] = [
   makeItem('tokyo-1', 'Passport', 'Essentials', { packed: true }),
   makeItem('tokyo-2', 'Wallet & cards', 'Essentials', { packed: true }),
-  makeItem('tokyo-3', 'Travel insurance', 'Essentials', {
-    packed: true,
-    note: 'Keep a digital and printed copy in case you need it at a clinic.',
-  }),
-  makeItem('tokyo-4', 'Medication', 'Essentials', {
-    note: 'Bring enough for 14 days — some common meds are restricted in Japan.',
-  }),
+  makeItem('tokyo-3', 'Travel insurance', 'Essentials', { packed: true }),
+  makeItem('tokyo-4', 'Medication', 'Essentials'),
   makeItem('tokyo-5', 'T-shirts', 'Clothing', { quantity: 6, packed: true }),
-  makeItem('tokyo-6', 'Walking shoes', 'Shoes', {
-    packed: true,
-    note: "You'll walk a lot sightseeing — comfort matters more than style.",
-  }),
-  makeItem('tokyo-7', 'Running shoes', 'Shoes', {
-    assignedTo: 't-anna',
-    note: 'For easy runs and shakeouts before race day.',
-  }),
-  makeItem('tokyo-8', 'Travel adapter', 'Electronics', {
-    needToBuy: true,
-    note: 'Japan uses Type A plugs at 100V — bring an adapter.',
-  }),
-  makeItem('tokyo-9', 'Compact umbrella', 'Weather', {
-    needToBuy: true,
-    note: 'Rain is common in Tokyo during October.',
-  }),
+  makeItem('tokyo-6', 'Walking shoes', 'Shoes', { packed: true }),
+  makeItem('tokyo-7', 'Running shoes', 'Shoes', { assignedTo: 't-anna' }),
+  makeItem('tokyo-8', 'Travel adapter', 'Electronics', { needToBuy: true }),
+  makeItem('tokyo-9', 'Compact umbrella', 'Weather', { needToBuy: true }),
 ];
 
 function createSeedTripInput(

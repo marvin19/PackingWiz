@@ -1,6 +1,7 @@
 import { reconcileActivePackingListId } from '@/domain/active-packing-list';
 import { createDestinationFromText } from '@/domain/destination';
 import { packingStatsForList } from '@/domain/packing-stats';
+import { resolveTripPackEntry } from '@/domain/trip-pack-entry';
 import { getTripName } from '@/domain/trip-name';
 import {
   appendPackingListItem,
@@ -421,6 +422,54 @@ function verifyActiveListReconciliation(): void {
   );
 }
 
+function verifyTripPackEntry(): void {
+  const single = mockSeedTrips[0];
+  const singleEntry = resolveTripPackEntry(single.id, null, null, mockSeedTrips);
+  assert(singleEntry.destination === 'pack', 'single-list trip opens Pack directly');
+  assert(
+    singleEntry.activePackingListId === single.packingLists[0].id,
+    'single-list trip auto-selects its only list',
+  );
+
+  const multi = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(multi).id;
+  const secondaryId = multi.packingLists[1].id;
+
+  const unresolved = resolveTripPackEntry(multi.id, null, null, [multi]);
+  assert(unresolved.destination === 'select-list', 'multi-list unresolved entry requires picker');
+  assert(unresolved.activePackingListId === null, 'multi-list unresolved entry clears active list');
+
+  const pickEmilie = resolveTripPackEntry(multi.id, null, null, [multi], secondaryId);
+  assert(pickEmilie.destination === 'pack', 'explicit Emilie selection opens Pack');
+  assert(pickEmilie.activePackingListId === secondaryId, 'explicit Emilie list id resolved');
+
+  const pickMe = resolveTripPackEntry(multi.id, null, null, [multi], primaryId);
+  assert(pickMe.activePackingListId === primaryId, 'explicit Me list id resolved');
+
+  const preserve = resolveTripPackEntry(multi.id, multi.id, secondaryId, [multi]);
+  assert(
+    preserve.activePackingListId === secondaryId,
+    'in-trip navigation preserves valid active list without changing trip',
+  );
+
+  const crossTrip = resolveTripPackEntry(single.id, multi.id, secondaryId, [single]);
+  assert(
+    crossTrip.activePackingListId === single.packingLists[0].id,
+    'cross-trip list id from Trip A cannot leak into Trip B',
+  );
+
+  const meStats = packingStatsForList(multi, primaryId);
+  const emilieStats = packingStatsForList(multi, secondaryId);
+  assert(
+    meStats.total === getPrimaryPackingList(multi).items.length,
+    'Me picker progress uses Me list items',
+  );
+  assert(
+    emilieStats.total === multi.packingLists[1].items.length,
+    'Emilie picker progress uses Emilie list items',
+  );
+}
+
 function verifyActiveListIsolation(): void {
   const trip = createMultiListFixtureTrip();
   const primaryId = getPrimaryPackingList(trip).id;
@@ -636,7 +685,57 @@ async function verifyCustomPrimaryListRepositoryResolution(): Promise<void> {
   );
 }
 
-/** MP1/MP2B/MP3A regression checks for seeds, clone, legacy ingress, multi-list safety, assembly, and active list. */
+async function verifyPackingItemNoteRoundTrip(): Promise<void> {
+  const trip = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(trip).id;
+  const itemId = getPrimaryPackingList(trip).items[0].id;
+
+  const repo = new MockTripRepository([trip]);
+  await repo.updatePackingItem(
+    trip.id,
+    itemId,
+    { note: 'Green floral, beige and black' },
+    primaryId,
+  );
+
+  const saved = await repo.getById(trip.id);
+  assert(saved !== null, 'note mutation reloads trip');
+  const item = getPrimaryPackingList(saved!).items.find((entry) => entry.id === itemId);
+  assert(item?.note === 'Green floral, beige and black', 'mock repository preserves item note');
+
+  await repo.updatePackingItem(trip.id, itemId, { note: '' }, primaryId);
+  const cleared = await repo.getById(trip.id);
+  const clearedItem = getPrimaryPackingList(cleared!)!.items.find((entry) => entry.id === itemId);
+  assert(!clearedItem?.note, 'cleared note persists as empty');
+}
+
+async function verifyPackingItemSettingsBatchUpdate(): Promise<void> {
+  const trip = createMultiListFixtureTrip();
+  const primaryId = getPrimaryPackingList(trip).id;
+  const itemId = getPrimaryPackingList(trip).items[0].id;
+
+  const repo = new MockTripRepository([trip]);
+  await repo.updatePackingItem(
+    trip.id,
+    itemId,
+    {
+      name: 'Updated name',
+      quantity: 3,
+      needToBuy: true,
+      note: 'Green trainers and black loafers',
+    },
+    primaryId,
+  );
+
+  const saved = await repo.getById(trip.id);
+  const item = getPrimaryPackingList(saved!).items.find((entry) => entry.id === itemId);
+  assert(item?.name === 'Updated name', 'batch settings update preserves name');
+  assert(item?.quantity === 3, 'batch settings update preserves quantity');
+  assert(item?.needToBuy === true, 'batch settings update preserves needToBuy');
+  assert(item?.note === 'Green trainers and black loafers', 'batch settings update preserves personal note');
+}
+
+/** MP1–MP3B regression checks for seeds, clone, legacy ingress, multi-list safety, assembly, and active list UX. */
 export async function runMp1InvariantChecks(): Promise<void> {
   verifyTripNameWhitespaceFallback();
   verifyDraftProfileIdUniqueness();
@@ -645,6 +744,7 @@ export async function runMp1InvariantChecks(): Promise<void> {
   verifyCloneRoundTrip();
   verifyMultiListPreservation();
   verifyActiveListReconciliation();
+  verifyTripPackEntry();
   verifyActiveListIsolation();
   await verifyLegacyTripThroughMockRepository();
   await verifyMockRepository();
@@ -652,4 +752,6 @@ export async function runMp1InvariantChecks(): Promise<void> {
   await verifyGenerationFailureAllOrNothing();
   await verifyActiveListRepositoryRoundTrip();
   await verifyCustomPrimaryListRepositoryResolution();
+  await verifyPackingItemNoteRoundTrip();
+  await verifyPackingItemSettingsBatchUpdate();
 }

@@ -242,6 +242,11 @@ export function CreateTripScreen() {
     [normalizedDraft.bags, setDraft],
   );
 
+  const handleCloseWizard = useCallback(() => {
+    blurActiveElement();
+    goBackOrReplace('/(tabs)');
+  }, []);
+
   const renderStep = () => {
     switch (step) {
       case 0:
@@ -290,7 +295,12 @@ export function CreateTripScreen() {
 
   return (
     <AppScreen>
-      <ScreenHeader title={isEditingFromSummary ? 'Edit trip' : 'New trip'} onBack={handleBack} />
+      <ScreenHeader
+        title={isEditingFromSummary ? 'Edit trip' : 'New trip'}
+        onBack={handleBack}
+        onClose={isEditingFromSummary ? undefined : handleCloseWizard}
+        closeAccessibilityLabel="Save and close trip"
+      />
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

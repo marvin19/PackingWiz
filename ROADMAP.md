@@ -80,7 +80,7 @@ External integrations remain deferred until the multi-person domain and UX are s
 
 - Summary/review navigation
 
-- Edit trip flow
+- Edit trip flow — **post-generation Edit trip details still required before frontend freeze; prefer entry from Trip Overview**
 
 - Draft preservation
 
@@ -93,6 +93,8 @@ External integrations remain deferred until the multi-person domain and UX are s
 - Additional Information presentation
 
 - Back to all trips from Pack
+
+- Add-person sheet in wizard (mobile-friendly)
 
 Packing mode has since migrated from the original trip-level assumption to the
 
@@ -110,11 +112,19 @@ per-PackingList multi-person model.
 
 - Purchase state
 
+- Optional personal item note (`note`; user-editable; shown on Pack rows when set)
+
+- Explicit **Update item** save model in Item Settings (dismiss discards staged edits)
+
+- Pack header actions: Filter · Insights · Back to trips (explicit, no overflow menu)
+
+- Trip-level Insights (Trip Overview) carry PackingWiz reasoning — not per-item Pack commentary
+
 - Legacy traveler assignment support
 
 - Delete
 
-- Inline quantity shortcuts
+- Compact Pack rows (quantity/delete in settings)
 
 - Clearer distinction between packing and item settings
 
@@ -422,7 +432,7 @@ reprioritized.
 
 - Trip Overview multi-list / aggregate progress
 
-- Remaining traveler-assignment semantics
+- **Cross-list item assignment (transitional today):** `assignedTo` labels on items are legacy traveler metadata — not final multi-list semantics. Decide whether assigning an item to another person while viewing one PackingList should **move** or **copy** it into that person's list, and require explicit confirmation copy such as "This item will be moved to Emilie's packing list." or "This item will be added to Emilie's packing list." Final UX must make clear the item belongs in that person's PackingList, not merely that it carries a person label.
 
 - Final active-list resume behavior where necessary
 
@@ -695,6 +705,10 @@ Input context:
 Output:
 
 - one Packing List per profile
+
+- trip/list-level Insights summarizing noteworthy packing decisions (weather, laundry,
+  activities, destination-specific requirements) — **not** per-item Pack commentary;
+  Pack stays task-focused and quiet; do not generate rationale for every obvious item
 
 Production requirements:
 

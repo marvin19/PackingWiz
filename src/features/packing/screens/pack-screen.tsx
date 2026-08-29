@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +10,7 @@ import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { getDestinationLabel } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
+import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import {
   isImportantSnapshotStale,
   isImportantPackingItem,
@@ -17,10 +18,15 @@ import {
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStatsForList } from '@/domain/packing-stats';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
-import { FilterPill } from '@/features/packing/components/filter-pill';
+import { PackFilterButton, PackFilterSheet } from '@/features/packing/components/pack-filter-sheet';
 import { ImportantItemsEmptyCard } from '@/features/packing/components/important-items-empty-card';
 import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
 import { ImportantSnapshotNotice } from '@/features/packing/components/important-snapshot-notice';
+import { PackingListPickerSheet } from '@/features/packing/components/packing-list-picker-sheet';
+import {
+  PackBackToTripsButton,
+  PackInsightsButton,
+} from '@/features/packing/components/pack-header-actions';
 import { PackedCelebration } from '@/features/packing/components/packed-celebration';
 import { PackingItemSettingsSheet } from '@/features/packing/components/packing-item-settings-sheet';
 import { PackingCategoryHeader } from '@/features/packing/components/packing-category-section';
@@ -50,7 +56,7 @@ export function PackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeTrip, activeTripId, activePackingList, activePackingListId, togglePacked, markItemPurchased, injectImportantItemsIntoTrip, syncImportantSnapshotForTrip } =
+  const { activeTrip, activeTripId, activePackingList, activePackingListId, selectActivePackingList, togglePacked, markItemPurchased, injectImportantItemsIntoTrip, syncImportantSnapshotForTrip } =
     useTrips();
   const {
     importantItems,
@@ -73,8 +79,17 @@ export function PackScreen() {
   const [importantSetupVisible, setImportantSetupVisible] = useState(false);
   const [dismissNoticeVisible, setDismissNoticeVisible] = useState(false);
   const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
+  const [listPickerVisible, setListPickerVisible] = useState(false);
+  const [filterVisible, setFilterVisible] = useState(false);
 
+  const hasMultipleLists = (activeTrip?.packingLists.length ?? 0) > 1;
   const isSelfActiveList = activePackingList?.profileSnapshot.isSelf === true;
+
+  useEffect(() => {
+    if (activeTrip && hasMultipleLists && !activePackingListId) {
+      router.replace('/(tabs)/pack/select-list');
+    }
+  }, [activeTrip, activePackingListId, hasMultipleLists, router]);
 
   const packingItems = useMemo(
     () => activePackingList?.items ?? [],
@@ -225,6 +240,22 @@ export function PackScreen() {
     setSettingsItemId(null);
   }, []);
 
+  const handleSelectPackingList = useCallback(
+    (listId: string) => {
+      selectActivePackingList(listId);
+      setSettingsItemId(null);
+    },
+    [selectActivePackingList],
+  );
+
+  const handleViewTripOverview = useCallback(() => {
+    router.push('/(tabs)/pack/overview');
+  }, [router]);
+
+  const handleBackToTrips = useCallback(() => {
+    router.navigate('/(tabs)');
+  }, [router]);
+
   if (!activeTrip) {
     const isMissingActiveTrip = Boolean(activeTripId);
 
@@ -251,6 +282,9 @@ export function PackScreen() {
   };
 
   const listEmpty = packingItems.length === 0 || grouped.length === 0;
+  const activeListName = activePackingList
+    ? formatPackingListProfileName(activePackingList.profileSnapshot)
+    : '';
 
   return (
     <AppScreen style={styles.screen}>
@@ -271,73 +305,44 @@ export function PackScreen() {
             <AppText variant="title" numberOfLines={1} style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
               {getDestinationLabel(activeTrip.destination)}
             </AppText>
-            <AppText variant="bodySmall" color="mutedForeground">
-              {formatRange(activeTrip.startDate, activeTrip.endDate)} · {stats.packed} of {stats.total} packed
-            </AppText>
+            <View style={styles.headerMetaRow}>
+              <AppText variant="bodySmall" color="mutedForeground" style={styles.headerMetaCopy}>
+                {formatRange(activeTrip.startDate, activeTrip.endDate)} · {stats.packed} of {stats.total} packed
+              </AppText>
+            </View>
           </View>
           <ProgressRing value={stats.pct}>
             <ProgressRingLabel value={stats.pct} />
           </ProgressRing>
         </View>
 
-        <View style={styles.headerNavRow}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="View trip overview and insights"
-            onPress={() => router.push('/(tabs)/pack/overview')}
-            style={({ pressed }) => [
-              styles.headerNavButton,
-              styles.headerNavPrimary,
-              { backgroundColor: theme.colors.secondary, opacity: pressed ? 0.92 : 1 },
-            ]}>
-            <Feather name="list" size={14} color={theme.colors.secondaryForeground} />
-            <AppText
-              variant="caption"
-              color="secondaryForeground"
-              numberOfLines={2}
-              style={[styles.headerNavLabel, { fontFamily: theme.fontFamilies.sansSemiBold }]}>
-              View trip overview & insights
-            </AppText>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Back to all trips"
-            onPress={() => router.navigate('/(tabs)')}
-            style={({ pressed }) => [
-              styles.headerNavButton,
-              styles.headerNavSecondary,
-              {
-                backgroundColor: theme.colors.background,
-                borderColor: theme.colors.border,
-                opacity: pressed ? 0.92 : 1,
-              },
-            ]}>
-            <Feather name="arrow-left" size={14} color={theme.colors.mutedForeground} />
-            <AppText
-              variant="caption"
-              color="mutedForeground"
-              numberOfLines={2}
-              style={[styles.headerNavLabel, { fontFamily: theme.fontFamilies.sansSemiBold }]}>
-              Back to all trips
-            </AppText>
-          </Pressable>
+        <View style={styles.headerContextRow}>
+          {hasMultipleLists && activePackingList ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Packing for ${activeListName}. Switch packing list.`}
+              onPress={() => setListPickerVisible(true)}
+              style={({ pressed }) => [styles.listSwitcher, pressed && styles.pressed]}>
+              <AppText variant="caption" color="mutedForeground">
+                Packing for
+              </AppText>
+              <AppText
+                variant="bodySemiBold"
+                numberOfLines={1}
+                style={styles.listSwitcherName}>
+                {activeListName}
+              </AppText>
+              <Feather name="chevron-down" size={14} color={theme.colors.primary} />
+            </Pressable>
+          ) : (
+            <View style={styles.headerContextSpacer} />
+          )}
+          <View style={styles.headerActions}>
+            <PackFilterButton activeFilter={filter} onPress={() => setFilterVisible(true)} compact />
+            <PackInsightsButton onPress={handleViewTripOverview} />
+            <PackBackToTripsButton onPress={handleBackToTrips} />
+          </View>
         </View>
-      </View>
-
-      <View style={styles.filters}>
-        <FilterPill label="All" active={filter === 'all'} onPress={() => setFilter('all')} />
-        <FilterPill
-          label={`To pack (${stats.total - stats.packed})`}
-          active={filter === 'todo'}
-          onPress={() => setFilter('todo')}
-        />
-        <FilterPill
-          label={`Shopping (${buyCount})`}
-          active={filter === 'buy'}
-          onPress={() => setFilter('buy')}
-          icon={<Feather name="shopping-bag" size={12} color={filter === 'buy' ? theme.colors.background : theme.colors.mutedForeground} />}
-        />
       </View>
 
       <SectionList
@@ -501,6 +506,25 @@ export function PackScreen() {
           onClose={handleCloseItemSettings}
         />
       ) : null}
+
+      {hasMultipleLists && activeTrip ? (
+        <PackingListPickerSheet
+          visible={listPickerVisible}
+          trip={activeTrip}
+          selectedListId={activePackingListId}
+          onSelect={handleSelectPackingList}
+          onClose={() => setListPickerVisible(false)}
+        />
+      ) : null}
+
+      <PackFilterSheet
+        visible={filterVisible}
+        activeFilter={filter}
+        todoCount={stats.total - stats.packed}
+        buyCount={buyCount}
+        onSelect={setFilter}
+        onClose={() => setFilterVisible(false)}
+      />
     </AppScreen>
   );
 }
@@ -518,8 +542,8 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: screenPaddingHorizontal,
-    paddingBottom: 12,
-    gap: 12,
+    paddingBottom: 8,
+    gap: 6,
   },
   headerTop: {
     flexDirection: 'row',
@@ -529,39 +553,50 @@ const styles = StyleSheet.create({
   headerCopy: {
     flex: 1,
     minWidth: 0,
-    gap: 6,
+    gap: 4,
   },
-  headerNavRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  headerNavButton: {
-    flex: 1,
-    minWidth: 0,
+  headerMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minHeight: 44,
-  },
-  headerNavPrimary: {},
-  headerNavSecondary: {
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  headerNavLabel: {
-    flexShrink: 1,
-    textAlign: 'center',
-    lineHeight: 16,
-  },
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: 8,
-    paddingHorizontal: screenPaddingHorizontal,
-    paddingBottom: 8,
+  },
+  headerMetaCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerContextRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 36,
+  },
+  listSwitcher: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minHeight: 36,
+    paddingVertical: 4,
+    paddingRight: 4,
+  },
+  listSwitcherName: {
+    flexShrink: 1,
+  },
+  headerContextSpacer: {
+    flex: 1,
+    minWidth: 0,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+    gap: 6,
+    flexShrink: 0,
+    maxWidth: '100%',
+  },
+  pressed: {
+    opacity: 0.85,
   },
   listContent: {
     paddingHorizontal: screenPaddingHorizontal,
@@ -619,9 +654,6 @@ const styles = StyleSheet.create({
   manageLink: {
     paddingHorizontal: 4,
     paddingVertical: 2,
-  },
-  pressed: {
-    opacity: 0.85,
   },
   fab: {
     position: 'absolute',

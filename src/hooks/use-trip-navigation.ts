@@ -5,14 +5,27 @@ import { useTrips } from '@/hooks/use-trips';
 
 export function useTripNavigation() {
   const router = useRouter();
-  const { openPackingList, resetDraft, draftReachedSummary } = useTrips();
+  const { beginTripPackEntry, resetDraft, draftReachedSummary } = useTrips();
 
   const openTrip = useCallback(
     (tripId: string) => {
-      openPackingList(tripId);
+      const destination = beginTripPackEntry(tripId);
+      if (destination === 'select-list') {
+        router.navigate('/(tabs)/pack/select-list');
+        return;
+      }
+
       router.navigate('/(tabs)/pack');
     },
-    [router, openPackingList],
+    [beginTripPackEntry, router],
+  );
+
+  const selectPackingListAndOpenPack = useCallback(
+    (tripId: string, listId: string) => {
+      beginTripPackEntry(tripId, listId);
+      router.replace('/(tabs)/pack');
+    },
+    [beginTripPackEntry, router],
   );
 
   const startCreateTrip = useCallback(() => {
@@ -29,5 +42,5 @@ export function useTripNavigation() {
     router.push('/trip/create');
   }, [draftReachedSummary, router]);
 
-  return { openTrip, startCreateTrip, resumeDraftTrip };
+  return { openTrip, selectPackingListAndOpenPack, startCreateTrip, resumeDraftTrip };
 }

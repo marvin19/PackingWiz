@@ -10,6 +10,7 @@ export default function PackStackLayout() {
         contentStyle: { backgroundColor: colors.background },
       }}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="select-list" />
       <Stack.Screen name="overview" />
     </Stack>
   );
