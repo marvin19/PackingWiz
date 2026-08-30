@@ -19,3 +19,33 @@ export function draftRowsFromImportantNames(names: string[]): string[] {
   const normalized = normalizeImportantNameList(names);
   return normalized.length > 0 ? normalized : [''];
 }
+
+export type ImportantWizardProfileDraftState = {
+  rows: string[];
+  expanded: boolean;
+};
+
+/** Preserve expanded cards' staged rows when rebuilding wizard draft state from canonical data. */
+export function mergeImportantWizardProfileDrafts(
+  current: Record<string, ImportantWizardProfileDraftState>,
+  next: Record<string, ImportantWizardProfileDraftState>,
+): Record<string, ImportantWizardProfileDraftState> {
+  const merged = { ...next };
+
+  for (const profileId of Object.keys(current)) {
+    const existing = current[profileId];
+    if (!existing || !merged[profileId]) {
+      continue;
+    }
+
+    if (existing.expanded) {
+      merged[profileId] = {
+        ...merged[profileId],
+        expanded: true,
+        rows: existing.rows,
+      };
+    }
+  }
+
+  return merged;
+}

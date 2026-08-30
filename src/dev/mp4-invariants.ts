@@ -1,5 +1,6 @@
 import {
   importantNameListsEqual,
+  mergeImportantWizardProfileDrafts,
   normalizeImportantNameList,
 } from '@/features/trip-creation/utils/important-wizard-draft';
 import {
@@ -887,6 +888,48 @@ function verifyStaleNoticeScope(): void {
   );
 }
 
+function verifyImportantWizardDraftMerge(): void {
+  const current = {
+    me: { rows: ['Passport'], expanded: false },
+    emilie: { rows: ['Medication', ''], expanded: true },
+    removed: { rows: ['Stale'], expanded: true },
+  };
+  const next = {
+    me: { rows: ['Passport', 'Glasses'], expanded: false },
+    emilie: { rows: ['Teddy bear'], expanded: false },
+  };
+
+  const merged = mergeImportantWizardProfileDrafts(current, next);
+
+  assert(merged.me.rows.join('|') === 'Passport|Glasses', 'collapsed card picks up rebuilt canonical rows');
+  assert(merged.me.expanded === false, 'collapsed card stays collapsed after rebuild');
+  assert(merged.emilie.expanded === true, 'expanded card stays expanded after rebuild');
+  assert(merged.emilie.rows.join('|') === 'Medication|', 'expanded card keeps staged rows after rebuild');
+  assert(!('removed' in merged), 'removed profile draft state is not retained');
+}
+
+function verifyPackImportantNoticeRespectsPromptDismissed(): void {
+  const undismissed = getImportantConfigForProfile({}, 'profile-emilie');
+  assert(
+    profileNeedsImportantFirstTimeSetup(undismissed),
+    'unconfigured undismissed profile qualifies for Pack Important notice',
+  );
+
+  const dismissedStore = setImportantPromptDismissedForProfileStore({}, 'profile-emilie', true);
+  const dismissed = getImportantConfigForProfile(dismissedStore, 'profile-emilie');
+  assert(
+    !profileNeedsImportantFirstTimeSetup(dismissed),
+    'persistent promptDismissed suppresses Pack Important notice',
+  );
+  assert(dismissed.isConfigured === false, 'promptDismissed does not mark profile configured');
+
+  const meConfig = getImportantConfigForProfile(dismissedStore, SELF_IMPORTANT_PROFILE_ID);
+  assert(
+    profileNeedsImportantFirstTimeSetup(meConfig),
+    'dismissing one profile does not suppress another profile Pack notice',
+  );
+}
+
 /** MP4A profile-scoped Important master checks. */
 export async function runMp4InvariantChecks(): Promise<void> {
   verifyProfileImportantIsolation();
@@ -912,6 +955,8 @@ export async function runMp4InvariantChecks(): Promise<void> {
   verifyDraftProfileRememberLifecycle();
   verifyImportantStoreKeyMigration();
   verifyImportantWizardDraftStaging();
+  verifyImportantWizardDraftMerge();
+  verifyPackImportantNoticeRespectsPromptDismissed();
   await verifyTripDraftAssemblyPreservesWizardFields();
   verifyAggregatePackingProgress();
   verifyStaleNoticeScope();

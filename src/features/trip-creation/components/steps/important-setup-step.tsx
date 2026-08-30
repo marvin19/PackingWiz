@@ -8,7 +8,9 @@ import { ImportantProfileCard } from '@/features/trip-creation/components/import
 import {
   draftRowsFromImportantNames,
   importantNameListsEqual,
+  mergeImportantWizardProfileDrafts,
   normalizeImportantNameList,
+  type ImportantWizardProfileDraftState,
 } from '@/features/trip-creation/utils/important-wizard-draft';
 import { useProfile } from '@/hooks/use-profile';
 
@@ -20,10 +22,7 @@ type ImportantSetupStepProps = {
   profiles: PackingProfile[];
 };
 
-type ProfileDraftState = {
-  rows: string[];
-  expanded: boolean;
-};
+type ProfileDraftState = ImportantWizardProfileDraftState;
 
 function buildInitialProfileDrafts(
   profiles: PackingProfile[],
@@ -77,18 +76,7 @@ export const ImportantSetupStep = forwardRef<ImportantSetupStepHandle, Important
     useEffect(() => {
       setDraftsByProfileId((current) => {
         const next = buildInitialProfileDrafts(profiles, getSavedNames);
-
-        for (const profileId of Object.keys(current)) {
-          if (next[profileId]?.expanded) {
-            next[profileId] = {
-              ...next[profileId],
-              expanded: true,
-              rows: current[profileId].rows,
-            };
-          }
-        }
-
-        return next;
+        return mergeImportantWizardProfileDrafts(current, next);
       });
     }, [getSavedNames, profileIdsKey, profiles]);
 

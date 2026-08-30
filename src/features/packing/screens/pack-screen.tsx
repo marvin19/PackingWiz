@@ -8,6 +8,7 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { profileNeedsImportantFirstTimeSetup } from '@/domain/important-profile-setup';
 import { getDestinationLabel } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
@@ -91,15 +92,12 @@ export function PackScreen() {
   const activeImportantConfig = activeImportantProfileId
     ? getImportantConfigForProfile(activeImportantProfileId)
     : null;
-  const activeImportantItems = useMemo(
-    () => (activeImportantProfileId ? getImportantItemsForProfile(activeImportantProfileId) : []),
-    [activeImportantProfileId, getImportantItemsForProfile],
-  );
-  const activeEnabledImportantItems = useMemo(
-    () =>
-      activeImportantProfileId ? getEnabledImportantItemsForProfile(activeImportantProfileId) : [],
-    [activeImportantProfileId, getEnabledImportantItemsForProfile],
-  );
+  const activeImportantItems = activeImportantProfileId
+    ? getImportantItemsForProfile(activeImportantProfileId)
+    : [];
+  const activeEnabledImportantItems = activeImportantProfileId
+    ? getEnabledImportantItemsForProfile(activeImportantProfileId)
+    : [];
   const activeIsImportantConfigured = activeImportantProfileId
     ? isImportantConfiguredForProfile(activeImportantProfileId)
     : false;
@@ -145,7 +143,8 @@ export function PackScreen() {
   const showImportantNotConfiguredNotice =
     Boolean(activeTrip) &&
     Boolean(activeImportantProfileId) &&
-    !activeIsImportantConfigured &&
+    activeImportantConfig !== null &&
+    profileNeedsImportantFirstTimeSetup(activeImportantConfig) &&
     filter === 'all' &&
     !importantNoticeDismissed;
 
