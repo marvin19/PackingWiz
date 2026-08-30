@@ -1,23 +1,13 @@
 import type { Href } from 'expo-router';
 
-import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
+import type { WizardStepId } from '@/features/trip-creation/utils/wizard-steps';
 
-/** Stable step identifiers — map 1:1 to wizard step indices. */
-export const WIZARD_STEP_KEYS = {
-  destination: 0,
-  'trip-context': 1,
-  accommodation: 2,
-  'packing-profiles': 3,
-  travelers: 3,
-  bags: 4,
-  note: 5,
-} as const;
-
-export type WizardStepKey = keyof typeof WIZARD_STEP_KEYS;
+/** Legacy aliases map to stable step ids (not numeric indices). */
+export type WizardStepKey = WizardStepId | 'travelers';
 
 export type WizardReturnTo = 'summary';
 
-const STEP_ALIASES: Record<string, WizardStepKey> = {
+const STEP_ALIASES: Record<string, WizardStepId> = {
   destination: 'destination',
   dates: 'destination',
   'destination-dates': 'destination',
@@ -32,33 +22,30 @@ const STEP_ALIASES: Record<string, WizardStepKey> = {
   bags: 'bags',
   note: 'note',
   'additional-information': 'note',
+  important: 'important',
+  'important-items': 'important',
 };
 
-export function wizardStepIndexForKey(stepKey: WizardStepKey): number {
-  return WIZARD_STEP_KEYS[stepKey];
-}
-
-export function isWizardStepKey(value: string): value is WizardStepKey {
-  return Object.hasOwn(WIZARD_STEP_KEYS, value);
-}
-
-export function parseWizardStepParam(raw: string | string[] | undefined): number | null {
+export function parseWizardStepKeyParam(raw: string | string[] | undefined): WizardStepId | null {
   const value = Array.isArray(raw) ? raw[0] : raw;
   if (!value) {
     return null;
   }
 
   const normalized = value.trim().toLowerCase();
-  const alias = STEP_ALIASES[normalized];
-  if (alias) {
-    return wizardStepIndexForKey(alias);
+  return STEP_ALIASES[normalized] ?? null;
+}
+
+/** @deprecated Prefer parseWizardStepKeyParam — numeric indices are not stable across flows. */
+export function parseWizardStepParam(raw: string | string[] | undefined): number | null {
+  const stepId = parseWizardStepKeyParam(raw);
+  if (stepId) {
+    return null;
   }
 
-  if (/^\d+$/.test(normalized)) {
-    const index = Number.parseInt(normalized, 10);
-    if (index >= 0 && index < WIZARD_STEP_COUNT) {
-      return index;
-    }
+  const value = Array.isArray(raw) ? raw[0] : raw;
+  if (value && /^\d+$/.test(value.trim())) {
+    return Number.parseInt(value.trim(), 10);
   }
 
   return null;
@@ -70,7 +57,8 @@ export function parseWizardReturnToParam(raw: string | string[] | undefined): Wi
 }
 
 export function buildCreateTripEditHref(stepKey: WizardStepKey): Href {
-  return `/trip/create?step=${stepKey}&returnTo=summary`;
+  const stepId: WizardStepId = stepKey === 'travelers' ? 'packing-profiles' : stepKey;
+  return `/trip/create?step=${stepId}&returnTo=summary`;
 }
 
 export function isWizardEditFromSummary(returnTo: WizardReturnTo | null): boolean {

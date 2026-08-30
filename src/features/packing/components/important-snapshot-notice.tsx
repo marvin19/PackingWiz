@@ -6,12 +6,14 @@ import { formatImportantUpdatedSentence } from '@/domain/dates';
 import { useTheme } from '@/hooks/use-theme';
 
 type ImportantSnapshotNoticeProps = {
+  profileLabel?: string;
   updatedAt?: string;
   onUpdate: () => void;
   onKeepCurrent: () => void;
 };
 
 export function ImportantSnapshotNotice({
+  profileLabel,
   updatedAt,
   onUpdate,
   onKeepCurrent,
@@ -35,7 +37,7 @@ export function ImportantSnapshotNotice({
         <AppText
           variant="bodySmall"
           style={{ fontFamily: theme.fontFamilies.displayExtraBold, color: theme.colors.importantForeground }}>
-          Your Important items have changed
+          {profileLabel ? `Important for ${profileLabel} has changed` : 'Your Important items have changed'}
         </AppText>
       </View>
       <AppText variant="caption" color="mutedForeground" style={styles.body}>

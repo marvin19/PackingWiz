@@ -21,6 +21,8 @@ export interface PackingProfile {
   birthDate?: string;
   /** True when this profile represents the authenticated or anonymous user ("Me"). */
   isSelf: boolean;
+  /** When true, persist as a reusable saved profile at trip creation commit — not before. */
+  rememberForFutureTrips?: boolean;
   /**
    * Read-only bootstrap snapshot for session/mock persistence of Important master.
    * Canonical runtime master lives in ProfileProvider.importantByProfileId (MP4A).

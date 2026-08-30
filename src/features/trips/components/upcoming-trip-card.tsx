@@ -80,6 +80,9 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
           </AppText>
           <AppText variant="bodySmall" color="mutedForeground">
             {days} {days === 1 ? 'day' : 'days'}
+            {trip.packingLists.length > 1
+              ? ` · ${trip.packingLists.length} people`
+              : ''}
           </AppText>
         </View>
 

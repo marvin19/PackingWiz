@@ -14,12 +14,14 @@ import {
   type ImportantItemsConfig,
 } from '@/domain/important-items-config';
 import { buildImportantMasterVersion } from '@/domain/important-snapshot';
+import { importantStaleNoticeKey } from '@/domain/important-profile-setup';
 import type { PackingProfile } from '@/domain/packing-profile';
 import {
   addImportantItemForProfileStore,
   attachImportantBootstrapToRememberedProfile,
   bootstrapImportantConfigFromProfiles,
   getImportantConfigForProfile,
+  migrateImportantProfileStoreKey,
   refreshRememberedProfileBootstraps,
   removeImportantItemForProfileStore,
   resolveImportantProfileId,
@@ -81,11 +83,14 @@ interface ProfileContextValue {
   saveImportantItems: (names: string[]) => ImportantItem[];
   setImportantEnabled: (enabled: boolean) => void;
   dismissImportantPrompt: () => void;
+  dismissImportantPromptForProfile: (profileId: string) => void;
   resetImportantPromptDismissed: () => void;
-  requestOpenImportantEditor: () => void;
-  consumeImportantEditorRequest: () => boolean;
-  dismissImportantStaleNotice: (tripId: string, masterVersion: string) => void;
-  isImportantStaleNoticeDismissed: (tripId: string, masterVersion: string) => boolean;
+  resetImportantPromptDismissedForProfile: (profileId: string) => void;
+  isImportantPromptDismissedForProfile: (profileId: string) => boolean;
+  requestOpenImportantEditor: (profileId: string) => void;
+  consumeImportantEditorRequest: () => string | null;
+  dismissImportantStaleNotice: (tripId: string, listId: string, masterVersion: string) => void;
+  isImportantStaleNoticeDismissed: (tripId: string, listId: string, masterVersion: string) => boolean;
 }
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
@@ -99,8 +104,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [importantByProfileId, setImportantByProfileId] = useState<ImportantItemsByProfileId>(() =>
     bootstrapImportantConfigFromProfiles({}, mockSavedPackingProfiles),
   );
-  const [openImportantEditorRequest, setOpenImportantEditorRequest] = useState(false);
-  const [dismissedImportantMasterVersionByTrip, setDismissedImportantMasterVersionByTrip] =
+  const [importantEditorRequestProfileId, setImportantEditorRequestProfileId] = useState<string | null>(
+    null,
+  );
+  const [dismissedImportantMasterVersionByList, setDismissedImportantMasterVersionByList] =
     useState<Record<string, string>>({});
 
   const commitImportantStore = useCallback(
@@ -258,7 +265,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     };
 
     setImportantByProfileId((current) => {
-      const nextStore = bootstrapImportantConfigFromProfiles(current, [profile]);
+      let nextStore = bootstrapImportantConfigFromProfiles(current, [profile]);
 
       setSavedPackingProfiles((savedProfiles) => {
         const byId = savedProfiles.findIndex((entry) => entry.id === normalized.id);
@@ -275,10 +282,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
           (entry) => entry.name.trim().toLowerCase() === nameKey,
         );
         if (byName >= 0) {
+          const targetId = savedProfiles[byName].id;
+          if (targetId !== normalized.id) {
+            nextStore = migrateImportantProfileStoreKey(nextStore, normalized.id, targetId);
+          }
+
           return savedProfiles.map((entry, index) =>
             index === byName
               ? attachImportantBootstrapToRememberedProfile(
-                  { ...normalized, id: entry.id },
+                  { ...normalized, id: entry.id, rememberForFutureTrips: undefined },
                   nextStore,
                 )
               : entry,
@@ -287,7 +299,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
         return [
           ...savedProfiles,
-          attachImportantBootstrapToRememberedProfile(normalized, nextStore),
+          attachImportantBootstrapToRememberedProfile(
+            { ...normalized, rememberForFutureTrips: undefined },
+            nextStore,
+          ),
         ];
       });
 
@@ -305,18 +320,24 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     [setImportantEnabledForProfile],
   );
 
-  const requestOpenImportantEditor = useCallback(() => {
-    setOpenImportantEditorRequest(true);
+  const isImportantPromptDismissedForProfile = useCallback(
+    (profileId: string) => readImportantConfigForProfile(profileId).promptDismissed,
+    [readImportantConfigForProfile],
+  );
+
+  const requestOpenImportantEditor = useCallback((profileId: string) => {
+    setImportantEditorRequestProfileId(profileId);
   }, []);
 
   const consumeImportantEditorRequest = useCallback(() => {
-    if (!openImportantEditorRequest) {
-      return false;
+    if (!importantEditorRequestProfileId) {
+      return null;
     }
 
-    setOpenImportantEditorRequest(false);
-    return true;
-  }, [openImportantEditorRequest]);
+    const profileId = importantEditorRequestProfileId;
+    setImportantEditorRequestProfileId(null);
+    return profileId;
+  }, [importantEditorRequestProfileId]);
 
   const dismissImportantPrompt = useCallback(() => {
     commitImportantStore((current) =>
@@ -324,23 +345,47 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     );
   }, [commitImportantStore]);
 
+  const dismissImportantPromptForProfile = useCallback(
+    (profileId: string) => {
+      commitImportantStore((current) =>
+        setImportantPromptDismissedForProfileStore(current, profileId, true),
+      );
+    },
+    [commitImportantStore],
+  );
+
   const resetImportantPromptDismissed = useCallback(() => {
     commitImportantStore((current) =>
       setImportantPromptDismissedForProfileStore(current, SELF_IMPORTANT_PROFILE_ID, false),
     );
   }, [commitImportantStore]);
 
-  const dismissImportantStaleNotice = useCallback((tripId: string, masterVersion: string) => {
-    setDismissedImportantMasterVersionByTrip((current) => ({
-      ...current,
-      [tripId]: masterVersion,
-    }));
-  }, []);
+  const resetImportantPromptDismissedForProfile = useCallback(
+    (profileId: string) => {
+      commitImportantStore((current) =>
+        setImportantPromptDismissedForProfileStore(current, profileId, false),
+      );
+    },
+    [commitImportantStore],
+  );
+
+  const dismissImportantStaleNotice = useCallback(
+    (tripId: string, listId: string, masterVersion: string) => {
+      const key = importantStaleNoticeKey(tripId, listId);
+      setDismissedImportantMasterVersionByList((current) => ({
+        ...current,
+        [key]: masterVersion,
+      }));
+    },
+    [],
+  );
 
   const isImportantStaleNoticeDismissed = useCallback(
-    (tripId: string, masterVersion: string) =>
-      dismissedImportantMasterVersionByTrip[tripId] === masterVersion,
-    [dismissedImportantMasterVersionByTrip],
+    (tripId: string, listId: string, masterVersion: string) => {
+      const key = importantStaleNoticeKey(tripId, listId);
+      return dismissedImportantMasterVersionByList[key] === masterVersion;
+    },
+    [dismissedImportantMasterVersionByList],
   );
 
   const value = useMemo<ProfileContextValue>(
@@ -377,7 +422,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       saveImportantItems,
       setImportantEnabled,
       dismissImportantPrompt,
+      dismissImportantPromptForProfile,
       resetImportantPromptDismissed,
+      resetImportantPromptDismissedForProfile,
+      isImportantPromptDismissedForProfile,
       requestOpenImportantEditor,
       consumeImportantEditorRequest,
       dismissImportantStaleNotice,
@@ -388,6 +436,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       addSavedTraveler,
       consumeImportantEditorRequest,
       dismissImportantPrompt,
+      dismissImportantPromptForProfile,
       dismissImportantStaleNotice,
       enabledImportantItems,
       getEnabledImportantItemsForProfile,
@@ -399,6 +448,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       isImportantConfiguredForProfile,
       isImportantEnabledForProfile,
       isImportantFeatureActiveForProfile,
+      isImportantPromptDismissedForProfile,
       isImportantStaleNoticeDismissed,
       preferences,
       readImportantConfigForProfile,
@@ -406,6 +456,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       removeImportantItemForProfile,
       requestOpenImportantEditor,
       resetImportantPromptDismissed,
+      resetImportantPromptDismissedForProfile,
       saveImportantItems,
       saveImportantItemsForProfile,
       savedPackingProfiles,

@@ -151,12 +151,17 @@ export function hasDuplicateDraftProfileName(
   });
 }
 
-export function createDraftProfile(name: string, age: number): PackingProfile {
+export function createDraftProfile(
+  name: string,
+  age: number,
+  rememberForFutureTrips = false,
+): PackingProfile {
   return {
     id: `draft-profile-${createUuid()}`,
     name: name.trim(),
     age,
     isSelf: false,
+    rememberForFutureTrips,
   };
 }
 

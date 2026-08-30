@@ -1,23 +1,26 @@
-import { Feather } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Feather } from '@expo/vector-icons';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { SectionTitle } from '@/components/ui/section-title';
 import { SettingsCard, SettingsDivider } from '@/components/ui/settings/settings-card';
 import { SettingsLinkRow } from '@/components/ui/settings/settings-link-row';
 import { SettingsToggleRow } from '@/components/ui/settings/settings-toggle-row';
+import { createDefaultSelfProfile } from '@/domain/trip-draft-profiles';
 import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
+import { ImportantProfileMenuRows } from '@/features/profile/components/important-profile-menu-rows';
 import { ProfileIdentityCard } from '@/features/profile/components/profile-identity-card';
 import { ProfileStatCard } from '@/features/profile/components/profile-stat-card';
 import {
   AddTravelerRow,
   TravelerProfileRow,
 } from '@/features/profile/components/traveler-profile-row';
-import { formatImportantUpdatedAt } from '@/domain/dates';
+import { formatPackingListProfileName } from '@/domain/packing-list-display';
+import type { PackingProfile } from '@/domain/packing-profile';
 import { profileTravelStats } from '@/features/profile/utils/profile-stats';
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
@@ -32,66 +35,84 @@ export function ProfileScreen() {
   const {
     preferences,
     savedTravelers,
-    importantItems,
-    isImportantConfigured,
-    isImportantEnabled,
-    importantUpdatedAt,
+    savedPackingProfiles,
+    getImportantItemsForProfile,
+    getImportantConfigForProfile,
+    isImportantConfiguredForProfile,
+    isImportantEnabledForProfile,
+    resolveImportantProfileId,
     setPreference,
     addSavedTraveler,
-    saveImportantItems,
-    setImportantEnabled,
-    resetImportantPromptDismissed,
+    saveImportantItemsForProfile,
+    setImportantEnabledForProfile,
+    resetImportantPromptDismissedForProfile,
     consumeImportantEditorRequest,
   } = useProfile();
 
+  const manageableProfiles = useMemo(
+    () => [createDefaultSelfProfile(), ...savedPackingProfiles],
+    [savedPackingProfiles],
+  );
+
+  const [editingProfile, setEditingProfile] = useState<PackingProfile | null>(null);
   const [importantSetupVisible, setImportantSetupVisible] = useState(false);
+
+  const editingCanonicalProfileId = editingProfile
+    ? resolveImportantProfileId(editingProfile)
+    : null;
+  const editingImportantItems = editingCanonicalProfileId
+    ? getImportantItemsForProfile(editingCanonicalProfileId)
+    : [];
+  const editingIsConfigured = editingCanonicalProfileId
+    ? isImportantConfiguredForProfile(editingCanonicalProfileId)
+    : false;
+  const editingIsEnabled = editingCanonicalProfileId
+    ? isImportantEnabledForProfile(editingCanonicalProfileId)
+    : false;
+  const editingUpdatedAt = editingCanonicalProfileId
+    ? getImportantConfigForProfile(editingCanonicalProfileId).updatedAt
+    : null;
+  const editingProfileLabel = editingProfile
+    ? formatPackingListProfileName(editingProfile)
+    : undefined;
 
   const stats = useMemo(() => profileTravelStats(trips), [trips]);
 
   const metricHint = preferences.metricUnits ? 'Celsius, kilometers' : 'Fahrenheit, miles';
 
-  const importantHint = useMemo(() => {
-    if (!isImportantConfigured) {
-      return 'Keep your personal must-haves on every packing list';
-    }
-
-    const countLabel =
-      importantItems.length === 0
-        ? '0 items'
-        : `${importantItems.length} ${importantItems.length === 1 ? 'item' : 'items'}`;
-
-    if (!isImportantEnabled) {
-      return `${countLabel} · Turned off`;
-    }
-
-    if (importantUpdatedAt) {
-      return `${countLabel} · ${formatImportantUpdatedAt(importantUpdatedAt)}`;
-    }
-
-    return countLabel;
-  }, [importantItems.length, importantUpdatedAt, isImportantConfigured, isImportantEnabled]);
-
-  const importantInitialNames = useMemo(
-    () => importantItems.map((item) => item.name),
-    [importantItems],
+  const handleOpenImportantForProfile = useCallback(
+    (profile: PackingProfile) => {
+      const canonicalProfileId = resolveImportantProfileId(profile);
+      resetImportantPromptDismissedForProfile(canonicalProfileId);
+      setEditingProfile(profile);
+      setImportantSetupVisible(true);
+    },
+    [resetImportantPromptDismissedForProfile, resolveImportantProfileId],
   );
-
-  const handleOpenImportantSetup = useCallback(() => {
-    resetImportantPromptDismissed();
-    setImportantSetupVisible(true);
-  }, [resetImportantPromptDismissed]);
 
   useFocusEffect(
     useCallback(() => {
-      if (consumeImportantEditorRequest()) {
-        resetImportantPromptDismissed();
-        setImportantSetupVisible(true);
+      const requestedProfileId = consumeImportantEditorRequest();
+      if (!requestedProfileId) {
+        return;
       }
-    }, [consumeImportantEditorRequest, resetImportantPromptDismissed]),
+
+      const matchingProfile = manageableProfiles.find(
+        (profile) => resolveImportantProfileId(profile) === requestedProfileId,
+      );
+
+      if (matchingProfile) {
+        handleOpenImportantForProfile(matchingProfile);
+      }
+    }, [consumeImportantEditorRequest, handleOpenImportantForProfile, manageableProfiles, resolveImportantProfileId]),
   );
 
   const handleSaveImportantItems = (names: string[]) => {
-    saveImportantItems(names);
+    if (!editingCanonicalProfileId) {
+      return;
+    }
+
+    saveImportantItemsForProfile(editingCanonicalProfileId, names);
   };
 
   return (
@@ -148,15 +169,11 @@ export function ProfileScreen() {
         </View>
 
         <View style={styles.section}>
-          <SectionTitle>Packing</SectionTitle>
-          <SettingsCard>
-            <SettingsLinkRow
-              icon={<Feather name="alert-triangle" size={16} color={theme.colors.important} />}
-              label="Important items"
-              hint={importantHint}
-              onPress={handleOpenImportantSetup}
-            />
-          </SettingsCard>
+          <SectionTitle>Important items</SectionTitle>
+          <ImportantProfileMenuRows
+            profiles={manageableProfiles}
+            onOpenProfile={handleOpenImportantForProfile}
+          />
         </View>
 
         <View style={styles.section}>
@@ -238,11 +255,20 @@ export function ProfileScreen() {
 
       <ImportantItemsSetupSheet
         visible={importantSetupVisible}
-        initialNames={importantInitialNames}
-        isConfigured={isImportantConfigured}
-        isEnabled={isImportantEnabled}
-        onEnabledChange={setImportantEnabled}
-        onClose={() => setImportantSetupVisible(false)}
+        profileLabel={editingProfileLabel}
+        initialNames={editingImportantItems.map((item) => item.name)}
+        isConfigured={editingIsConfigured}
+        isEnabled={editingIsEnabled}
+        updatedAt={editingUpdatedAt}
+        onEnabledChange={(enabled) => {
+          if (editingCanonicalProfileId) {
+            setImportantEnabledForProfile(editingCanonicalProfileId, enabled);
+          }
+        }}
+        onClose={() => {
+          setImportantSetupVisible(false);
+          setEditingProfile(null);
+        }}
         onSave={handleSaveImportantItems}
       />
     </AppScreen>
@@ -262,7 +288,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   section: {
-    gap: 0,
+    gap: 8,
   },
   footer: {
     textAlign: 'center',

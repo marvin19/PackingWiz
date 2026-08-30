@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppScreen } from '@/components/ui/app-screen';
@@ -19,8 +19,7 @@ import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStatsForList } from '@/domain/packing-stats';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
 import { PackFilterButton, PackFilterSheet } from '@/features/packing/components/pack-filter-sheet';
-import { ImportantItemsEmptyCard } from '@/features/packing/components/important-items-empty-card';
-import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
+import { ImportantNotConfiguredNotice } from '@/features/packing/components/important-not-configured-notice';
 import { ImportantSnapshotNotice } from '@/features/packing/components/important-snapshot-notice';
 import { PackingListPickerSheet } from '@/features/packing/components/packing-list-picker-sheet';
 import {
@@ -56,18 +55,18 @@ export function PackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeTrip, activeTripId, activePackingList, activePackingListId, selectActivePackingList, togglePacked, markItemPurchased, injectImportantItemsIntoTrip, syncImportantSnapshotForTrip } =
+  const { width: windowWidth } = useWindowDimensions();
+  const compactHeaderActions = windowWidth <= 375;
+  const { activeTrip, activeTripId, activePackingList, activePackingListId, selectActivePackingList, togglePacked, markItemPurchased, syncImportantSnapshotForList } =
     useTrips();
   const {
-    importantItems,
-    enabledImportantItems,
-    isImportantConfigured,
-    isImportantFeatureActive,
-    importantPromptDismissed,
-    importantMasterVersion,
-    importantUpdatedAt,
-    saveImportantItems,
-    dismissImportantPrompt,
+    getImportantConfigForProfile,
+    getEnabledImportantItemsForProfile,
+    getImportantItemsForProfile,
+    isImportantConfiguredForProfile,
+    isImportantFeatureActiveForProfile,
+    getImportantMasterVersionForProfile,
+    resolveImportantProfileId,
     requestOpenImportantEditor,
     dismissImportantStaleNotice,
     isImportantStaleNoticeDismissed,
@@ -76,14 +75,41 @@ export function PackScreen() {
   const [filter, setFilter] = useState<PackingFilter>('all');
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState(false);
-  const [importantSetupVisible, setImportantSetupVisible] = useState(false);
-  const [dismissNoticeVisible, setDismissNoticeVisible] = useState(false);
+  const [importantNoticeDismissedByKey, setImportantNoticeDismissedByKey] = useState<Record<string, boolean>>({});
   const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
   const [listPickerVisible, setListPickerVisible] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
 
   const hasMultipleLists = (activeTrip?.packingLists.length ?? 0) > 1;
-  const isSelfActiveList = activePackingList?.profileSnapshot.isSelf === true;
+
+  const activeImportantProfileId = activePackingList
+    ? resolveImportantProfileId(activePackingList.profileSnapshot)
+    : null;
+  const activeProfileLabel = activePackingList
+    ? formatPackingListProfileName(activePackingList.profileSnapshot)
+    : undefined;
+  const activeImportantConfig = activeImportantProfileId
+    ? getImportantConfigForProfile(activeImportantProfileId)
+    : null;
+  const activeImportantItems = useMemo(
+    () => (activeImportantProfileId ? getImportantItemsForProfile(activeImportantProfileId) : []),
+    [activeImportantProfileId, getImportantItemsForProfile],
+  );
+  const activeEnabledImportantItems = useMemo(
+    () =>
+      activeImportantProfileId ? getEnabledImportantItemsForProfile(activeImportantProfileId) : [],
+    [activeImportantProfileId, getEnabledImportantItemsForProfile],
+  );
+  const activeIsImportantConfigured = activeImportantProfileId
+    ? isImportantConfiguredForProfile(activeImportantProfileId)
+    : false;
+  const activeIsImportantFeatureActive = activeImportantProfileId
+    ? isImportantFeatureActiveForProfile(activeImportantProfileId)
+    : false;
+  const activeImportantMasterVersion = activeImportantProfileId
+    ? getImportantMasterVersionForProfile(activeImportantProfileId)
+    : '';
+  const activeImportantUpdatedAt = activeImportantConfig?.updatedAt;
 
   useEffect(() => {
     if (activeTrip && hasMultipleLists && !activePackingListId) {
@@ -113,30 +139,38 @@ export function PackScreen() {
     stats.total,
   );
 
-  const showImportantSetup =
+  const importantNoticeKey = `${activeTrip?.id ?? 'none'}:${activeImportantProfileId ?? 'none'}`;
+  const importantNoticeDismissed = importantNoticeDismissedByKey[importantNoticeKey] ?? false;
+
+  const showImportantNotConfiguredNotice =
     Boolean(activeTrip) &&
-    isSelfActiveList &&
-    !isImportantConfigured &&
-    !importantPromptDismissed &&
-    filter === 'all';
+    Boolean(activeImportantProfileId) &&
+    !activeIsImportantConfigured &&
+    filter === 'all' &&
+    !importantNoticeDismissed;
 
   const importantSnapshotStale = useMemo(() => {
-    if (!activeTrip || !isImportantFeatureActive || !isSelfActiveList) {
+    if (!activeTrip || !activeIsImportantFeatureActive) {
       return false;
     }
 
-    return isImportantSnapshotStale(enabledImportantItems, packingItems);
-  }, [activeTrip, packingItems, enabledImportantItems, isImportantFeatureActive, isSelfActiveList]);
+    return isImportantSnapshotStale(activeEnabledImportantItems, packingItems);
+  }, [activeTrip, activeEnabledImportantItems, activeIsImportantFeatureActive, packingItems]);
 
   const showImportantStaleNotice = useMemo(() => {
-    if (!activeTrip || !importantSnapshotStale) {
+    if (!activeTrip || !activePackingListId || !importantSnapshotStale) {
       return false;
     }
 
-    return !isImportantStaleNoticeDismissed(activeTrip.id, importantMasterVersion);
+    return !isImportantStaleNoticeDismissed(
+      activeTrip.id,
+      activePackingListId,
+      activeImportantMasterVersion,
+    );
   }, [
+    activeImportantMasterVersion,
+    activePackingListId,
     activeTrip,
-    importantMasterVersion,
     importantSnapshotStale,
     isImportantStaleNoticeDismissed,
   ]);
@@ -146,12 +180,12 @@ export function PackScreen() {
       return [];
     }
 
-    const visibleItems = isImportantFeatureActive && isSelfActiveList
+    const visibleItems = activeIsImportantFeatureActive
       ? packingItems
       : packingItems.filter((item) => !isImportantPackingItem(item));
 
     return groupItemsByCategory(filterPackingItems(visibleItems, filter));
-  }, [activeTrip, packingItems, filter, isImportantFeatureActive, isSelfActiveList]);
+  }, [activeTrip, activeIsImportantFeatureActive, packingItems, filter]);
 
   const sections = useMemo<PackSection[]>(
     () =>
@@ -182,47 +216,39 @@ export function PackScreen() {
     [filter, markItemPurchased, togglePacked],
   );
 
-  const handleSaveImportantItems = useCallback(
-    (names: string[]) => {
-      if (!activeTrip) {
-        return;
-      }
-
-      const savedItems = saveImportantItems(names);
-      injectImportantItemsIntoTrip(activeTrip.id, savedItems);
-    },
-    [activeTrip, injectImportantItemsIntoTrip, saveImportantItems],
-  );
-
-  const handleDismissImportant = useCallback(() => {
-    dismissImportantPrompt();
-    setDismissNoticeVisible(true);
-  }, [dismissImportantPrompt]);
-
   const handleOpenProfileImportant = useCallback(() => {
-    requestOpenImportantEditor();
+    if (!activeImportantProfileId) {
+      return;
+    }
+
+    requestOpenImportantEditor(activeImportantProfileId);
     router.navigate('/(tabs)/profile');
-  }, [requestOpenImportantEditor, router]);
+  }, [activeImportantProfileId, requestOpenImportantEditor, router]);
 
   const handleManageImportant = useCallback(() => {
     handleOpenProfileImportant();
   }, [handleOpenProfileImportant]);
 
   const handleUpdateImportantSnapshot = useCallback(() => {
-    if (!activeTrip) {
+    if (!activeTrip || !activePackingListId) {
       return;
     }
 
-    syncImportantSnapshotForTrip(activeTrip.id, importantItems);
-  }, [activeTrip, importantItems, syncImportantSnapshotForTrip]);
+    syncImportantSnapshotForList(activeTrip.id, activePackingListId, activeImportantItems);
+  }, [activeImportantItems, activePackingListId, activeTrip, syncImportantSnapshotForList]);
 
   const handleKeepImportantSnapshot = useCallback(() => {
-    if (!activeTrip) {
+    if (!activeTrip || !activePackingListId) {
       return;
     }
 
-    dismissImportantStaleNotice(activeTrip.id, importantMasterVersion);
-  }, [activeTrip, dismissImportantStaleNotice, importantMasterVersion]);
+    dismissImportantStaleNotice(activeTrip.id, activePackingListId, activeImportantMasterVersion);
+  }, [
+    activeImportantMasterVersion,
+    activePackingListId,
+    activeTrip,
+    dismissImportantStaleNotice,
+  ]);
 
   const handleOpenItemSettings = useCallback(
     (itemId: string) => {
@@ -316,13 +342,22 @@ export function PackScreen() {
           </ProgressRing>
         </View>
 
-        <View style={styles.headerContextRow}>
-          {hasMultipleLists && activePackingList ? (
+        <View style={styles.headerToolbarRow}>
+          {activePackingList ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Packing for ${activeListName}. Switch packing list.`}
-              onPress={() => setListPickerVisible(true)}
-              style={({ pressed }) => [styles.listSwitcher, pressed && styles.pressed]}>
+              accessibilityLabel={
+                hasMultipleLists
+                  ? `Packing for ${activeListName}. Switch packing list.`
+                  : `Packing for ${activeListName}`
+              }
+              onPress={hasMultipleLists ? () => setListPickerVisible(true) : undefined}
+              disabled={!hasMultipleLists}
+              style={({ pressed }) => [
+                styles.listSwitcher,
+                !hasMultipleLists && styles.listSwitcherStatic,
+                hasMultipleLists && pressed && styles.pressed,
+              ]}>
               <AppText variant="caption" color="mutedForeground">
                 Packing for
               </AppText>
@@ -332,14 +367,20 @@ export function PackScreen() {
                 style={styles.listSwitcherName}>
                 {activeListName}
               </AppText>
-              <Feather name="chevron-down" size={14} color={theme.colors.primary} />
+              {hasMultipleLists ? (
+                <Feather name="chevron-down" size={14} color={theme.colors.primary} />
+              ) : null}
             </Pressable>
-          ) : (
-            <View style={styles.headerContextSpacer} />
-          )}
+          ) : null}
+
           <View style={styles.headerActions}>
-            <PackFilterButton activeFilter={filter} onPress={() => setFilterVisible(true)} compact />
-            <PackInsightsButton onPress={handleViewTripOverview} />
+            <PackFilterButton
+              activeFilter={filter}
+              onPress={() => setFilterVisible(true)}
+              compact
+              iconOnly={compactHeaderActions}
+            />
+            <PackInsightsButton onPress={handleViewTripOverview} iconOnly={compactHeaderActions} />
             <PackBackToTripsButton onPress={handleBackToTrips} />
           </View>
         </View>
@@ -357,42 +398,22 @@ export function PackScreen() {
         ]}
         ListHeaderComponent={
           <>
-            {dismissNoticeVisible ? (
-              <View style={[styles.noticeBanner, { backgroundColor: theme.colors.secondary, borderColor: theme.colors.border }]}>
-                <View style={styles.noticeCopy}>
-                  <AppText variant="caption" color="secondaryForeground">
-                    Important items hidden. You can enable them anytime from{' '}
-                  </AppText>
-                  <Pressable
-                    accessibilityRole="link"
-                    accessibilityLabel="Open Profile important items"
-                    onPress={handleOpenProfileImportant}
-                    hitSlop={4}>
-                    <AppText
-                      variant="caption"
-                      color="primary"
-                      style={{ fontFamily: theme.fontFamilies.sansSemiBold, textDecorationLine: 'underline' }}>
-                      Profile
-                    </AppText>
-                  </Pressable>
-                  <AppText variant="caption" color="secondaryForeground">
-                    .
-                  </AppText>
-                </View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Dismiss notice" onPress={() => setDismissNoticeVisible(false)}>
-                  <Feather name="x" size={14} color={theme.colors.mutedForeground} />
-                </Pressable>
-              </View>
-            ) : null}
-            {showImportantSetup ? (
-              <ImportantItemsEmptyCard
-                onAdd={() => setImportantSetupVisible(true)}
-                onDismiss={handleDismissImportant}
+            {showImportantNotConfiguredNotice && activeProfileLabel ? (
+              <ImportantNotConfiguredNotice
+                profileLabel={activeProfileLabel}
+                onOpenProfile={handleOpenProfileImportant}
+                onDismiss={() =>
+                  setImportantNoticeDismissedByKey((current) => ({
+                    ...current,
+                    [importantNoticeKey]: true,
+                  }))
+                }
               />
             ) : null}
             {showImportantStaleNotice && !hasImportantSection ? (
               <ImportantSnapshotNotice
-                updatedAt={importantUpdatedAt}
+                profileLabel={activeProfileLabel}
+                updatedAt={activeImportantUpdatedAt}
                 onUpdate={handleUpdateImportantSnapshot}
                 onKeepCurrent={handleKeepImportantSnapshot}
               />
@@ -435,7 +456,8 @@ export function PackScreen() {
           <View>
             {section.category === 'Important' && showImportantStaleNotice ? (
               <ImportantSnapshotNotice
-                updatedAt={importantUpdatedAt}
+                profileLabel={activeProfileLabel}
+                updatedAt={activeImportantUpdatedAt}
                 onUpdate={handleUpdateImportantSnapshot}
                 onKeepCurrent={handleKeepImportantSnapshot}
               />
@@ -446,7 +468,7 @@ export function PackScreen() {
               collapsed={Boolean(collapsed[section.category])}
               onToggleCollapsed={() => toggleCategory(section.category)}
               trailing={
-                section.category === 'Important' && isImportantConfigured ? (
+                section.category === 'Important' && activeIsImportantConfigured ? (
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Manage important items in Profile"
@@ -491,12 +513,6 @@ export function PackScreen() {
       </Pressable>
 
       <AddItemSheet visible={adding} onClose={() => setAdding(false)} />
-      <ImportantItemsSetupSheet
-        visible={importantSetupVisible}
-        initialNames={[]}
-        onClose={() => setImportantSetupVisible(false)}
-        onSave={handleSaveImportantItems}
-      />
       {settingsItem ? (
         <PackingItemSettingsSheet
           key={settingsItem.id}
@@ -564,36 +580,41 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  headerContextRow: {
+  headerToolbarRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
-    gap: 8,
-    minHeight: 36,
+    justifyContent: 'space-between',
+    gap: 6,
+    rowGap: 6,
   },
   listSwitcher: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    minHeight: 36,
+    minHeight: 32,
     paddingVertical: 4,
     paddingRight: 4,
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: '100%',
+  },
+  listSwitcherStatic: {
+    opacity: 1,
   },
   listSwitcherName: {
     flexShrink: 1,
-  },
-  headerContextSpacer: {
-    flex: 1,
-    minWidth: 0,
+    maxWidth: '100%',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexWrap: 'wrap',
     justifyContent: 'flex-end',
     gap: 6,
+    minHeight: 32,
     flexShrink: 0,
-    maxWidth: '100%',
+    marginLeft: 'auto',
   },
   pressed: {
     opacity: 0.85,
@@ -617,10 +638,7 @@ const styles = StyleSheet.create({
   },
   noticeCopy: {
     flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    rowGap: 2,
+    lineHeight: 18,
   },
   shoppingBanner: {
     flexDirection: 'row',

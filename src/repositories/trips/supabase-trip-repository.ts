@@ -112,7 +112,11 @@ export class SupabaseTripRepository implements TripRepository {
     return this.createTrip(trip);
   }
 
-  async updateTripPackingItems(tripId: string, items: PackingItem[]): Promise<Trip> {
+  async updateTripPackingItems(
+    tripId: string,
+    items: PackingItem[],
+    _packingListId?: string,
+  ): Promise<Trip> {
     const existing = await this.getById(tripId);
     if (!existing) {
       throw new Error('Trip not found');

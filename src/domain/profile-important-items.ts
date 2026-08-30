@@ -63,6 +63,36 @@ export function setImportantConfigForProfile(
   };
 }
 
+export function migrateImportantProfileStoreKey(
+  store: ImportantItemsByProfileId,
+  fromProfileId: string,
+  toProfileId: string,
+): ImportantItemsByProfileId {
+  const fromId = normalizeImportantProfileId(fromProfileId);
+  const toId = normalizeImportantProfileId(toProfileId);
+
+  if (fromId === toId || !store[fromId]) {
+    return store;
+  }
+
+  const source = store[fromId];
+  const next = { ...store };
+  delete next[fromId];
+
+  if (hasCanonicalImportantConfig(next, toId)) {
+    next[toId] = cloneImportantItemsConfig({
+      ...next[toId],
+      ...source,
+      items: source.items.length > 0 ? source.items : next[toId].items,
+      isConfigured: source.isConfigured || next[toId].isConfigured,
+    });
+  } else {
+    next[toId] = cloneImportantItemsConfig(source);
+  }
+
+  return next;
+}
+
 export function migrateLegacyImportantPreferences(
   legacy: LegacyImportantItemsPreferences,
 ): ImportantItemsByProfileId {

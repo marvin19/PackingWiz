@@ -109,6 +109,12 @@ Helpers: `createDestinationFromText`, `getDestinationLabel`, `getDestinationCoun
 
 **MP4B creation flow:** `assembleTripFromDraft` reads `importantByProfileId` and, for each selected `PackingProfile`, resolves enabled master items via `importantItemsForProfileList`, then merges them into that profile's new `PackingList` using `mergeImportantItems` (generated and manual). Existing lists never re-read the master after creation.
 
+**MP4C UX:** Important items is a **fixed** wizard step (always between Bags and Additional notes). It combines setup for unconfigured profiles and quick review for configured ones on one card-based screen — unconfigured profiles first, optional configuration (Continue does not block or mark configured). Edits are staged locally and committed on wizard Continue. `promptDismissed` affects Pack/configure-later UX only, not wizard step count. Profile Important management uses vertical settings rows per profile. Pack Important editors resolve the active/canonical profile id. Stale/sync compares profile master against the active `PackingList` only; user-initiated sync via `syncImportantSnapshotForList`.
+
+**Draft vs reusable profiles:** Adding a person to a trip draft selects them for that draft only. `rememberForFutureTrips` on the draft profile expresses intent; `rememberPackingProfile()` runs at **trip commit** when Remember is on — not when the person is added to the draft.
+
+**Trip-level progress:** Home and Trip Overview use `packingStatsForTrip` — sum of packed/total item counts across all `PackingList`s (not averaged percentages). Pack and the packing-list picker remain list-scoped via `packingStatsForList`.
+
 ---
 
 ## Routing (Expo Router)
@@ -325,4 +331,3 @@ During MP migration, apply the same discipline at **packing-list** granularity o
 | Single process memory | Mock repo singleton — HMR can reset in dev |
 | Supabase partial integration | Trips may persist while Profile/Important do not; schema mismatched with MP target |
 | Traveler assignment debt | `assignedTo` may conflict with per-person lists |
-| Aggregate progress undefined | Home cards need rules before MP3 UI |

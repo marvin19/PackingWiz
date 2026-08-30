@@ -15,15 +15,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppTextInput } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { formatImportantUpdatedAt } from '@/domain/dates';
 import { dedupeImportantItemNames } from '@/domain/important-items-preferences';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
 type ImportantItemsSetupSheetProps = {
   visible: boolean;
+  profileLabel?: string;
   initialNames?: string[];
   isConfigured?: boolean;
   isEnabled?: boolean;
+  updatedAt?: string | null;
   onEnabledChange?: (enabled: boolean) => void;
   onClose: () => void;
   onSave: (names: string[]) => void;
@@ -40,9 +43,11 @@ function draftRowsFromInitialNames(initialNames?: string[]): string[] {
 
 export function ImportantItemsSetupSheet({
   visible,
+  profileLabel,
   initialNames,
   isConfigured = false,
   isEnabled = true,
+  updatedAt,
   onEnabledChange,
   onClose,
   onSave,
@@ -105,6 +110,9 @@ export function ImportantItemsSetupSheet({
     onClose();
   };
 
+  const title = profileLabel ? `Important for ${profileLabel}` : 'Important items';
+  const updatedLabel = updatedAt ? formatImportantUpdatedAt(updatedAt) : '';
+
   const introCopy = (() => {
     if (editingDisabled) {
       return 'Important is currently turned off. Items saved here won\u2019t be added to new packing lists until you turn it back on. Your Important items are still saved, but editing is disabled while this feature is off.';
@@ -115,10 +123,12 @@ export function ImportantItemsSetupSheet({
     }
 
     if (isEditing) {
-      return 'Update your personal must-haves. Existing trips keep their current list until you choose to sync.';
+      return 'Update personal must-haves for this person. Existing trips keep their current list until you choose to sync.';
     }
 
-    return 'These personal must-haves will be added to every new packing list automatically.';
+    return profileLabel
+      ? `These personal must-haves will be added to ${profileLabel}'s packing lists automatically.`
+      : 'These personal must-haves will be added to every new packing list automatically.';
   })();
 
   return (
@@ -143,7 +153,7 @@ export function ImportantItemsSetupSheet({
             <Feather name="x" size={22} color={theme.colors.foreground} />
           </Pressable>
           <AppText variant="bodySemiBold" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-            Important items
+            {title}
           </AppText>
           <View style={styles.headerSpacer} />
         </View>
@@ -183,6 +193,12 @@ export function ImportantItemsSetupSheet({
           <AppText variant="bodySmall" color="mutedForeground" style={styles.intro}>
             {introCopy}
           </AppText>
+
+          {updatedLabel ? (
+            <AppText variant="caption" color="mutedForeground">
+              {updatedLabel}
+            </AppText>
+          ) : null}
 
           <View style={[styles.rows, editingDisabled && styles.rowsDisabled]}>
             {rows.map((row, index) => (

@@ -1,15 +1,42 @@
-import type { ImportantItem } from '@/domain/important-item';
+import {
+  importantNameListsEqual,
+  normalizeImportantNameList,
+} from '@/features/trip-creation/utils/important-wizard-draft';
+import {
+  buildActiveWizardSteps,
+  resolveLastWizardStepId,
+  resolveLastWizardStepIndex,
+  resolveWizardStepIndex,
+  WIZARD_STEP_COUNT,
+  wizardStepIndexForId,
+} from '@/features/trip-creation/utils/wizard-steps';
+import type { Trip } from '@/domain/trip';
 import type { PackingItem } from '@/domain/packing-item';
+import type { ImportantItem } from '@/domain/important-item';
+import {
+  packingListBreakdownForTrip,
+  packingStatsForList,
+  packingStatsForTrip,
+} from '@/domain/packing-stats';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
-import { createDestinationFromText } from '@/domain/destination';
+import { createDestinationFromText, getDestinationLabel } from '@/domain/destination';
 import {
+  createDraftProfile,
   createReusablePackingProfile,
   DRAFT_SELF_PROFILE_ID,
   normalizeTripDraft,
   patchDraftPackingProfiles,
 } from '@/domain/trip-draft-profiles';
+import {
+  importantProfileCardMetadata,
+  importantStaleNoticeKey,
+  profileNeedsImportantFirstTimeSetup,
+  profilesNeedingImportantSetup,
+  sortProfilesForImportantWizardStep,
+} from '@/domain/important-profile-setup';
+import { isImportantSnapshotStale } from '@/domain/important-snapshot';
 import { countImportantSnapshotItems } from '@/domain/trip-packing-lists';
 import { assembleTripFromDraft } from '@/services/trip-assembly';
 import { mockPackingGenerator } from '@/services/packing/mock-packing-generator';
@@ -21,11 +48,13 @@ import {
   getImportantConfigForProfile,
   migrateLegacyImportantPreferences,
   normalizeImportantProfileId,
+  migrateImportantProfileStoreKey,
   packingListItemsUnchanged,
   reconcileRememberedProfileImportantBootstrap,
   removeImportantItemForProfileStore,
   resolveImportantProfileId,
   saveImportantItemNamesForProfile,
+  setImportantPromptDismissedForProfileStore,
   SELF_IMPORTANT_PROFILE_ID,
   setImportantEnabledForProfileStore,
   updateImportantItemForProfileStore,
@@ -511,6 +540,353 @@ async function verifyImportantDuplicateProtection(): Promise<void> {
   assert(passportRows[0].importantItemId === 'imp-passport', 'duplicate protection preserves master item link');
 }
 
+function verifyImportantSetupStateContracts(): void {
+  const emptyConfig = getImportantConfigForProfile({}, 'profile-emilie');
+  assert(
+    profileNeedsImportantFirstTimeSetup(emptyConfig),
+    'unconfigured profile needs first-time setup',
+  );
+
+  let store = setImportantPromptDismissedForProfileStore({}, 'profile-emilie', true);
+  const dismissedConfig = getImportantConfigForProfile(store, 'profile-emilie');
+  assert(
+    !profileNeedsImportantFirstTimeSetup(dismissedConfig),
+    'configure-later dismiss suppresses first-time setup without marking configured',
+  );
+  assert(dismissedConfig.isConfigured === false, 'configure-later does not create fake configured state');
+  assert(dismissedConfig.items.length === 0, 'configure-later does not create items');
+
+  store = saveImportantItemNamesForProfile(store, 'profile-emilie', [], () => 'imp-empty').store;
+  const emptyConfigured = getImportantConfigForProfile(store, 'profile-emilie');
+  assert(emptyConfigured.isConfigured === true, 'empty save marks profile configured');
+  assert(
+    !profileNeedsImportantFirstTimeSetup(emptyConfigured),
+    'configured empty profile does not re-enter first-time setup',
+  );
+
+  store = saveImportantItemNamesForProfile({}, SELF_IMPORTANT_PROFILE_ID, ['Passport'], () => 'imp-passport').store;
+  store = saveImportantItemNamesForProfile(store, 'profile-emilie', ['Teddy bear'], () => 'imp-teddy').store;
+  const profiles = [
+    { id: SELF_IMPORTANT_PROFILE_ID, name: 'Me', isSelf: true },
+    { id: 'profile-emilie', name: 'Emilie', isSelf: false, age: 2 },
+  ] as PackingProfile[];
+
+  assert(
+    profilesNeedingImportantSetup(profiles, store).length === 0,
+    'configured profiles are excluded from first-time setup queue',
+  );
+}
+
+function verifyPackProfileResolutionFromListSnapshot(): void {
+  const tripListSnapshot = {
+    id: 'trip-1-list-emilie',
+    packingProfileId: 'trip-1-profile-emilie',
+    profileSnapshot: {
+      id: 'trip-1-profile-emilie',
+      name: 'Emilie',
+      age: 2,
+      isSelf: false,
+    },
+    packingMode: 'generated' as const,
+    items: [],
+  };
+
+  assert(
+    resolveImportantProfileId(tripListSnapshot.profileSnapshot) === 'trip-1-profile-emilie',
+    'Pack Important context resolves from active list profile snapshot id',
+  );
+  assert(
+    normalizeImportantProfileId(DRAFT_SELF_PROFILE_ID) === SELF_IMPORTANT_PROFILE_ID,
+    'self list snapshot ids still normalize to canonical self Important id',
+  );
+}
+
+function verifyFixedWizardStepSequence(): void {
+  const steps = buildActiveWizardSteps();
+
+  assert(
+    steps.join('|') ===
+      'destination|trip-context|accommodation|packing-profiles|bags|important|note',
+    'wizard always includes Important before Additional notes',
+  );
+  assert(steps.length === WIZARD_STEP_COUNT, 'wizard has fixed step count of 7');
+  assert(
+    wizardStepIndexForId(steps, 'important') === steps.length - 2,
+    'Important immediately precedes Additional notes',
+  );
+  assert(
+    wizardStepIndexForId(steps, 'bags') === wizardStepIndexForId(steps, 'important') - 1,
+    'Important Back resolves to Bags',
+  );
+
+  const summaryBackIndex = resolveWizardStepIndex(steps, { stepId: 'note' });
+  assert(
+    summaryBackIndex === resolveLastWizardStepIndex(),
+    'Summary Back resolves to Additional notes as the final wizard step',
+  );
+  assert(resolveLastWizardStepId() === 'note', 'last wizard step before Summary is Additional notes');
+
+  let configuredStore = saveImportantItemNamesForProfile(
+    {},
+    SELF_IMPORTANT_PROFILE_ID,
+    ['Passport'],
+    () => 'imp-passport',
+  ).store;
+  configuredStore = saveImportantItemNamesForProfile(
+    configuredStore,
+    'profile-emilie',
+    ['Teddy bear'],
+    () => 'imp-teddy',
+  ).store;
+
+  assert(
+    buildActiveWizardSteps().length === steps.length,
+    'configuring all profiles does not change wizard step count',
+  );
+
+  setImportantPromptDismissedForProfileStore(configuredStore, 'profile-jonas', true);
+  assert(
+    buildActiveWizardSteps().length === steps.length,
+    'promptDismissed does not change wizard step count',
+  );
+
+  const editImportantIndex = resolveWizardStepIndex(steps, { stepId: 'important' });
+  assert(editImportantIndex >= 0, 'edit Important from Summary resolves to Important step');
+}
+
+function verifyImportantWizardCardOrdering(): void {
+  let store = saveImportantItemNamesForProfile({}, SELF_IMPORTANT_PROFILE_ID, ['Passport'], () => 'imp-passport').store;
+  store = saveImportantItemNamesForProfile(store, 'profile-emilie', ['Teddy bear'], () => 'imp-teddy').store;
+
+  const profiles = [
+    { id: SELF_IMPORTANT_PROFILE_ID, name: 'Me', isSelf: true },
+    { id: 'profile-emilie', name: 'Emilie', isSelf: false, age: 2 },
+    { id: 'profile-jonas', name: 'Jonas', isSelf: false, age: 8 },
+  ] as PackingProfile[];
+
+  const sorted = sortProfilesForImportantWizardStep(profiles, store);
+
+  assert(sorted[0].name === 'Jonas', 'unconfigured profiles sort before configured profiles');
+  assert(sorted[1].name === 'Me', 'configured profiles preserve selected-trip order within group');
+  assert(sorted[2].name === 'Emilie', 'configured profiles preserve selected-trip order within group');
+}
+
+function verifyImportantProfileCardMetadataLabels(): void {
+  let store = saveImportantItemNamesForProfile({}, 'profile-emilie', ['Teddy bear'], () => 'imp-teddy').store;
+  const config = getImportantConfigForProfile(store, 'profile-emilie');
+
+  const metadata = importantProfileCardMetadata(config);
+  assert(metadata.includes('1 item'), 'configured card shows singular item count');
+  assert(metadata.includes('Updated'), 'configured card prefers Updated label');
+
+  store = saveImportantItemNamesForProfile(store, 'profile-jonas', ['Snack', 'Water'], () => 'imp-snack').store;
+  const pluralConfig = getImportantConfigForProfile(store, 'profile-jonas');
+  assert(
+    importantProfileCardMetadata(pluralConfig).includes('2 items'),
+    'configured card shows plural item count',
+  );
+}
+
+function verifyDraftProfileRememberLifecycle(): void {
+  const rememberedDraft = createDraftProfile('Emilie', 2, true);
+  const ephemeralDraft = createDraftProfile('Jonas', 8, false);
+
+  assert(rememberedDraft.id.startsWith('draft-profile-'), 'draft-selected person uses draft profile id');
+  assert(rememberedDraft.rememberForFutureTrips === true, 'Remember flag is stored on draft profile');
+  assert(ephemeralDraft.rememberForFutureTrips === false, 'ephemeral draft person does not set remember flag');
+  assert(!rememberedDraft.id.startsWith('profile-'), 'draft person is not a reusable profile id at add time');
+}
+
+function verifyImportantStoreKeyMigration(): void {
+  let store = saveImportantItemNamesForProfile({}, 'draft-profile-emilie', ['Teddy bear'], () => 'imp-teddy').store;
+  store = migrateImportantProfileStoreKey(store, 'draft-profile-emilie', 'profile-emilie');
+
+  assert(
+    getImportantConfigForProfile(store, 'profile-emilie').items[0].name === 'Teddy bear',
+    'Important master migrates when draft profile id merges to reusable id',
+  );
+  assert(
+    getImportantConfigForProfile(store, 'draft-profile-emilie').items.length === 0,
+    'old draft Important store key is removed after migration',
+  );
+}
+
+function verifyImportantWizardDraftStaging(): void {
+  assert(
+    !importantNameListsEqual(['Passport', 'Glasses'], ['Glasses', 'Passport']),
+    'Important wizard staging compares normalized order',
+  );
+  assert(
+    importantNameListsEqual([' Passport ', 'Glasses'], ['Passport', 'Glasses']),
+    'Important wizard staging trims and dedupes names before compare',
+  );
+  assert(
+    normalizeImportantNameList(['Teddy bear', 'Teddy bear', '']).join('|') === 'Teddy bear',
+    'Important wizard staged names dedupe before commit',
+  );
+}
+
+async function verifyTripDraftAssemblyPreservesWizardFields(): Promise<void> {
+  const draft = normalizeTripDraft({
+    ...createMp4bTestDraft(),
+    tripContext: ['Vacation', 'Family'],
+    note: 'Window seat please',
+  });
+
+  const trip = await assembleTripFromDraft(draft, assemblyServices, {
+    packingMode: 'manual',
+    importantByProfileId: {},
+  });
+
+  assert(trip.tripContext.join('|') === 'Vacation|Family', 'assembled trip preserves trip context');
+  assert(trip.startDate === draft.startDate, 'assembled trip preserves start date');
+  assert(trip.endDate === draft.endDate, 'assembled trip preserves end date');
+  assert(getDestinationLabel(trip.destination) === getDestinationLabel(draft.destination), 'assembled trip preserves destination');
+  assert(trip.packingLists.length === draft.packingProfiles.length, 'assembled trip preserves selected packing profiles as lists');
+  assert(trip.note === 'Window seat please', 'assembled trip preserves additional note');
+}
+
+function createProgressItems(count: number, packedCount: number): PackingItem[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `item-${index}`,
+    name: `Item ${index + 1}`,
+    quantity: 1,
+    category: 'Essentials' as const,
+    packed: index < packedCount,
+    needToBuy: false,
+    assignedTo: null,
+    source: 'generated' as const,
+  }));
+}
+
+function createAggregateProgressTrip(): Trip {
+  const meListId = 'list-me';
+  const emilieListId = 'list-emilie';
+
+  return {
+    id: 'trip-progress',
+    name: 'Progress trip',
+    title: 'Progress trip',
+    destination: createDestinationFromText('Oslo', 'Norway'),
+    startDate: '2026-06-01',
+    endDate: '2026-06-07',
+    tripContext: ['Vacation'],
+    accommodation: 'hotel',
+    laundry: 'no',
+    travelers: [],
+    bags: [],
+    note: '',
+    weather: {
+      mode: 'climate',
+      summary: 'Fixture',
+      detail: '',
+      high: 20,
+      low: 10,
+    },
+    packingLists: [
+      {
+        id: meListId,
+        packingProfileId: 'profile-me',
+        profileSnapshot: { id: 'profile-me', name: 'Me', isSelf: true },
+        packingMode: 'generated',
+        items: createProgressItems(24, 1),
+      },
+      {
+        id: emilieListId,
+        packingProfileId: 'profile-emilie',
+        profileSnapshot: { id: 'profile-emilie', name: 'Emilie', isSelf: false, age: 2 },
+        packingMode: 'generated',
+        items: createProgressItems(23, 2),
+      },
+    ],
+    items: createProgressItems(24, 1),
+    insights: [],
+    packingMode: 'generated',
+    generated: true,
+    status: 'upcoming',
+  };
+}
+
+function verifyAggregatePackingProgress(): void {
+  const trip = createAggregateProgressTrip();
+  const meListId = trip.packingLists[0].id;
+  const emilieListId = trip.packingLists[1].id;
+
+  const aggregate = packingStatsForTrip(trip);
+  assert(aggregate.packed === 3, 'aggregate packed count sums across lists');
+  assert(aggregate.total === 47, 'aggregate total count sums across lists');
+  assert(aggregate.pct === Math.round((3 / 47) * 100), 'aggregate percentage uses count ratio, not averaged list percentages');
+
+  const meStats = packingStatsForList(trip, meListId);
+  const emilieStats = packingStatsForList(trip, emilieListId);
+  assert(meStats.packed === 1 && meStats.total === 24, 'Me list stats remain list-scoped');
+  assert(emilieStats.packed === 2 && emilieStats.total === 23, 'Emilie list stats remain list-scoped');
+
+  const breakdown = packingListBreakdownForTrip(trip);
+  assert(breakdown.length === 2, 'trip breakdown includes each PackingList');
+  assert(
+    breakdown.find((row) => row.profileName === 'Me')?.packed === 1,
+    'breakdown Me row uses Me list stats',
+  );
+  assert(
+    breakdown.find((row) => row.profileName === 'Emilie')?.packed === 2,
+    'breakdown Emilie row uses Emilie list stats',
+  );
+
+  const singleListTrip: Trip = {
+    ...trip,
+    packingLists: [trip.packingLists[0]],
+  };
+  const singleAggregate = packingStatsForTrip(singleListTrip);
+  assert(
+    singleAggregate.packed === meStats.packed && singleAggregate.total === meStats.total,
+    'single-list trip aggregate matches its only list',
+  );
+}
+
+function verifyStaleNoticeScope(): void {
+  const meStore = saveImportantItemNamesForProfile({}, SELF_IMPORTANT_PROFILE_ID, ['Passport'], () => 'imp-passport').store;
+  const emilieStore = saveImportantItemNamesForProfile(meStore, 'profile-emilie', ['Teddy bear'], () => 'imp-teddy').store;
+
+  const meMaster = getImportantConfigForProfile(emilieStore, SELF_IMPORTANT_PROFILE_ID);
+  const emilieMaster = getImportantConfigForProfile(emilieStore, 'profile-emilie');
+
+  const meListItems = mergeImportantItems([], meMaster.items.filter((item) => item.enabled));
+  const emilieListItems = mergeImportantItems([], emilieMaster.items.filter((item) => item.enabled));
+
+  assert(
+    !isImportantSnapshotStale(meMaster.items.filter((item) => item.enabled), meListItems),
+    'Me master matches Me list initially',
+  );
+  assert(
+    !isImportantSnapshotStale(emilieMaster.items.filter((item) => item.enabled), emilieListItems),
+    'Emilie master matches Emilie list initially',
+  );
+
+  const updatedEmilieStore = addImportantItemForProfileStore(emilieStore, 'profile-emilie', 'Medication', () => 'imp-med').store;
+  const updatedEmilieMaster = getImportantConfigForProfile(updatedEmilieStore, 'profile-emilie');
+
+  assert(
+    isImportantSnapshotStale(
+      updatedEmilieMaster.items.filter((item) => item.enabled),
+      emilieListItems,
+    ),
+    'Emilie list becomes stale when Emilie master changes',
+  );
+  assert(
+    !isImportantSnapshotStale(
+      getImportantConfigForProfile(updatedEmilieStore, SELF_IMPORTANT_PROFILE_ID).items.filter((item) => item.enabled),
+      meListItems,
+    ),
+    'Me list stays fresh when only Emilie master changes',
+  );
+
+  assert(
+    importantStaleNoticeKey('trip-a', 'list-me') !== importantStaleNoticeKey('trip-a', 'list-emilie'),
+    'stale dismiss keys are list-scoped within a trip',
+  );
+}
+
 /** MP4A profile-scoped Important master checks. */
 export async function runMp4InvariantChecks(): Promise<void> {
   verifyProfileImportantIsolation();
@@ -528,4 +904,15 @@ export async function runMp4InvariantChecks(): Promise<void> {
   await verifySnapshotIndependenceAcrossTrips();
   await verifyRememberedProfileUsesCanonicalMaster();
   await verifyImportantDuplicateProtection();
+  verifyImportantSetupStateContracts();
+  verifyPackProfileResolutionFromListSnapshot();
+  verifyFixedWizardStepSequence();
+  verifyImportantWizardCardOrdering();
+  verifyImportantProfileCardMetadataLabels();
+  verifyDraftProfileRememberLifecycle();
+  verifyImportantStoreKeyMigration();
+  verifyImportantWizardDraftStaging();
+  await verifyTripDraftAssemblyPreservesWizardFields();
+  verifyAggregatePackingProgress();
+  verifyStaleNoticeScope();
 }
