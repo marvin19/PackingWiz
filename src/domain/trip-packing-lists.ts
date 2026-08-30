@@ -1,8 +1,14 @@
 import type { PackingItem } from '@/domain/packing-item';
 import type { ImportantItem } from '@/domain/important-item';
+import { enabledImportantItemsFromConfig } from '@/domain/important-items-config';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { snapshotPackingProfile } from '@/domain/packing-profile';
+import {
+  getImportantConfigForProfile,
+  resolveImportantProfileId,
+  type ImportantItemsByProfileId,
+} from '@/domain/profile-important-items';
 import type { PackingMode } from '@/domain/trip';
 import {
   primaryPackingListId,
@@ -92,16 +98,24 @@ export function dedupeInsights(insights: string[]): string[] {
 }
 
 /**
- * Temporary until MP4: global Important master applies only to the self/Me list.
- * Non-self lists must not inherit the user's Important Items during creation.
+ * Enabled Important master items for one PackingProfile during list creation (MP4B).
+ * Reads canonical profile-scoped store only — never `PackingProfile.importantItemsBootstrap`.
  */
 export function importantItemsForProfileList(
   profile: PackingProfile,
-  importantItems: ImportantItem[] | undefined,
+  importantByProfileId: ImportantItemsByProfileId,
 ): ImportantItem[] {
-  if (!profile.isSelf) {
-    return [];
-  }
+  const config = getImportantConfigForProfile(
+    importantByProfileId,
+    resolveImportantProfileId(profile),
+  );
 
-  return importantItems ?? [];
+  return enabledImportantItemsFromConfig(config);
+}
+
+/** Count Important snapshot rows on a packing list (for invariant checks). */
+export function countImportantSnapshotItems(items: PackingItem[]): number {
+  return items.filter(
+    (item) => item.category === 'Important' || item.source === 'important',
+  ).length;
 }

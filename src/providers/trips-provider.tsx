@@ -22,11 +22,9 @@ import {
   findPackingItemInList,
   findPackingListById,
   getPackingListItems,
-  getTripPackingItems,
   patchPackingListItem,
   removePackingListItem,
   replacePackingListItems,
-  replacePrimaryPackingItems,
 } from '@/domain/trip-compatibility';
 import { createPackingItemId } from '@/lib/id';
 import {
@@ -34,7 +32,6 @@ import {
   canSavePackingItemSettings,
   type PackingItemSettingsInput,
 } from '@/domain/packing-item-settings';
-import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 import { useServices } from '@/providers/services-provider';
@@ -83,7 +80,19 @@ interface TripsContextValue {
     needToBuy?: boolean;
     assignedTo?: string | null;
   }) => void;
+  injectImportantItemsIntoList: (
+    tripId: string,
+    listId: string,
+    importantItems: ImportantItem[],
+  ) => void;
+  syncImportantSnapshotForList: (
+    tripId: string,
+    listId: string,
+    importantItems: ImportantItem[],
+  ) => void;
+  /** @deprecated Use injectImportantItemsIntoList with explicit list id. */
   injectImportantItemsIntoTrip: (tripId: string, importantItems: ImportantItem[]) => void;
+  /** @deprecated Use syncImportantSnapshotForList with explicit list id. */
   syncImportantSnapshotForTrip: (tripId: string, importantItems: ImportantItem[]) => void;
 }
 
@@ -111,7 +120,7 @@ function resolvePackingListSelection(
 export function TripsProvider({ children }: { children: ReactNode }) {
   const { tripRepository, packingGenerator, weatherService } = useServices();
   const { isAuthReady, authError } = useAuth();
-  const { enabledImportantItems } = useProfile();
+  const { importantByProfileId, rememberPackingProfile } = useProfile();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTripId, setActiveTripIdState] = useState<string | null>(null);
@@ -267,6 +276,12 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     };
   }, [isAuthReady, authError, tripRepository]);
 
+  const draftRef = useRef(draft);
+
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
+
   const setDraft = useCallback((patch: Partial<TripDraft>) => {
     setDraftState((current) => ({ ...current, ...patch }));
   }, []);
@@ -279,7 +294,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
   const markDraftReachedSummary = useCallback(() => {
     setDraftReachedSummary(true);
-    setDraftWizardStep(WIZARD_STEP_COUNT - 1);
   }, []);
 
   const commitDraftTrip = useCallback(
@@ -289,15 +303,23 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       const promise = (async () => {
+        const draftSnapshot = draftRef.current;
         const assembled = await assembleTripFromDraft(
-          draft,
+          draftSnapshot,
           {
             packingGenerator,
             weatherService,
           },
-          { packingMode, importantItems: enabledImportantItems },
+          { packingMode, importantByProfileId },
         );
         const saved = await tripRepository.createTrip(assembled);
+
+        for (const profile of draftSnapshot.packingProfiles) {
+          if (!profile.isSelf && profile.rememberForFutureTrips) {
+            rememberPackingProfile(profile);
+          }
+        }
+
         setTrips((current) => {
           const withoutDuplicate = current.filter((trip) => trip.id !== saved.id);
           return [saved, ...withoutDuplicate];
@@ -324,7 +346,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         commitDraftInFlightRef.current = null;
       }
     },
-    [draft, enabledImportantItems, packingGenerator, weatherService, tripRepository],
+    [importantByProfileId, packingGenerator, rememberPackingProfile, weatherService, tripRepository],
   );
 
   const togglePacked = useCallback(
@@ -761,8 +783,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     [tripRepository],
   );
 
-  const injectImportantItemsIntoTrip = useCallback(
-    (tripId: string, importantItems: ImportantItem[]) => {
+  const injectImportantItemsIntoList = useCallback(
+    (tripId: string, listId: string, importantItems: ImportantItem[]) => {
       if (importantItems.length === 0) {
         return;
       }
@@ -776,11 +798,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
           return current;
         }
 
-        previousItems = getTripPackingItems(trip);
+        previousItems = getPackingListItems(trip, listId);
         nextItems = mergeImportantItems(previousItems, importantItems);
 
         return mapTripById(current, tripId, (entry) =>
-          replacePrimaryPackingItems(entry, nextItems!),
+          replacePackingListItems(entry, listId, nextItems!),
         );
       });
 
@@ -788,9 +810,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      void tripRepository.updateTripPackingItems(tripId, nextItems).catch((error) => {
+      void tripRepository.updateTripPackingItems(tripId, nextItems, listId).catch((error) => {
         setTrips((latest) =>
-          mapTripById(latest, tripId, (entry) => replacePrimaryPackingItems(entry, previousItems!)),
+          mapTripById(latest, tripId, (entry) =>
+            replacePackingListItems(entry, listId, previousItems!),
+          ),
         );
         setRepositoryError(
           error instanceof Error ? error.message : 'Failed to save important items',
@@ -800,8 +824,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     [tripRepository],
   );
 
-  const syncImportantSnapshotForTrip = useCallback(
-    (tripId: string, importantItems: ImportantItem[]) => {
+  const syncImportantSnapshotForList = useCallback(
+    (tripId: string, listId: string, importantItems: ImportantItem[]) => {
       let previousItems: PackingItem[] | null = null;
       let nextItems: PackingItem[] | null = null;
 
@@ -811,11 +835,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
           return current;
         }
 
-        previousItems = getTripPackingItems(trip);
+        previousItems = getPackingListItems(trip, listId);
         nextItems = syncTripImportantSnapshot(previousItems, importantItems);
 
         return mapTripById(current, tripId, (entry) =>
-          replacePrimaryPackingItems(entry, nextItems!),
+          replacePackingListItems(entry, listId, nextItems!),
         );
       });
 
@@ -823,9 +847,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      void tripRepository.updateTripPackingItems(tripId, nextItems).catch((error) => {
+      void tripRepository.updateTripPackingItems(tripId, nextItems, listId).catch((error) => {
         setTrips((latest) =>
-          mapTripById(latest, tripId, (entry) => replacePrimaryPackingItems(entry, previousItems!)),
+          mapTripById(latest, tripId, (entry) =>
+            replacePackingListItems(entry, listId, previousItems!),
+          ),
         );
         setRepositoryError(
           error instanceof Error ? error.message : 'Failed to sync important items',
@@ -833,6 +859,32 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       });
     },
     [tripRepository],
+  );
+
+  const injectImportantItemsIntoTrip = useCallback(
+    (tripId: string, importantItems: ImportantItem[]) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      const listId = trip?.packingLists[0]?.id;
+      if (!listId) {
+        return;
+      }
+
+      injectImportantItemsIntoList(tripId, listId, importantItems);
+    },
+    [injectImportantItemsIntoList],
+  );
+
+  const syncImportantSnapshotForTrip = useCallback(
+    (tripId: string, importantItems: ImportantItem[]) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      const listId = activePackingListIdRef.current ?? trip?.packingLists[0]?.id;
+      if (!listId) {
+        return;
+      }
+
+      syncImportantSnapshotForList(tripId, listId, importantItems);
+    },
+    [syncImportantSnapshotForList],
   );
 
   const activeTrip = useMemo(
@@ -880,6 +932,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       assignItem,
       deletePackingItem,
       addPackingItem,
+      injectImportantItemsIntoList,
+      syncImportantSnapshotForList,
       injectImportantItemsIntoTrip,
       syncImportantSnapshotForTrip,
     }),
@@ -913,6 +967,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       assignItem,
       deletePackingItem,
       addPackingItem,
+      injectImportantItemsIntoList,
+      syncImportantSnapshotForList,
       injectImportantItemsIntoTrip,
       syncImportantSnapshotForTrip,
     ],

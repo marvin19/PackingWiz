@@ -1,10 +1,15 @@
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { useTheme } from '@/hooks/use-theme';
 
-export function PackInsightsButton({ onPress }: { onPress: () => void }) {
+type PackInsightsButtonProps = {
+  onPress: () => void;
+  iconOnly?: boolean;
+};
+
+export function PackInsightsButton({ onPress, iconOnly = false }: PackInsightsButtonProps) {
   const theme = useTheme();
 
   return (
@@ -14,20 +19,24 @@ export function PackInsightsButton({ onPress }: { onPress: () => void }) {
       onPress={onPress}
       style={({ pressed }) => [
         styles.textAction,
+        iconOnly && styles.iconOnlyAction,
         {
           backgroundColor: theme.colors.muted,
           borderColor: theme.colors.border,
           opacity: pressed ? 0.9 : 1,
         },
       ]}>
-      <AppText
-        variant="caption"
-        style={{
-          fontFamily: theme.fontFamilies.sansSemiBold,
-          color: theme.colors.mutedForeground,
-        }}>
-        Insights
-      </AppText>
+      <Ionicons name="bulb-outline" size={16} color={theme.colors.mutedForeground} />
+      {iconOnly ? null : (
+        <AppText
+          variant="caption"
+          style={{
+            fontFamily: theme.fontFamilies.sansSemiBold,
+            color: theme.colors.mutedForeground,
+          }}>
+          Insights
+        </AppText>
+      )}
     </Pressable>
   );
 }
@@ -58,6 +67,9 @@ export function PackBackToTripsButton({ onPress }: { onPress: () => void }) {
 
 const styles = StyleSheet.create({
   textAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 9999,
     paddingHorizontal: 10,
@@ -65,10 +77,11 @@ const styles = StyleSheet.create({
     minHeight: 32,
     justifyContent: 'center',
   },
+  iconOnlyAction: {
+    paddingHorizontal: 8,
+    minWidth: 32,
+  },
   backToTripsAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     paddingHorizontal: 8,
   },
 });

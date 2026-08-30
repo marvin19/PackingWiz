@@ -93,16 +93,27 @@ Helpers: `createDestinationFromText`, `getDestinationLabel`, `getDestinationCoun
 - `packed`, `needToBuy`, `quantity`, `assignedTo`, `note`
 - **`assignedTo`** — legacy traveler assignment; may become obsolete or change meaning after MP5
 
-### Important master vs snapshot (current)
+### Important master vs snapshot
 
 | Layer | Location | Responsibility |
 |-------|----------|----------------|
-| Master | `ProfileProvider` → `ImportantItemsPreferences` | User-global today; **target:** per `PackingProfile` |
-| Snapshot | Trip `items` with `source: 'important'` | **Target:** per `PackingList` |
+| Master | `ProfileProvider.importantByProfileId` keyed by canonical `PackingProfile.id` (`profile-self` for Me) | **Sole mutable runtime source of truth** for Important master (MP4A) |
+| Bootstrap | `PackingProfile.importantItemsBootstrap?` | Read-only session/mock snapshot for remembered profiles; seeds canonical store only when missing |
+| Snapshot | `PackingList.items` with `source: 'important'` | Trip-specific item copies snapshotted at list creation (MP4B) |
 | Stale logic | `src/domain/important-snapshot.ts` | Exact key match; user-initiated sync only |
 | Sync | `src/services/packing/sync-important-snapshot.ts` | Preserves packed state |
 
-When Important feature is **disabled**: master retained; not injected into new trips/lists; Pack hides Important section.
+**MP4A source-of-truth:** `importantByProfileId` is the canonical Important master. All edits (add/update/remove/enable) mutate that store only. `PackingProfile.importantItemsBootstrap` is never read preferentially after initialization — it may seed a **missing** canonical entry on bootstrap, but must not overwrite an existing one. `rememberPackingProfile()` exports canonical → bootstrap (one-way); re-selecting a remembered profile does not revert canonical state from stale embedded data.
+
+**MP4A contract:** Changing profile master data does **not** mutate existing packing lists.
+
+**MP4B creation flow:** `assembleTripFromDraft` reads `importantByProfileId` and, for each selected `PackingProfile`, resolves enabled master items via `importantItemsForProfileList`, then merges them into that profile's new `PackingList` using `mergeImportantItems` (generated and manual). Existing lists never re-read the master after creation.
+
+**MP4C UX:** Important items is a **fixed** wizard step (always between Bags and Additional notes). It combines setup for unconfigured profiles and quick review for configured ones on one card-based screen — unconfigured profiles first, optional configuration (Continue does not block or mark configured). Edits are staged locally and committed on wizard Continue. `promptDismissed` affects Pack/configure-later UX only, not wizard step count. Profile Important management uses vertical settings rows per profile. Pack Important editors resolve the active/canonical profile id. Stale/sync compares profile master against the active `PackingList` only; user-initiated sync via `syncImportantSnapshotForList`.
+
+**Draft vs reusable profiles:** Adding a person to a trip draft selects them for that draft only. `rememberForFutureTrips` on the draft profile expresses intent; `rememberPackingProfile()` runs at **trip commit** when Remember is on — not when the person is added to the draft.
+
+**Trip-level progress:** Home and Trip Overview use `packingStatsForTrip` — sum of packed/total item counts across all `PackingList`s (not averaged percentages). Pack and the packing-list picker remain list-scoped via `packingStatsForList`.
 
 ---
 
@@ -229,7 +240,7 @@ Otherwise → **mock**.
 
 ### Trip assembly (`src/services/trip-assembly.ts`) — current
 
-`assembleTripFromDraft(draft, { packingGenerator, weatherService }, { packingMode, importantItems })`
+`assembleTripFromDraft(draft, { packingGenerator, weatherService }, { packingMode, importantByProfileId })`
 
 - Fetches weather (trip-level)
 - Generates **one** flat item list (or empty for manual)
@@ -320,4 +331,3 @@ During MP migration, apply the same discipline at **packing-list** granularity o
 | Single process memory | Mock repo singleton — HMR can reset in dev |
 | Supabase partial integration | Trips may persist while Profile/Important do not; schema mismatched with MP target |
 | Traveler assignment debt | `assignedTo` may conflict with per-person lists |
-| Aggregate progress undefined | Home cards need rules before MP3 UI |

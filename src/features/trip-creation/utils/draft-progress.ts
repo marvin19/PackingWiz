@@ -1,8 +1,8 @@
-import { getDestinationLabel } from '@/domain/destination';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
-import { canProceedFromStep } from '@/features/trip-creation/utils/wizard-validation';
-import { WIZARD_STEP_COUNT } from '@/features/trip-creation/constants';
+import { canProceedFromStepId } from '@/features/trip-creation/utils/wizard-validation';
+import type { WizardStepId } from '@/features/trip-creation/utils/wizard-steps';
+import { getDestinationLabel } from '@/domain/destination';
 
 export function isDraftInProgress(draft: TripDraft): boolean {
   const empty = createEmptyTripDraft();
@@ -27,12 +27,14 @@ export function isDraftInProgress(draft: TripDraft): boolean {
   );
 }
 
-export function canReviewDraft(draft: TripDraft): boolean {
-  for (let step = 0; step < WIZARD_STEP_COUNT - 1; step += 1) {
-    if (!canProceedFromStep(step, draft)) {
-      return false;
-    }
-  }
+const REVIEW_REQUIRED_STEPS: WizardStepId[] = [
+  'destination',
+  'trip-context',
+  'accommodation',
+  'packing-profiles',
+  'bags',
+];
 
-  return true;
+export function canReviewDraft(draft: TripDraft): boolean {
+  return REVIEW_REQUIRED_STEPS.every((stepId) => canProceedFromStepId(stepId, draft));
 }

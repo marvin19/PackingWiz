@@ -11,7 +11,7 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import { durationDays, formatDisplayDate, formatRange } from '@/domain/dates';
-import { categoryBreakdown, packingStats, shoppingCount } from '@/domain/packing-stats';
+import { categoryBreakdown, packingListBreakdownForTrip, packingStatsForTrip, shoppingCount } from '@/domain/packing-stats';
 import { OverviewBagRow } from '@/features/packing/components/overview-bag-row';
 import { OverviewCategoryRow } from '@/features/packing/components/overview-category-row';
 import { OverviewInsightCard } from '@/features/packing/components/overview-insight-card';
@@ -23,6 +23,7 @@ import { getAccommodationIcon } from '@/features/trip-creation/utils/catalog-ico
 import {
   getAccommodationLabel,
   getLaundryLabel,
+  getPackingForLabel,
   getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
 import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
@@ -37,7 +38,11 @@ export function TripOverviewScreen() {
   const insets = useSafeAreaInsets();
   const { activeTrip, activeTripId } = useTrips();
 
-  const stats = useMemo(() => packingStats(activeTrip), [activeTrip]);
+  const stats = useMemo(() => packingStatsForTrip(activeTrip), [activeTrip]);
+  const listBreakdown = useMemo(
+    () => (activeTrip ? packingListBreakdownForTrip(activeTrip) : []),
+    [activeTrip],
+  );
   const buyCount = useMemo(() => shoppingCount(activeTrip), [activeTrip]);
   const perCategory = useMemo(
     () => (activeTrip ? categoryBreakdown(activeTrip) : []),
@@ -67,6 +72,10 @@ export function TripOverviewScreen() {
     );
   }
 
+  const packingForLabel = getPackingForLabel(
+    activeTrip.packingLists.map((list) => list.profileSnapshot),
+  );
+  const peopleCount = activeTrip.packingLists.length;
   const days = durationDays(activeTrip.startDate, activeTrip.endDate);
   const remaining = stats.total - stats.packed;
   const tripContextIcon = getTripContextIcon(activeTrip.tripContext[0]);
@@ -120,13 +129,27 @@ export function TripOverviewScreen() {
             {remaining > 0 ? ` · ${remaining} remaining` : ''}
             {buyCount > 0 ? ` · ${buyCount} to buy` : ''}
           </AppText>
+          {listBreakdown.length > 1 ? (
+            <View style={styles.listBreakdown}>
+              {listBreakdown.map((row) => (
+                <View key={row.listId} style={styles.listBreakdownRow}>
+                  <AppText variant="caption" color="mutedForeground" style={styles.listBreakdownName}>
+                    {row.profileName}
+                  </AppText>
+                  <AppText variant="caption" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+                    {row.packed} of {row.total}
+                  </AppText>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.statRow}>
           <OverviewTripStat value={String(days)} label={days === 1 ? 'day' : 'days'} />
           <OverviewTripStat
-            value={String(activeTrip.travelers.length)}
-            label="travelers"
+            value={String(peopleCount)}
+            label={peopleCount === 1 ? 'person' : 'people'}
             icon={<Feather name="users" size={14} color={theme.colors.mutedForeground} />}
           />
           <OverviewTripStat
@@ -156,8 +179,8 @@ export function TripOverviewScreen() {
           <View style={styles.factsRow}>
             <TripFact
               icon={<Feather name="users" size={16} color={theme.colors.mutedForeground} />}
-              label="Travelers"
-              value={`${activeTrip.travelers.length} ${activeTrip.travelers.length === 1 ? 'person' : 'people'}`}
+              label="Packing for"
+              value={packingForLabel}
             />
             <TripFact
               icon={<Feather name="droplet" size={16} color={theme.colors.mutedForeground} />}
@@ -267,6 +290,19 @@ const styles = StyleSheet.create({
   },
   progressMeta: {
     lineHeight: 18,
+  },
+  listBreakdown: {
+    gap: 6,
+    marginTop: 4,
+  },
+  listBreakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  listBreakdownName: {
+    flex: 1,
   },
   statRow: {
     flexDirection: 'row',

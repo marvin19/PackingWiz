@@ -38,7 +38,7 @@ Packing personalization is about **who you pack for**, not modeling every person
 |------|------------------------|---------------------|
 | Packing lists | Single shared list on `Trip.items` | `Trip → PackingList[] → PackingItem[]` |
 | Who is modeled | Travelers + optional item assignment | Packing Profiles + one list per profile |
-| Important master | User-global in Profile | Per Packing Profile |
+| Important master | Per Packing Profile (`importantByProfileId`) | Per Packing Profile |
 | `packingMode` | Trip-level | Per Packing List |
 | Trip name | `Trip.title` (often mirrors destination) | Separate editable trip name vs destination |
 | Pack entry | Always one list | Direct Pack if one list; picker if multiple |
@@ -118,6 +118,8 @@ Example:
 
 Important Items remain **master/profile-level** data. Each new **Packing List** receives a snapshot of that profile's enabled Important Items. Existing list snapshots are **not** silently rewritten when the master changes.
 
+First-time Important setup is offered during trip creation per Packing Profile when not yet configured. The **Important items** step is always shown (between Bags and Additional notes). It is optional (`Configure later` sets persistent `promptDismissed`; Continue without configuring does not mark configured). Important provides deterministic personal guarantees; generated recommendations remain separate.
+
 The existing explicit stale/sync concept (**Update this list** / **Keep current list**) remains applicable — per Packing Profile / Packing List.
 
 **Profile UX target:**
@@ -168,16 +170,19 @@ A bag may optionally have an owner as metadata; shared bags remain supported. Pa
 
 ## Trip creation
 
-### Current wizard (6 steps — implemented)
+### Current wizard (7 steps — implemented)
 
 1. **Destination & dates** — structured `Destination` + date range  
 2. **Trip context** — suggested/searchable/custom tags → `tripContext: string[]`  
 3. **Accommodation & laundry**  
-4. **Travelers** — presets + custom rows *(legacy; to be replaced)*  
+4. **Who are you packing for?** — Packing Profiles (Me + optional others)  
 5. **Bags**  
-6. **Additional information** (note)
+6. **Important items** — fixed review step: setup for unconfigured profiles, compact review for configured; optional (`Configure later` sets persistent `promptDismissed` per profile); Continue never blocks  
+7. **Additional information** (note)
 
 Flow: wizard → **Summary** → **Generating** (mock steps) → **Pack** tab with new trip active.
+
+Adding a person to a draft selects them for that trip only. **Remember this person** is stored on the draft profile and committed to reusable saved profiles at **trip creation**, not when the person is first added.
 
 ### Target creation UX (MP2)
 
@@ -222,7 +227,7 @@ These are **different concepts**. Do not conflate them.
 | Source | User-defined personal must-haves |
 | Examples | Critical medication, house keys, personal equipment |
 | AI | **Never** inferred or generated |
-| Master list | **Target:** per Packing Profile · **Current:** Profile → Important Items (user-global) |
+| Master list | Per Packing Profile (Profile person picker + trip-creation setup) |
 | Enable/disable | When off, not injected into new lists for that profile |
 | New lists | Receive a **snapshot** at list creation |
 | Existing lists | Keep snapshot until user chooses **Update this list** |
@@ -296,10 +301,13 @@ Example:
 
 ```
 Hyttetur
-Norefjell · 5 days · 2 travelers
+Norefjell · 5 days · 2 people
+3 / 47 packed
 ```
 
-Progress may aggregate across lists where appropriate. **Detailed aggregate-progress rules are not finalized yet.**
+**Trip-level surfaces** (Home cards, Trip Overview) aggregate progress across all PackingLists: `sum(packed) / sum(total)` — not an average of list percentages. Multi-person cards may show `N people` in metadata.
+
+**List-level surfaces** (Pack, packing-list picker) show progress for the active or selected PackingList only.
 
 ---
 
@@ -360,7 +368,7 @@ Do not implement unless explicitly requested:
 - Advanced family sharing
 - Subscription / paywall
 - Broader travel planning (itinerary, bookings, etc.)
-- Finalized multi-list aggregate progress rules
+- **Mark as Important promotion** — promoting a regular PackingItem into the active profile's Important master (semantics, confirmation copy, filter behavior)
 
 See [ROADMAP.md](./ROADMAP.md) for sequencing.
 
@@ -370,10 +378,9 @@ See [ROADMAP.md](./ROADMAP.md) for sequencing.
 
 Document for future product decisions — do not guess in implementation:
 
-1. **Aggregate progress on Home cards** — sum packed/total across lists vs show range vs primary list only
-2. **`travelers[]` migration** — remove vs keep as trip metadata separate from Packing Profiles
-3. **Profile reuse across trips** — when/how saved Packing Profiles attach to new trips vs one-off people
-4. **Active packing list state** — `activePackingListId` in provider vs route param vs derived from last-opened list
-5. **Anonymous "Me" profile** — creation timing (first launch vs first trip) and persistence before auth
-6. **Trip name default** — derive from destination, trip context, or user prompt
-7. **Item → bag assignment** — UX and whether assignment replaces or complements list ownership
+1. **`travelers[]` migration** — remove vs keep as trip metadata separate from Packing Profiles
+2. **Profile reuse across trips** — when/how saved Packing Profiles attach to new trips vs one-off people
+3. **Active packing list state** — `activePackingListId` in provider vs route param vs derived from last-opened list
+4. **Anonymous "Me" profile** — creation timing (first launch vs first trip) and persistence before auth
+5. **Trip name default** — derive from destination, trip context, or user prompt
+6. **Item → bag assignment** — UX and whether assignment replaces or complements list ownership

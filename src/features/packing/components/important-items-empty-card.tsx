@@ -6,11 +6,16 @@ import { PrimaryButton } from '@/components/ui/primary-button';
 import { useTheme } from '@/hooks/use-theme';
 
 type ImportantItemsEmptyCardProps = {
+  profileLabel?: string;
   onAdd: () => void;
   onDismiss: () => void;
 };
 
-export function ImportantItemsEmptyCard({ onAdd, onDismiss }: ImportantItemsEmptyCardProps) {
+export function ImportantItemsEmptyCard({
+  profileLabel,
+  onAdd,
+  onDismiss,
+}: ImportantItemsEmptyCardProps) {
   const theme = useTheme();
 
   return (
@@ -29,12 +34,13 @@ export function ImportantItemsEmptyCard({ onAdd, onDismiss }: ImportantItemsEmpt
         <AppText
           variant="bodySemiBold"
           style={{ fontFamily: theme.fontFamilies.displayExtraBold, color: theme.colors.importantForeground }}>
-          Important
+          {profileLabel ? `Important for ${profileLabel}` : 'Important'}
         </AppText>
       </View>
       <AppText variant="bodySmall" color="mutedForeground" style={styles.body}>
-        Add the personal things you never want to forget. They&apos;ll automatically be added to
-        every future packing list, and you can manage them anytime from Profile.
+        {profileLabel
+          ? `Anything ${profileLabel} should never travel without? We'll remember these for future trips.`
+          : 'Anything you never want to forget? We\u2019ll remember these for future trips.'}
       </AppText>
       <AppText variant="caption" color="mutedForeground" style={styles.examples}>
         e.g. important medication, house keys

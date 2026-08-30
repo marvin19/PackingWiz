@@ -1,8 +1,8 @@
 import { PACKING_CATEGORY_ORDER, type PackingCategory } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import {
   findPackingListById,
-  getTripPackingItems,
 } from '@/domain/trip-compatibility';
 
 export type PackingProgress = { packed: number; total: number; pct: number };
@@ -15,13 +15,19 @@ function progressFromItems(items: { packed: boolean }[]): PackingProgress {
   return { packed, total, pct };
 }
 
-/** Trip-level stats using the primary list mirror — Overview / Home until MP3B aggregate decision. */
-export function packingStats(trip: Trip | null): PackingProgress {
+/** Trip-level aggregate stats across all PackingLists (count-based, not averaged percentages). */
+export function packingStatsForTrip(trip: Trip | null): PackingProgress {
   if (!trip) {
     return { packed: 0, total: 0, pct: 0 };
   }
 
-  return progressFromItems(getTripPackingItems(trip));
+  const allItems = trip.packingLists.flatMap((list) => list.items);
+  return progressFromItems(allItems);
+}
+
+/** Trip-level stats — aggregate across all PackingLists. */
+export function packingStats(trip: Trip | null): PackingProgress {
+  return packingStatsForTrip(trip);
 }
 
 /** Pack-scoped stats for one active PackingList (MP3A). */
@@ -38,12 +44,34 @@ export function packingStatsForList(trip: Trip | null, listId: string | null): P
   return progressFromItems(list.items);
 }
 
+export type PackingListProgressRow = {
+  listId: string;
+  profileName: string;
+  packed: number;
+  total: number;
+  pct: number;
+};
+
+/** Per-PackingList progress rows for trip-level breakdown UI. */
+export function packingListBreakdownForTrip(trip: Trip): PackingListProgressRow[] {
+  return trip.packingLists.map((list) => {
+    const stats = progressFromItems(list.items);
+    return {
+      listId: list.id,
+      profileName: formatPackingListProfileName(list.profileSnapshot),
+      ...stats,
+    };
+  });
+}
+
 export function shoppingCount(trip: Trip | null): number {
   if (!trip) {
     return 0;
   }
 
-  return getTripPackingItems(trip).filter((item) => item.needToBuy).length;
+  return trip.packingLists
+    .flatMap((list) => list.items)
+    .filter((item) => item.needToBuy).length;
 }
 
 export type CategoryProgress = {
@@ -53,8 +81,12 @@ export type CategoryProgress = {
   pct: number;
 };
 
+function allTripItems(trip: Trip) {
+  return trip.packingLists.flatMap((list) => list.items);
+}
+
 export function categoryBreakdown(trip: Trip): CategoryProgress[] {
-  const items = getTripPackingItems(trip);
+  const items = allTripItems(trip);
 
   return PACKING_CATEGORY_ORDER.map((category) => {
     const categoryItems = items.filter((item) => item.category === category);
@@ -81,7 +113,7 @@ export type TravelerProgress = {
 };
 
 export function travelerBreakdown(trip: Trip): TravelerProgress[] {
-  const items = getTripPackingItems(trip);
+  const items = allTripItems(trip);
 
   const buckets: TravelerProgress[] = [
     ...trip.travelers.map((traveler) => {

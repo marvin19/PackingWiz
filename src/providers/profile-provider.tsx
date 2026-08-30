@@ -8,15 +8,30 @@ import {
 } from 'react';
 
 import type { ImportantItem } from '@/domain/important-item';
-import type { PackingProfile } from '@/domain/packing-profile';
-import { buildImportantMasterVersion } from '@/domain/important-snapshot';
 import {
-  dedupeImportantItemNames,
-  defaultImportantItemsPreferences,
-  importantItemsForNewTrips,
-  isImportantFeatureActive,
-  type ImportantItemsPreferences,
-} from '@/domain/important-items-preferences';
+  enabledImportantItemsFromConfig,
+  isImportantFeatureActiveForConfig,
+  type ImportantItemsConfig,
+} from '@/domain/important-items-config';
+import { buildImportantMasterVersion } from '@/domain/important-snapshot';
+import { importantStaleNoticeKey } from '@/domain/important-profile-setup';
+import type { PackingProfile } from '@/domain/packing-profile';
+import {
+  addImportantItemForProfileStore,
+  attachImportantBootstrapToRememberedProfile,
+  bootstrapImportantConfigFromProfiles,
+  getImportantConfigForProfile,
+  migrateImportantProfileStoreKey,
+  refreshRememberedProfileBootstraps,
+  removeImportantItemForProfileStore,
+  resolveImportantProfileId,
+  saveImportantItemNamesForProfile,
+  SELF_IMPORTANT_PROFILE_ID,
+  setImportantEnabledForProfileStore,
+  setImportantPromptDismissedForProfileStore,
+  updateImportantItemForProfileStore,
+  type ImportantItemsByProfileId,
+} from '@/domain/profile-important-items';
 import {
   defaultUserPreferences,
   type SavedTravelerProfile,
@@ -33,6 +48,10 @@ interface ProfileContextValue {
   savedTravelers: SavedTravelerProfile[];
   /** Session/mock reusable packing profiles (non-self) for trip creation. */
   savedPackingProfiles: PackingProfile[];
+  /** Canonical self profile id for Important master lookups. */
+  selfImportantProfileId: string;
+  /** Canonical profile-scoped Important master store (read-only for trip assembly). */
+  importantByProfileId: ImportantItemsByProfileId;
   importantItems: ImportantItem[];
   enabledImportantItems: ImportantItem[];
   isImportantConfigured: boolean;
@@ -41,17 +60,37 @@ interface ProfileContextValue {
   importantPromptDismissed: boolean;
   importantMasterVersion: string;
   importantUpdatedAt?: string;
+  getImportantConfigForProfile: (profileId: string) => ImportantItemsConfig;
+  getImportantItemsForProfile: (profileId: string) => ImportantItem[];
+  getEnabledImportantItemsForProfile: (profileId: string) => ImportantItem[];
+  isImportantConfiguredForProfile: (profileId: string) => boolean;
+  isImportantEnabledForProfile: (profileId: string) => boolean;
+  isImportantFeatureActiveForProfile: (profileId: string) => boolean;
+  getImportantMasterVersionForProfile: (profileId: string) => string;
+  saveImportantItemsForProfile: (profileId: string, names: string[]) => ImportantItem[];
+  setImportantEnabledForProfile: (profileId: string, enabled: boolean) => void;
+  addImportantItemForProfile: (profileId: string, name: string) => ImportantItem | null;
+  updateImportantItemForProfile: (
+    profileId: string,
+    itemId: string,
+    patch: Partial<Pick<ImportantItem, 'name' | 'enabled' | 'quantity'>>,
+  ) => void;
+  removeImportantItemForProfile: (profileId: string, itemId: string) => void;
+  resolveImportantProfileId: typeof resolveImportantProfileId;
   setPreference: (key: PreferenceKey, value: boolean) => void;
   addSavedTraveler: () => void;
   rememberPackingProfile: (profile: PackingProfile) => void;
   saveImportantItems: (names: string[]) => ImportantItem[];
   setImportantEnabled: (enabled: boolean) => void;
   dismissImportantPrompt: () => void;
+  dismissImportantPromptForProfile: (profileId: string) => void;
   resetImportantPromptDismissed: () => void;
-  requestOpenImportantEditor: () => void;
-  consumeImportantEditorRequest: () => boolean;
-  dismissImportantStaleNotice: (tripId: string, masterVersion: string) => void;
-  isImportantStaleNoticeDismissed: (tripId: string, masterVersion: string) => boolean;
+  resetImportantPromptDismissedForProfile: (profileId: string) => void;
+  isImportantPromptDismissedForProfile: (profileId: string) => boolean;
+  requestOpenImportantEditor: (profileId: string) => void;
+  consumeImportantEditorRequest: () => string | null;
+  dismissImportantStaleNotice: (tripId: string, listId: string, masterVersion: string) => void;
+  isImportantStaleNoticeDismissed: (tripId: string, listId: string, masterVersion: string) => boolean;
 }
 
 const ProfileContext = createContext<ProfileContextValue | null>(null);
@@ -59,28 +98,138 @@ const ProfileContext = createContext<ProfileContextValue | null>(null);
 export function ProfileProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] = useState<UserPreferences>(defaultUserPreferences);
   const [savedTravelers, setSavedTravelers] = useState<SavedTravelerProfile[]>(mockSavedTravelers);
-  const [savedPackingProfiles, setSavedPackingProfiles] =
-    useState<PackingProfile[]>(mockSavedPackingProfiles);
-  const [importantItemsState, setImportantItemsState] = useState<ImportantItemsPreferences>(
-    defaultImportantItemsPreferences,
+  const [savedPackingProfiles, setSavedPackingProfiles] = useState<PackingProfile[]>(() =>
+    mockSavedPackingProfiles.map((profile) => ({ ...profile })),
   );
-  const [openImportantEditorRequest, setOpenImportantEditorRequest] = useState(false);
-  const [dismissedImportantMasterVersionByTrip, setDismissedImportantMasterVersionByTrip] =
+  const [importantByProfileId, setImportantByProfileId] = useState<ImportantItemsByProfileId>(() =>
+    bootstrapImportantConfigFromProfiles({}, mockSavedPackingProfiles),
+  );
+  const [importantEditorRequestProfileId, setImportantEditorRequestProfileId] = useState<string | null>(
+    null,
+  );
+  const [dismissedImportantMasterVersionByList, setDismissedImportantMasterVersionByList] =
     useState<Record<string, string>>({});
 
+  const commitImportantStore = useCallback(
+    (updater: (current: ImportantItemsByProfileId) => ImportantItemsByProfileId) => {
+      setImportantByProfileId((current) => {
+        const next = updater(current);
+        setSavedPackingProfiles((profiles) => refreshRememberedProfileBootstraps(profiles, next));
+        return next;
+      });
+    },
+    [],
+  );
+
+  const selfImportantConfig = useMemo(
+    () => getImportantConfigForProfile(importantByProfileId, SELF_IMPORTANT_PROFILE_ID),
+    [importantByProfileId],
+  );
+
   const enabledImportantItems = useMemo(
-    () => importantItemsForNewTrips(importantItemsState),
-    [importantItemsState],
+    () => enabledImportantItemsFromConfig(selfImportantConfig),
+    [selfImportantConfig],
   );
 
   const importantFeatureActive = useMemo(
-    () => isImportantFeatureActive(importantItemsState),
-    [importantItemsState],
+    () => isImportantFeatureActiveForConfig(selfImportantConfig),
+    [selfImportantConfig],
   );
 
   const importantMasterVersion = useMemo(
-    () => buildImportantMasterVersion(importantItemsState),
-    [importantItemsState],
+    () => buildImportantMasterVersion(selfImportantConfig),
+    [selfImportantConfig],
+  );
+
+  const readImportantConfigForProfile = useCallback(
+    (profileId: string) => getImportantConfigForProfile(importantByProfileId, profileId),
+    [importantByProfileId],
+  );
+
+  const getImportantItemsForProfile = useCallback(
+    (profileId: string) => readImportantConfigForProfile(profileId).items,
+    [readImportantConfigForProfile],
+  );
+
+  const getEnabledImportantItemsForProfile = useCallback(
+    (profileId: string) => enabledImportantItemsFromConfig(readImportantConfigForProfile(profileId)),
+    [readImportantConfigForProfile],
+  );
+
+  const isImportantConfiguredForProfile = useCallback(
+    (profileId: string) => readImportantConfigForProfile(profileId).isConfigured,
+    [readImportantConfigForProfile],
+  );
+
+  const isImportantEnabledForProfile = useCallback(
+    (profileId: string) => readImportantConfigForProfile(profileId).isEnabled,
+    [readImportantConfigForProfile],
+  );
+
+  const isImportantFeatureActiveForProfile = useCallback(
+    (profileId: string) => isImportantFeatureActiveForConfig(readImportantConfigForProfile(profileId)),
+    [readImportantConfigForProfile],
+  );
+
+  const getImportantMasterVersionForProfile = useCallback(
+    (profileId: string) => buildImportantMasterVersion(readImportantConfigForProfile(profileId)),
+    [readImportantConfigForProfile],
+  );
+
+  const saveImportantItemsForProfile = useCallback((profileId: string, names: string[]) => {
+    let savedItems: ImportantItem[] = [];
+
+    commitImportantStore((current) => {
+      const result = saveImportantItemNamesForProfile(current, profileId, names, createUuid);
+      savedItems = result.savedItems;
+      return result.store;
+    });
+
+    return savedItems;
+  }, [commitImportantStore]);
+
+  const setImportantEnabledForProfile = useCallback(
+    (profileId: string, enabled: boolean) => {
+      commitImportantStore((current) => setImportantEnabledForProfileStore(current, profileId, enabled));
+    },
+    [commitImportantStore],
+  );
+
+  const addImportantItemForProfile = useCallback(
+    (profileId: string, name: string) => {
+      let created: ImportantItem | null = null;
+
+      commitImportantStore((current) => {
+        const result = addImportantItemForProfileStore(current, profileId, name, createUuid);
+        created = result.item;
+        return result.store;
+      });
+
+      return created;
+    },
+    [commitImportantStore],
+  );
+
+  const updateImportantItemForProfile = useCallback(
+    (
+      profileId: string,
+      itemId: string,
+      patch: Partial<Pick<ImportantItem, 'name' | 'enabled' | 'quantity'>>,
+    ) => {
+      commitImportantStore((current) =>
+        updateImportantItemForProfileStore(current, profileId, itemId, patch),
+      );
+    },
+    [commitImportantStore],
+  );
+
+  const removeImportantItemForProfile = useCallback(
+    (profileId: string, itemId: string) => {
+      commitImportantStore((current) =>
+        removeImportantItemForProfileStore(current, profileId, itemId),
+      );
+    },
+    [commitImportantStore],
   );
 
   const setPreference = useCallback((key: PreferenceKey, value: boolean) => {
@@ -108,114 +257,135 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const { importantItemsBootstrap: _ignored, ...profileFields } = profile;
     const normalized: PackingProfile = {
-      ...profile,
+      ...profileFields,
       isSelf: false,
       name: profile.name.trim(),
     };
 
-    setSavedPackingProfiles((current) => {
-      const byId = current.findIndex((entry) => entry.id === normalized.id);
-      if (byId >= 0) {
-        return current.map((entry, index) => (index === byId ? normalized : entry));
-      }
+    setImportantByProfileId((current) => {
+      let nextStore = bootstrapImportantConfigFromProfiles(current, [profile]);
 
-      const nameKey = normalized.name.toLowerCase();
-      const byName = current.findIndex((entry) => entry.name.trim().toLowerCase() === nameKey);
-      if (byName >= 0) {
-        return current.map((entry, index) => (index === byName ? { ...normalized, id: entry.id } : entry));
-      }
-
-      return [...current, normalized];
-    });
-  }, []);
-
-  const saveImportantItems = useCallback((names: string[]) => {
-    const uniqueNames = dedupeImportantItemNames(names);
-    let savedItems: ImportantItem[] = [];
-
-    setImportantItemsState((current) => {
-      const existingByName = new Map(
-        current.items.map((item) => [item.name.trim().toLowerCase(), item]),
-      );
-
-      savedItems = uniqueNames.map((name) => {
-        const existing = existingByName.get(name.toLowerCase());
-        if (existing) {
-          return { ...existing, name, enabled: true };
+      setSavedPackingProfiles((savedProfiles) => {
+        const byId = savedProfiles.findIndex((entry) => entry.id === normalized.id);
+        if (byId >= 0) {
+          return savedProfiles.map((entry, index) =>
+            index === byId
+              ? attachImportantBootstrapToRememberedProfile({ ...normalized, id: entry.id }, nextStore)
+              : entry,
+          );
         }
 
-        return {
-          id: createUuid(),
-          name,
-          quantity: 1,
-          enabled: true,
-        };
+        const nameKey = normalized.name.toLowerCase();
+        const byName = savedProfiles.findIndex(
+          (entry) => entry.name.trim().toLowerCase() === nameKey,
+        );
+        if (byName >= 0) {
+          const targetId = savedProfiles[byName].id;
+          if (targetId !== normalized.id) {
+            nextStore = migrateImportantProfileStoreKey(nextStore, normalized.id, targetId);
+          }
+
+          return savedProfiles.map((entry, index) =>
+            index === byName
+              ? attachImportantBootstrapToRememberedProfile(
+                  { ...normalized, id: entry.id, rememberForFutureTrips: undefined },
+                  nextStore,
+                )
+              : entry,
+          );
+        }
+
+        return [
+          ...savedProfiles,
+          attachImportantBootstrapToRememberedProfile(
+            { ...normalized, rememberForFutureTrips: undefined },
+            nextStore,
+          ),
+        ];
       });
 
-      return {
-        items: savedItems,
-        isConfigured: true,
-        isEnabled: current.isConfigured ? current.isEnabled : true,
-        promptDismissed: current.promptDismissed,
-        updatedAt: new Date().toISOString(),
-      };
-    });
-
-    return savedItems;
-  }, []);
-
-  const setImportantEnabled = useCallback((enabled: boolean) => {
-    setImportantItemsState((current) => {
-      if (!current.isConfigured) {
-        return current;
-      }
-
-      return {
-        ...current,
-        isEnabled: enabled,
-      };
+      return nextStore;
     });
   }, []);
 
-  const requestOpenImportantEditor = useCallback(() => {
-    setOpenImportantEditorRequest(true);
+  const saveImportantItems = useCallback(
+    (names: string[]) => saveImportantItemsForProfile(SELF_IMPORTANT_PROFILE_ID, names),
+    [saveImportantItemsForProfile],
+  );
+
+  const setImportantEnabled = useCallback(
+    (enabled: boolean) => setImportantEnabledForProfile(SELF_IMPORTANT_PROFILE_ID, enabled),
+    [setImportantEnabledForProfile],
+  );
+
+  const isImportantPromptDismissedForProfile = useCallback(
+    (profileId: string) => readImportantConfigForProfile(profileId).promptDismissed,
+    [readImportantConfigForProfile],
+  );
+
+  const requestOpenImportantEditor = useCallback((profileId: string) => {
+    setImportantEditorRequestProfileId(profileId);
   }, []);
 
   const consumeImportantEditorRequest = useCallback(() => {
-    if (!openImportantEditorRequest) {
-      return false;
+    if (!importantEditorRequestProfileId) {
+      return null;
     }
 
-    setOpenImportantEditorRequest(false);
-    return true;
-  }, [openImportantEditorRequest]);
+    const profileId = importantEditorRequestProfileId;
+    setImportantEditorRequestProfileId(null);
+    return profileId;
+  }, [importantEditorRequestProfileId]);
 
   const dismissImportantPrompt = useCallback(() => {
-    setImportantItemsState((current) => ({
-      ...current,
-      promptDismissed: true,
-    }));
-  }, []);
+    commitImportantStore((current) =>
+      setImportantPromptDismissedForProfileStore(current, SELF_IMPORTANT_PROFILE_ID, true),
+    );
+  }, [commitImportantStore]);
+
+  const dismissImportantPromptForProfile = useCallback(
+    (profileId: string) => {
+      commitImportantStore((current) =>
+        setImportantPromptDismissedForProfileStore(current, profileId, true),
+      );
+    },
+    [commitImportantStore],
+  );
 
   const resetImportantPromptDismissed = useCallback(() => {
-    setImportantItemsState((current) => ({
-      ...current,
-      promptDismissed: false,
-    }));
-  }, []);
+    commitImportantStore((current) =>
+      setImportantPromptDismissedForProfileStore(current, SELF_IMPORTANT_PROFILE_ID, false),
+    );
+  }, [commitImportantStore]);
 
-  const dismissImportantStaleNotice = useCallback((tripId: string, masterVersion: string) => {
-    setDismissedImportantMasterVersionByTrip((current) => ({
-      ...current,
-      [tripId]: masterVersion,
-    }));
-  }, []);
+  const resetImportantPromptDismissedForProfile = useCallback(
+    (profileId: string) => {
+      commitImportantStore((current) =>
+        setImportantPromptDismissedForProfileStore(current, profileId, false),
+      );
+    },
+    [commitImportantStore],
+  );
+
+  const dismissImportantStaleNotice = useCallback(
+    (tripId: string, listId: string, masterVersion: string) => {
+      const key = importantStaleNoticeKey(tripId, listId);
+      setDismissedImportantMasterVersionByList((current) => ({
+        ...current,
+        [key]: masterVersion,
+      }));
+    },
+    [],
+  );
 
   const isImportantStaleNoticeDismissed = useCallback(
-    (tripId: string, masterVersion: string) =>
-      dismissedImportantMasterVersionByTrip[tripId] === masterVersion,
-    [dismissedImportantMasterVersionByTrip],
+    (tripId: string, listId: string, masterVersion: string) => {
+      const key = importantStaleNoticeKey(tripId, listId);
+      return dismissedImportantMasterVersionByList[key] === masterVersion;
+    },
+    [dismissedImportantMasterVersionByList],
   );
 
   const value = useMemo<ProfileContextValue>(
@@ -223,49 +393,83 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       preferences,
       savedTravelers,
       savedPackingProfiles,
-      importantItems: importantItemsState.items,
+      selfImportantProfileId: SELF_IMPORTANT_PROFILE_ID,
+      importantByProfileId,
+      importantItems: selfImportantConfig.items,
       enabledImportantItems,
-      isImportantConfigured: importantItemsState.isConfigured,
-      isImportantEnabled: importantItemsState.isEnabled,
+      isImportantConfigured: selfImportantConfig.isConfigured,
+      isImportantEnabled: selfImportantConfig.isEnabled,
       isImportantFeatureActive: importantFeatureActive,
-      importantPromptDismissed: importantItemsState.promptDismissed,
+      importantPromptDismissed: selfImportantConfig.promptDismissed,
       importantMasterVersion,
-      importantUpdatedAt: importantItemsState.updatedAt,
+      importantUpdatedAt: selfImportantConfig.updatedAt,
+      getImportantConfigForProfile: readImportantConfigForProfile,
+      getImportantItemsForProfile,
+      getEnabledImportantItemsForProfile,
+      isImportantConfiguredForProfile,
+      isImportantEnabledForProfile,
+      isImportantFeatureActiveForProfile,
+      getImportantMasterVersionForProfile,
+      saveImportantItemsForProfile,
+      setImportantEnabledForProfile,
+      addImportantItemForProfile,
+      updateImportantItemForProfile,
+      removeImportantItemForProfile,
+      resolveImportantProfileId,
       setPreference,
       addSavedTraveler,
       rememberPackingProfile,
       saveImportantItems,
       setImportantEnabled,
       dismissImportantPrompt,
+      dismissImportantPromptForProfile,
       resetImportantPromptDismissed,
+      resetImportantPromptDismissedForProfile,
+      isImportantPromptDismissedForProfile,
       requestOpenImportantEditor,
       consumeImportantEditorRequest,
       dismissImportantStaleNotice,
       isImportantStaleNoticeDismissed,
     }),
     [
+      addImportantItemForProfile,
       addSavedTraveler,
       consumeImportantEditorRequest,
       dismissImportantPrompt,
+      dismissImportantPromptForProfile,
       dismissImportantStaleNotice,
       enabledImportantItems,
+      getEnabledImportantItemsForProfile,
+      getImportantItemsForProfile,
+      getImportantMasterVersionForProfile,
       importantFeatureActive,
-      importantItemsState.isConfigured,
-      importantItemsState.isEnabled,
-      importantItemsState.items,
-      importantItemsState.promptDismissed,
-      importantItemsState.updatedAt,
+      importantByProfileId,
       importantMasterVersion,
+      isImportantConfiguredForProfile,
+      isImportantEnabledForProfile,
+      isImportantFeatureActiveForProfile,
+      isImportantPromptDismissedForProfile,
       isImportantStaleNoticeDismissed,
       preferences,
-      requestOpenImportantEditor,
+      readImportantConfigForProfile,
       rememberPackingProfile,
+      removeImportantItemForProfile,
+      requestOpenImportantEditor,
       resetImportantPromptDismissed,
+      resetImportantPromptDismissedForProfile,
       saveImportantItems,
+      saveImportantItemsForProfile,
       savedPackingProfiles,
       savedTravelers,
+      selfImportantConfig.isConfigured,
+      selfImportantConfig.isEnabled,
+      selfImportantConfig.items,
+      selfImportantConfig.promptDismissed,
+      selfImportantConfig.updatedAt,
       setImportantEnabled,
+      setImportantEnabledForProfile,
       setPreference,
+      updateImportantItemForProfile,
     ],
   );
 

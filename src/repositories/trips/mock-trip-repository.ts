@@ -8,7 +8,7 @@ import {
   patchPackingListItem,
   removePackingListItem,
   removePrimaryPackingItem,
-  replacePrimaryPackingItems,
+  replacePackingListItems,
   type TripLike,
 } from '@/domain/trip-compatibility';
 import { clonePackingItem, cloneTrip } from '@/lib/clone-trip';
@@ -69,14 +69,20 @@ export class MockTripRepository implements TripRepository {
     return cloneTrip(normalized);
   }
 
-  async updateTripPackingItems(tripId: string, items: PackingItem[]): Promise<Trip> {
+  async updateTripPackingItems(
+    tripId: string,
+    items: PackingItem[],
+    packingListId?: string,
+  ): Promise<Trip> {
     const index = this.trips.findIndex((entry) => entry.id === tripId);
     if (index < 0) {
       throw new Error('Trip not found');
     }
 
-    const updated = replacePrimaryPackingItems(
+    const listId = resolvePackingListId(this.trips[index], packingListId);
+    const updated = replacePackingListItems(
       this.trips[index],
+      listId,
       items.map((item) => clonePackingItem(item)),
     );
     this.trips[index] = updated;

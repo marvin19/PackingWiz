@@ -1,5 +1,5 @@
+import type { ImportantItemsConfig } from '@/domain/important-items-config';
 import type { ImportantItem } from '@/domain/important-item';
-import type { ImportantItemsPreferences } from '@/domain/important-items-preferences';
 import type { PackingItem } from '@/domain/packing-item';
 
 function normalizeName(value: string): string {
@@ -33,14 +33,14 @@ export function getTripImportantItems(items: PackingItem[]): PackingItem[] {
  * Includes enabled state and updatedAt so toggling ON or saving a new master
  * invalidates prior per-trip dismissals without auto-syncing historical trips.
  */
-export function buildImportantMasterVersion(preferences: ImportantItemsPreferences): string {
-  const itemPart = preferences.items
+export function buildImportantMasterVersion(config: ImportantItemsConfig): string {
+  const itemPart = config.items
     .filter((item) => item.enabled)
     .map((item) => importantItemKey(item))
     .sort()
     .join('|');
 
-  return `${preferences.isEnabled ? '1' : '0'}:${preferences.updatedAt ?? ''}|${itemPart}`;
+  return `${config.isEnabled ? '1' : '0'}:${config.updatedAt ?? ''}|${itemPart}`;
 }
 
 /** Exact comparison — no fuzzy name matching. */

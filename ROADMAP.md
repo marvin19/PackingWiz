@@ -308,11 +308,57 @@ Before marking MP3 complete:
 
 ---
 
-## MP4 — Important Items per Packing Profile — NEXT
+## MP4 — Important Items per Packing Profile — IN PROGRESS
 
 Migrate Important Items from the temporary self/global behavior to the final
 
 profile-scoped model.
+
+### MP4A — Profile-scoped domain/state — COMPLETE
+
+- Important master stored per canonical `PackingProfile.id` (`profile-self` for Me)
+
+- Profile-scoped provider APIs (`saveImportantItemsForProfile`, etc.)
+
+- Legacy self Important data migrates to `profile-self` deterministically
+
+- Disable retains saved items per profile; no cross-profile leakage
+
+- Existing packing lists are not dynamically mutated by master edits
+
+- Session/mock only — Supabase persistence deferred (MP5)
+
+**Next:** MP4C Important UX
+
+### MP4B — Snapshot into PackingLists — COMPLETE
+
+- Each new PackingList receives a snapshot of its profile's enabled Important master items
+
+- Generated and manual creation share the same profile-scoped resolution path
+
+- `importantItemsForProfileList` reads canonical `importantByProfileId` (not bootstrap snapshots)
+
+- Important items injected post-generation via existing `mergeImportantItems` (no generator changes)
+
+- Profile-level and item-level disable semantics preserved at snapshot time
+
+- Existing lists remain independent of later master edits
+
+### MP4C — Profile-aware Important UX — COMPLETE
+
+- Optional first-time Important setup in trip creation (per unconfigured profile)
+
+- **MP4C correction:** fixed Important wizard step (setup + review; unconfigured first; optional Continue); Profile vertical Important rows; deferred remember-profile commit at trip creation
+
+- Configure-later using persistent `promptDismissed` per profile
+
+- Pack Important context, stale notice, and sync scoped to active PackingList profile
+
+- Summary compact review for configured profiles
+
+- **Trip-level aggregate progress** on Home/Trip Overview (`packingStatsForTrip`); Pack/picker remain list-scoped
+
+**Next:** MP5 multi-person cleanup
 
 ### Domain
 
@@ -348,9 +394,9 @@ If only one relevant Packing Profile:
 
 If multiple Packing Profiles:
 
-- show a lightweight person picker
+- vertical settings rows per profile (e.g. "Important for Me" / "Important for Emilie")
 
-- e.g. "Me's Important items" / "Emilie's Important items"
+- tapping a row opens that profile's Important editor
 
 Preserve:
 
@@ -428,11 +474,9 @@ reprioritized.
 
 ### Product decisions to resolve
 
-- Home multi-list aggregate progress
-
-- Trip Overview multi-list / aggregate progress
-
 - **Cross-list item assignment (transitional today):** `assignedTo` labels on items are legacy traveler metadata — not final multi-list semantics. Decide whether assigning an item to another person while viewing one PackingList should **move** or **copy** it into that person's list, and require explicit confirmation copy such as "This item will be moved to Emilie's packing list." or "This item will be added to Emilie's packing list." Final UX must make clear the item belongs in that person's PackingList, not merely that it carries a person label.
+
+- **Mark as Important promotion:** whether a regular PackingItem can be promoted into the active Packing Profile's Important master and current list; confirmation copy; interaction with Important category/filter
 
 - Final active-list resume behavior where necessary
 
@@ -1085,8 +1129,6 @@ Validate demand before implementing:
 - Broader travel assistant
 
 - Item → bag assignment UX
-
-- Advanced/finalized aggregate multi-list progress
 
 - Need to wash
 

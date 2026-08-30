@@ -1,5 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,13 +11,13 @@ import {
 import { ScreenHeader } from '@/components/navigation/screen-header';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
+import { getDestinationLabel } from '@/domain/destination';
 import { BAG_TYPES } from '@/domain/catalog';
 import type { Bag, BagType } from '@/domain/bag';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
 import { findTripContextTag, tripContextIncludes } from '@/domain/trip-context-tags';
 import {
   createDraftProfile,
-  createReusablePackingProfile,
   isProfileSelectedInDraft,
   normalizeTripDraft,
   patchDraftPackingProfiles,
@@ -29,22 +29,28 @@ import { AccommodationStep } from '@/features/trip-creation/components/steps/acc
 import { BagsStep } from '@/features/trip-creation/components/steps/bags-step';
 import { DestinationStep } from '@/features/trip-creation/components/steps/destination-step';
 import { NoteStep } from '@/features/trip-creation/components/steps/note-step';
+import { ImportantSetupStep, type ImportantSetupStepHandle } from '@/features/trip-creation/components/steps/important-setup-step';
 import { PackingProfilesStep } from '@/features/trip-creation/components/steps/packing-profiles-step';
 import { TripContextStep } from '@/features/trip-creation/components/steps/trip-context-step';
-import { WIZARD_STEP_COUNT, WIZARD_STEP_TITLES } from '@/features/trip-creation/constants';
 import {
   isWizardEditFromSummary,
   parseWizardReturnToParam,
-  parseWizardStepParam,
+  parseWizardStepKeyParam,
 } from '@/features/trip-creation/utils/wizard-navigation';
 import {
-  canProceedFromStep,
+  canProceedFromStepId,
   wizardContinueLabel,
 } from '@/features/trip-creation/utils/wizard-validation';
+import {
+  buildActiveWizardSteps,
+  clampWizardStepIndex,
+  resolveWizardStepIndex,
+  wizardStepTitle,
+  type WizardStepId,
+} from '@/features/trip-creation/utils/wizard-steps';
 import { useTrips } from '@/hooks/use-trips';
 import { useProfile } from '@/hooks/use-profile';
 import { blurActiveElement } from '@/lib/blur-active-element';
-import { createUuid } from '@/lib/id';
 import { goBackOrReplace } from '@/lib/safe-navigation';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
@@ -52,24 +58,41 @@ export function CreateTripScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ step?: string; returnTo?: string }>();
   const { draft, setDraft, draftWizardStep, setDraftWizardStep, markDraftReachedSummary } = useTrips();
-  const { savedPackingProfiles, rememberPackingProfile } = useProfile();
+  const { savedPackingProfiles } = useProfile();
+  const importantSetupRef = useRef<ImportantSetupStepHandle>(null);
+  const appliedStepNavigationRef = useRef<string | null>(null);
 
   const returnTo = parseWizardReturnToParam(params.returnTo);
   const isEditingFromSummary = isWizardEditFromSummary(returnTo);
-  const step = draftWizardStep;
+  const requestedStepKey = parseWizardStepKeyParam(params.step);
   const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
 
-  const canContinue = canProceedFromStep(step, normalizedDraft);
-  const continueLabel = wizardContinueLabel(step, WIZARD_STEP_COUNT, {
+  const activeSteps = useMemo(() => buildActiveWizardSteps(), []);
+
+  const stepIndex = clampWizardStepIndex(activeSteps, draftWizardStep);
+  const currentStepId = activeSteps[stepIndex] ?? activeSteps[0];
+
+  const canContinue = canProceedFromStepId(currentStepId, normalizedDraft);
+  const continueLabel = wizardContinueLabel(stepIndex, activeSteps.length, {
     returnToSummary: isEditingFromSummary,
   });
 
   useEffect(() => {
-    const entryStep = parseWizardStepParam(params.step);
-    if (entryStep !== null) {
-      setDraftWizardStep(entryStep);
+    if (!requestedStepKey) {
+      appliedStepNavigationRef.current = null;
+      return;
     }
-  }, [params.step, setDraftWizardStep]);
+
+    const navigationToken = `${requestedStepKey}:${returnTo ?? ''}`;
+    if (appliedStepNavigationRef.current === navigationToken) {
+      return;
+    }
+
+    const nextIndex = resolveWizardStepIndex(activeSteps, { stepId: requestedStepKey });
+    setDraftWizardStep(nextIndex);
+    appliedStepNavigationRef.current = navigationToken;
+    router.setParams({ step: undefined });
+  }, [activeSteps, requestedStepKey, returnTo, router, setDraftWizardStep]);
 
   useEffect(() => {
     if (draft.packingProfiles?.length) {
@@ -84,10 +107,10 @@ export function CreateTripScreen() {
   }, [draft, draft.packingProfiles, setDraft]);
 
   const setStep = useCallback(
-    (value: number | ((current: number) => number)) => {
-      setDraftWizardStep(typeof value === 'function' ? value(draftWizardStep) : value);
+    (value: number) => {
+      setDraftWizardStep(clampWizardStepIndex(activeSteps, value));
     },
-    [draftWizardStep, setDraftWizardStep],
+    [activeSteps, setDraftWizardStep],
   );
 
   const returnToSummary = useCallback(() => {
@@ -101,13 +124,13 @@ export function CreateTripScreen() {
       return;
     }
 
-    if (step === 0) {
+    if (stepIndex === 0) {
       goBackOrReplace('/(tabs)');
       return;
     }
 
-    setStep((current) => current - 1);
-  }, [isEditingFromSummary, returnToSummary, setStep, step]);
+    setStep(stepIndex - 1);
+  }, [isEditingFromSummary, returnToSummary, setStep, stepIndex]);
 
   const handleContinue = useCallback(() => {
     if (!canContinue) {
@@ -116,26 +139,32 @@ export function CreateTripScreen() {
 
     blurActiveElement();
 
+    if (currentStepId === 'important') {
+      importantSetupRef.current?.commitStagedChanges();
+    }
+
     if (isEditingFromSummary) {
       returnToSummary();
       return;
     }
 
-    if (step === WIZARD_STEP_COUNT - 1) {
+    if (stepIndex >= activeSteps.length - 1) {
       markDraftReachedSummary();
       router.push('/trip/summary');
       return;
     }
 
-    setStep((current) => current + 1);
+    setStep(stepIndex + 1);
   }, [
+    activeSteps.length,
     canContinue,
+    currentStepId,
     isEditingFromSummary,
     markDraftReachedSummary,
     returnToSummary,
     router,
     setStep,
-    step,
+    stepIndex,
   ]);
 
   const toggleTripContextTag = useCallback(
@@ -166,19 +195,13 @@ export function CreateTripScreen() {
 
   const addPackingProfile = useCallback(
     (name: string, age: number, rememberForFutureTrips: boolean) => {
-      const profile = rememberForFutureTrips
-        ? createReusablePackingProfile(createUuid(), name, age)
-        : createDraftProfile(name, age);
-
-      if (rememberForFutureTrips) {
-        rememberPackingProfile(profile);
-      }
+      const profile = createDraftProfile(name, age, rememberForFutureTrips);
 
       setDraft(
         patchDraftPackingProfiles(normalizedDraft, [...normalizedDraft.packingProfiles, profile]),
       );
     },
-    [normalizedDraft, rememberPackingProfile, setDraft],
+    [normalizedDraft, setDraft],
   );
 
   const addSavedPackingProfile = useCallback(
@@ -247,11 +270,11 @@ export function CreateTripScreen() {
     goBackOrReplace('/(tabs)');
   }, []);
 
-  const renderStep = () => {
-    switch (step) {
-      case 0:
+  const renderStep = (stepId: WizardStepId) => {
+    switch (stepId) {
+      case 'destination':
         return <DestinationStep draft={normalizedDraft} onChange={setDraft} />;
-      case 1:
+      case 'trip-context':
         return (
           <TripContextStep
             draft={normalizedDraft}
@@ -259,7 +282,7 @@ export function CreateTripScreen() {
             onAddTag={addTripContextTag}
           />
         );
-      case 2:
+      case 'accommodation':
         return (
           <AccommodationStep
             draft={normalizedDraft}
@@ -267,7 +290,7 @@ export function CreateTripScreen() {
             onSelectLaundry={(laundry: LaundryOption) => setDraft({ laundry })}
           />
         );
-      case 3:
+      case 'packing-profiles':
         return (
           <PackingProfilesStep
             draft={normalizedDraft}
@@ -277,7 +300,7 @@ export function CreateTripScreen() {
             onRemoveProfile={removePackingProfile}
           />
         );
-      case 4:
+      case 'bags':
         return (
           <BagsStep
             draft={normalizedDraft}
@@ -286,17 +309,23 @@ export function CreateTripScreen() {
             onRemoveBag={removeBag}
           />
         );
-      case 5:
+      case 'important':
+        return <ImportantSetupStep ref={importantSetupRef} profiles={normalizedDraft.packingProfiles} />;
+      case 'note':
         return <NoteStep draft={normalizedDraft} onChangeNote={(note) => setDraft({ note })} />;
       default:
         return null;
     }
   };
 
+  const wizardHeaderTitle = isEditingFromSummary
+    ? 'Edit trip'
+    : getDestinationLabel(normalizedDraft.destination).trim() || 'New trip';
+
   return (
     <AppScreen>
       <ScreenHeader
-        title={isEditingFromSummary ? 'Edit trip' : 'New trip'}
+        title={wizardHeaderTitle}
         onBack={handleBack}
         onClose={isEditingFromSummary ? undefined : handleCloseWizard}
         closeAccessibilityLabel="Save and close trip"
@@ -306,7 +335,7 @@ export function CreateTripScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}>
         <View style={styles.progressWrap}>
-          <WizardProgress step={step} totalSteps={WIZARD_STEP_COUNT} />
+          <WizardProgress step={stepIndex} totalSteps={activeSteps.length} />
         </View>
 
         <ScrollView
@@ -315,9 +344,9 @@ export function CreateTripScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
           <AppText variant="heading" style={styles.stepTitle}>
-            {WIZARD_STEP_TITLES[step]}
+            {wizardStepTitle(currentStepId)}
           </AppText>
-          {renderStep()}
+          {renderStep(currentStepId)}
         </ScrollView>
 
         <WizardFooter label={continueLabel} disabled={!canContinue} onPress={handleContinue} />

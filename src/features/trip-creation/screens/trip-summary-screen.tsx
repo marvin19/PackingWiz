@@ -28,13 +28,17 @@ import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTheme } from '@/hooks/use-theme';
 import { useTrips } from '@/hooks/use-trips';
+import { useProfile } from '@/hooks/use-profile';
 import { blurActiveElement } from '@/lib/blur-active-element';
 import { spacing, screenPaddingHorizontal } from '@/theme/spacing';
+import { resolveLastWizardStepIndex } from '@/features/trip-creation/utils/wizard-steps';
+import { SummaryImportantSection } from '@/features/trip-creation/components/summary-important-section';
 
 export function TripSummaryScreen() {
   const router = useRouter();
   const theme = useTheme();
-  const { draft, commitDraftTrip } = useTrips();
+  const { draft, commitDraftTrip, setDraftWizardStep } = useTrips();
+  const { importantByProfileId } = useProfile();
   const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
   const [manualCreateLoading, setManualCreateLoading] = useState(false);
 
@@ -63,6 +67,7 @@ export function TripSummaryScreen() {
 
   const handleBack = () => {
     blurActiveElement();
+    setDraftWizardStep(resolveLastWizardStepIndex());
     router.replace('/trip/create');
   };
 
@@ -152,6 +157,12 @@ export function TripSummaryScreen() {
         </View>
 
         <WeatherPreview key={weatherKey} draft={normalizedDraft} />
+
+        <SummaryImportantSection
+          profiles={normalizedDraft.packingProfiles}
+          importantByProfileId={importantByProfileId}
+          onEdit={() => openEdit('important')}
+        />
 
         <SummaryDetailCard
           icon={<Feather name="file-text" size={16} color={theme.colors.primary} />}
