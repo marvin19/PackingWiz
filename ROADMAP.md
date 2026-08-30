@@ -1,22 +1,24 @@
-# PackingWiz — roadmap
+# # PackingWiz — roadmap
 
 Current status and intended sequencing. Order may change based on user testing.
 
-**Related:** [AGENTS.md](./AGENTS.md) · [PRODUCT.md](./PRODUCT.md) · [ARCHITECTURE.md](./ARCHITECTURE.md)
+**Related:** [[AGENTS.md](http://AGENTS.md)](<./[AGENTS.md](http://AGENTS.md)>) · [[PRODUCT.md](http://PRODUCT.md)](<./[PRODUCT.md](http://PRODUCT.md)>) · [[ARCHITECTURE.md](http://ARCHITECTURE.md)](<./[ARCHITECTURE.md](http://ARCHITECTURE.md)>)
 
 ---
 
 ## Current focus
 
-PackingWiz is completing the multi-person packing refactor before external integrations.
+PackingWiz is completing the multi-person packing refactor and trip lifecycle before
+
+external integrations.
 
 Current sequence:
 
-1. Finish and verify **MP3 — List navigation**
+1. Finish review and merge **MP4 — Important Items per Packing Profile**
 
-2. **MP4 — Important Items per Packing Profile**
+2. **MP5 — Trip Lifecycle & Management**
 
-3. **MP5 — Multi-person cleanup / migration**
+3. **MP6 — Multi-person cleanup / migration / persistence contract**
 
 4. **Cleanup Phase 4–5**
 
@@ -28,7 +30,9 @@ Current sequence:
 
 8. Launch
 
-External integrations remain deferred until the multi-person domain and UX are stable.
+External integrations remain deferred until the multi-person domain, trip lifecycle,
+
+and UX are stable.
 
 ---
 
@@ -80,8 +84,6 @@ External integrations remain deferred until the multi-person domain and UX are s
 
 - Summary/review navigation
 
-- Edit trip flow — **post-generation Edit trip details still required before frontend freeze; prefer entry from Trip Overview**
-
 - Draft preservation
 
 - Continue-planning behavior
@@ -100,6 +102,12 @@ Packing mode has since migrated from the original trip-level assumption to the
 
 per-PackingList multi-person model.
 
+**Remaining lifecycle work:** post-generation Edit Trip, multiple drafts,
+
+archive/delete, duplication/reuse, and richer Review Trip editing are now explicitly
+
+owned by MP5.
+
 ### Cleanup Phase 3 — Packing item settings
 
 - Explicit item settings entry point
@@ -112,13 +120,13 @@ per-PackingList multi-person model.
 
 - Purchase state
 
-- Optional personal item note (`note`; user-editable; shown on Pack rows when set)
+- Optional personal item note `note`; user-editable; shown on Pack rows when set)
 
 - Explicit **Update item** save model in Item Settings (dismiss discards staged edits)
 
-- Pack header actions: Filter · Insights · Back to trips (explicit, no overflow menu)
+- Pack header actions: Filter · Insights · Back to trips
 
-- Trip-level Insights (Trip Overview) carry PackingWiz reasoning — not per-item Pack commentary
+- Trip-level Insights carry PackingWiz reasoning — not per-item Pack commentary
 
 - Legacy traveler assignment support
 
@@ -194,7 +202,7 @@ Implement MP work as small, independently reviewable commits.
 
 - Custom/non-deterministic primary-list regression coverage
 
-Known migration debt is intentionally retained until MP5.
+Known migration debt is intentionally retained until MP6.
 
 ### MP2 — Creation UX — COMPLETE
 
@@ -230,9 +238,7 @@ Known migration debt is intentionally retained until MP5.
 
 - Multi-list creation invariants
 
-Temporary Important behavior remains self-only until MP4.
-
-### MP3 — List navigation — IN VERIFICATION
+### MP3 — List navigation — COMPLETE
 
 #### MP3A — Active PackingList foundation — COMPLETE
 
@@ -260,7 +266,7 @@ Temporary Important behavior remains self-only until MP4.
 
 - Actual primary-list resolution rather than deterministic-id assumptions
 
-#### MP3B — Picker / switcher — IMPLEMENTED, MANUAL VERIFICATION PENDING
+#### MP3B — Picker / switcher — COMPLETE
 
 - Single-list Trip → direct Pack
 
@@ -280,45 +286,23 @@ Temporary Important behavior remains self-only until MP4.
 
 - No user-visible primary-list fallback for unresolved multi-list entry
 
-- Important UX remains self-only
-
 - Accessibility labels / selected state / touch targets
 
 - Cross-trip and list-specific regression coverage
 
-Before marking MP3 complete:
-
-- Manual single-list test
-
-- Manual Me + additional person test
-
-- Picker → Pack
-
-- In-Pack switching
-
-- Item mutation isolation
-
-- Important self-only behavior
-
-- Re-entry/resume behavior decision
-
-- Copilot/code review
-
-- Native/web smoke check as appropriate
-
 ---
 
-## MP4 — Important Items per Packing Profile — IN PROGRESS
+## MP4 — Important Items per Packing Profile — IMPLEMENTED, FINAL REVIEW PENDING
 
-Migrate Important Items from the temporary self/global behavior to the final
+Migrate Important Items from temporary self/global behavior to the final
 
 profile-scoped model.
 
 ### MP4A — Profile-scoped domain/state — COMPLETE
 
-- Important master stored per canonical `PackingProfile.id` (`profile-self` for Me)
+- Important master stored per canonical `PackingProfile.id` `profile-self` for Me)
 
-- Profile-scoped provider APIs (`saveImportantItemsForProfile`, etc.)
+- Profile-scoped provider APIs `saveImportantItemsForProfile`, etc.)
 
 - Legacy self Important data migrates to `profile-self` deterministically
 
@@ -326,9 +310,7 @@ profile-scoped model.
 
 - Existing packing lists are not dynamically mutated by master edits
 
-- Session/mock only — Supabase persistence deferred (MP5)
-
-**Next:** MP4C Important UX
+- Session/mock only — production persistence deferred
 
 ### MP4B — Snapshot into PackingLists — COMPLETE
 
@@ -336,31 +318,84 @@ profile-scoped model.
 
 - Generated and manual creation share the same profile-scoped resolution path
 
-- `importantItemsForProfileList` reads canonical `importantByProfileId` (not bootstrap snapshots)
+- `importantItemsForProfileList` reads canonical `importantByProfileId`
 
-- Important items injected post-generation via existing `mergeImportantItems` (no generator changes)
+- Important items injected post-generation via `mergeImportantItems`
 
 - Profile-level and item-level disable semantics preserved at snapshot time
 
 - Existing lists remain independent of later master edits
 
-### MP4C — Profile-aware Important UX — COMPLETE
+- Snapshot items retain linkage to their Important master item where required
 
-- Optional first-time Important setup in trip creation (per unconfigured profile)
+### MP4C — Profile-aware Important UX — IMPLEMENTED, FINAL REVIEW PENDING
 
-- **MP4C correction:** fixed Important wizard step (setup + review; unconfigured first; optional Continue); Profile vertical Important rows; deferred remember-profile commit at trip creation
+- Fixed 7-step trip-creation wizard:
+    1. Destination
 
-- Configure-later using persistent `promptDismissed` per profile
+    2. Trip context
 
-- Pack Important context, stale notice, and sync scoped to active PackingList profile
+    3. Accommodation
 
-- Summary compact review for configured profiles
+    4. Packing profiles
 
-- **Trip-level aggregate progress** on Home/Trip Overview (`packingStatsForTrip`); Pack/picker remain list-scoped
+    5. Bags
 
-**Next:** MP5 multi-person cleanup
+    6. Important items
 
-### Domain
+    7. Anything else?
+
+    → Review Trip
+
+- Important is always a fixed setup/review step
+
+- Unconfigured selected profiles shown before configured profiles
+
+- Configured profile cards show item count and updated date
+
+- Compact Important item preview
+
+- Configure later using profile-scoped `promptDismissed`
+
+- Dismissed unconfigured cards become compact `Not configured` + `Edit`
+
+- Inline staged Important editing in the wizard
+
+- Wizard Continue commits staged Important changes
+
+- No per-card Save action
+
+- Important remains optional
+
+- Profile uses vertical Important settings rows per traveller
+
+- Profile editor shows last-updated information
+
+- Pack Important context scoped to active PackingList profile
+
+- Compact notice for unconfigured Important state
+
+- Profile/list-scoped stale detection and explicit sync
+
+- Draft-only profiles can hold Important state without becoming reusable
+
+- Remembered non-self profiles are persisted to reusable session state only when the
+
+    Trip is committed
+
+- Important state migrates safely when a draft person resolves to an existing saved
+
+    profile
+
+- Aggregate trip progress on Home / Trips / Trip Overview
+
+- Per-person breakdown on Trip Overview
+
+- Pack and PackingList picker remain list-scoped
+
+- Responsive multi-person Pack action/header layout
+
+### MP4 invariants
 
 - Important master belongs to a Packing Profile
 
@@ -368,53 +403,426 @@ profile-scoped model.
 
 - Self profile has its own Important master
 
-- No Important state shared accidentally between profiles
+- No Important state is shared accidentally between profiles
 
-### PackingList creation
+- Existing Packing Lists are not dynamically mutated by later master changes
 
-- Snapshot the selected profile's Important Items into that profile's Packing List
-
-- Generated and manual Packing Lists follow the same ownership rules
-
-### Sync / stale behavior
-
-- Stale detection scoped to Packing Profile + Packing List
-
-- Sync affects only the intended person's list
+- Sync affects only the intended person's Packing List
 
 - Updating Me must not affect another profile
 
 - Updating another profile must not affect Me
 
-### Profile UX
+- Generated and manual Packing Lists follow the same Important ownership rules
 
-If only one relevant Packing Profile:
+- Configure later does not create items or mark a profile configured
 
-- open Important directly
+- Wizard step count does not change based on Important configuration state
 
-If multiple Packing Profiles:
+### MP4 completion gate
 
-- vertical settings rows per profile (e.g. "Important for Me" / "Important for Emilie")
+Before marking MP4 fully complete:
 
-- tapping a row opens that profile's Important editor
+- Final code review
 
-Preserve:
+- Resolve blocking review findings
 
-- enable / disable behavior
+- Targeted manual regression if review changes behavior
 
-- saved items when disabled
-
-- first-time setup
-
-- restricted Important rename/delete behavior inside Pack
+- Commit / merge
 
 ---
 
-## MP5 — Multi-person cleanup / migration
+# MP5 — Trip Lifecycle & Management
 
-Stabilize the final multi-person domain before real persistence.
+Define and implement the lifecycle of a Trip before final persistence contracts are
 
-### Remove / reduce compatibility debt
+locked.
+
+Core principle:
+
+> Editing shared Trip context must never silently overwrite a user's existing
+
+> Packing List work.
+
+Existing generated/manual Packing Lists, checked progress, quantities, notes,
+
+Need to buy state, and manual additions remain authoritative unless the user
+
+explicitly chooses a destructive action.
+
+Implement MP5 as small, independently reviewable slices.
+
+---
+
+## MP5A — Edit Trip contract
+
+Define the domain/product contract before broad UI implementation.
+
+### Entry points
+
+Decide the final editing hierarchy.
+
+Preferred direction:
+
+- Trip Overview is the primary Trip-management/editing surface
+
+- Pack may expose a compact **Edit trip** action that navigates to the appropriate
+
+    Trip editing surface
+
+- Review Trip allows editing individual sections or navigating directly to the
+
+    relevant edit screen
+
+- Review Trip provides **Back to all trips**
+
+Do not overload the Pack task UI with full Trip-management controls.
+
+### Editable shared Trip context
+
+Support editing:
+
+- destination
+
+- dates
+
+- trip context
+
+- accommodation / laundry
+
+- bags
+
+- Packing Profiles / travellers
+
+- Additional Information where appropriate
+
+### Non-destructive editing
+
+Changing shared Trip context must not automatically regenerate existing Packing Lists.
+
+Examples:
+
+Changing:
+
+- dates
+
+- destination
+
+- weather context
+
+- accommodation
+
+- laundry
+
+- bags
+
+- trip tags/context
+
+must preserve existing:
+
+- Packing Items
+
+- packed/unpacked state
+
+- quantities
+
+- personal notes
+
+- Need to buy
+
+- manual additions
+
+- Important snapshots
+
+A later recommendation-refresh flow may suggest changes, but must not silently
+
+overwrite the user's list.
+
+### Add traveller
+
+Adding a Packing Profile to an existing Trip:
+
+- preserves every existing Packing List
+
+- creates exactly one new Packing List for the new traveller
+
+- uses the current Trip context
+
+- uses that profile's current enabled Important master
+
+- allows generated/manual creation for the new list
+
+- does not regenerate Me or any other existing traveller
+
+The UI should clearly communicate that existing lists will not be changed.
+
+### Remove traveller
+
+Removing a traveller is destructive for that traveller's Trip-specific Packing List.
+
+Require explicit confirmation such as:
+
+> Remove Emilie?
+
+>
+
+> Emilie's packing list and packing progress for this trip will be permanently
+
+> removed.
+
+Removing the traveller must not delete the reusable Packing Profile or that
+
+profile's Important master unless separately requested.
+
+### Changed-context recommendations
+
+Do not implement automatic destructive regeneration.
+
+Define a later-safe direction such as:
+
+**Trip details changed**
+
+→ **Review recommendations**
+
+A recommendation flow may propose additions/removals based on changed weather or
+
+context, but the user must approve changes.
+
+---
+
+## MP5B — Multiple drafts
+
+Replace the current single-draft assumption.
+
+### Draft model
+
+- Multiple TripDrafts can exist simultaneously
+
+- Each draft has stable identity
+
+- Starting a new draft must not overwrite another draft
+
+- Draft state remains session/mock until persistence work
+
+- Draft-only Packing Profiles remain isolated to their draft unless remembered at
+
+    Trip commit
+
+### Home UX
+
+Add a **Continue planning** section capable of showing multiple drafts.
+
+Prefer visible rows/cards rather than a hidden carousel.
+
+Potential behavior:
+
+- show the most relevant/recent drafts
+
+- show a small bounded number on Home
+
+- provide View all when needed
+
+### Draft actions
+
+- Resume correct draft
+
+- Delete draft
+
+- Confirm deletion where appropriate
+
+- Preserve each draft's:
+    - destination
+
+    - dates
+
+    - trip context
+
+    - accommodation
+
+    - Packing Profiles
+
+    - bags
+
+    - Important staged/configured state
+
+    - Additional Information
+
+---
+
+## MP5C — Trip archive & deletion
+
+Define clear lifecycle states for completed/previous Trips.
+
+### Lifecycle
+
+Distinguish:
+
+- draft
+
+- active/upcoming
+
+- previous
+
+- archived
+
+- permanently deleted
+
+Archive and delete must not mean the same thing.
+
+### Previous Trips
+
+Home should show a limited number of recent Previous Trips.
+
+Preferred initial behavior:
+
+- show approximately 3–5 recent trips
+
+- provide **View trip archive** when more history exists
+
+### Trip Archive
+
+Add a Trip Archive / Manage Trips surface.
+
+Initial behavior:
+
+- chronological, newest first
+
+- optionally grouped by year
+
+- Archive
+
+- Restore
+
+- Delete permanently
+
+- Duplicate
+
+Do not add advanced search/filtering until there is enough trip history to justify it.
+
+### Delete semantics
+
+Deleting a Trip permanently deletes the Trip record and its Trip-specific Packing
+
+Lists/items.
+
+Trip deletion must not implicitly delete independent reusable data such as:
+
+- saved Packing Profiles
+
+- profile-scoped Important masters
+
+Do not secretly retain deleted Trip history for future recommendation logic.
+
+If historical reuse requires retained Trip data, that history must come from
+
+non-deleted/archive data or a future explicit product/privacy contract.
+
+---
+
+## MP5D — Duplicate / reuse Trip
+
+Provide explicit reuse before building intelligent automatic similarity.
+
+### Duplicate Trip
+
+Allow a user to create a new Trip from an existing Trip.
+
+Potential framing:
+
+**Plan another trip like Mallorca Beach**
+
+Minimal flow:
+
+- Destination
+
+- Dates
+
+- Packing for
+
+- Start with the same packing items
+
+- Create trip
+
+The user should not be forced through the full creation wizard unless they choose
+
+**Edit trip details**.
+
+### Copy semantics
+
+A duplicated Trip receives:
+
+- fresh Trip id
+
+- fresh PackingList ids
+
+- fresh PackingItem ids
+
+- selected Packing Profiles
+
+- copied list content when requested
+
+- reset packed/unpacked progress
+
+Preserve useful content such as:
+
+- item names
+
+- quantities
+
+- manual additions
+
+- relevant notes where appropriate
+
+Do not automatically AI-regenerate copied Packing Lists.
+
+New dates/weather must not silently modify copied list content.
+
+### Recommendation refresh
+
+A future explicit action such as **Refresh recommendations** may compare the copied
+
+list with current:
+
+- destination
+
+- dates
+
+- weather
+
+- trip context
+
+and suggest additions/removals for approval.
+
+### Automatic similar-trip reuse
+
+Defer automatic semantic matching until explicit duplicate/reuse behavior is proven
+
+useful.
+
+Examples of later behavior:
+
+- Lærdal for 3 days resembles a previous Lærdal trip
+
+- Vik for 3 days has similar weather/context to a previous Bergen trip
+
+Potential future prompt:
+
+> This trip looks similar to Bergen · Aug 2026.
+
+> Start with that packing list?
+
+Do not make this a 1.0.0 blocker unless user testing demonstrates strong value.
+
+---
+
+# MP6 — Multi-person cleanup / migration / persistence contract
+
+Formerly MP5.
+
+Stabilize the final multi-person and Trip lifecycle domain before real persistence.
+
+## Remove / reduce compatibility debt
 
 Review and remove or repurpose where safe:
 
@@ -432,9 +840,57 @@ Review and remove or repurpose where safe:
 
 - synthetic self-profile ids
 
+- remaining draft/saved-profile identity debt
+
 Compatibility should remain only where there is an explicit migration need.
 
-### Seeds / fixtures / regressions
+## Assignment semantics
+
+Legacy `assignedTo` labels are transitional metadata, not final multi-list ownership.
+
+Define whether assigning an item to another person while viewing one PackingList
+
+should:
+
+- move the item into that person's PackingList
+
+- copy the item into that person's PackingList
+
+Require explicit feedback such as:
+
+> This item will be moved to Emilie's packing list.
+
+or:
+
+> This item will be added to Emilie's packing list.
+
+The final UX must make clear that the item belongs to that person's PackingList,
+
+rather than merely carrying a person label.
+
+Remove **Shared** where it no longer makes product sense, including solo travel.
+
+## Important promotion semantics
+
+Define whether a regular PackingItem can be promoted into the active Packing
+
+Profile's reusable Important master.
+
+Decide:
+
+- whether promotion updates both current list and master
+
+- confirmation behavior
+
+- duplicate handling
+
+- interaction with Important category
+
+- interaction with future Important filtering
+
+Do not treat Important as a generic decorative tag.
+
+## Seeds / fixtures / regressions
 
 - Canonical single-list fixtures
 
@@ -448,11 +904,23 @@ Compatibility should remain only where there is an explicit migration need.
 
 - Profile-scoped Important fixtures
 
-### Supabase persistence contract
+- Editable Trip fixtures
+
+- Multiple-draft fixtures
+
+- Archive/delete lifecycle fixtures
+
+- Duplicate Trip fixtures
+
+## Persistence contract
 
 Define the final persistence model for:
 
 - Trips
+
+- Trip lifecycle/archive state
+
+- TripDrafts if persisted independently
 
 - Packing Profiles
 
@@ -472,19 +940,13 @@ Full production Supabase persistence happens after frontend freeze unless explic
 
 reprioritized.
 
-### Product decisions to resolve
-
-- **Cross-list item assignment (transitional today):** `assignedTo` labels on items are legacy traveler metadata — not final multi-list semantics. Decide whether assigning an item to another person while viewing one PackingList should **move** or **copy** it into that person's list, and require explicit confirmation copy such as "This item will be moved to Emilie's packing list." or "This item will be added to Emilie's packing list." Final UX must make clear the item belongs in that person's PackingList, not merely that it carries a person label.
-
-- **Mark as Important promotion:** whether a regular PackingItem can be promoted into the active Packing Profile's Important master and current list; confirmation copy; interaction with Important category/filter
-
-- Final active-list resume behavior where necessary
-
 ---
 
 ## Cleanup Phase 4 — Profile / onboarding readiness
 
-After MP4/MP5 so Profile is built around the final Packing Profile model.
+After MP4–MP6 so Profile is built around the final Packing Profile and Trip lifecycle
+
+model.
 
 - Profile preference model refinement
 
@@ -542,9 +1004,74 @@ Architecture only.
 
 ---
 
+## Pre-freeze UX cleanup
+
+Resolve small launch-facing UX issues that do not require new domain architecture.
+
+### Trip creation / Summary
+
+- Review Trip Summary 2×2 cards on narrow screens
+
+- Prefer 1×4 if it improves readability on small devices
+
+- Show number of nights where useful
+
+- Derive nights from dates rather than storing duplicate state
+
+- Add age-aware Important examples/placeholders
+
+- Re-evaluate Trip Context + Accommodation step merge only if user testing justifies it
+
+### Pack
+
+- Consider category-aware Add Item defaults
+    - e.g. adding while focused on Electronics may preselect Electronics
+
+- Add safe recovery when the user selected Manual but wants PackingWiz generation
+
+- Add safe recovery when the user generated a list but wants to start manually
+
+- Never overwrite an existing list without explicit destructive confirmation
+
+- Review all controls for understandable text/icon affordances
+
+### Product polish
+
+- Remove remaining **Trove** naming
+
+- Use **PackingWiz** consistently
+
+- Verify Good morning / afternoon / evening behavior
+
+- Final copy consistency pass
+
+- Final empty/loading/error-state review
+
+### Explicitly not required for initial launch unless validated
+
+- Item-name autocomplete
+
+- User-configurable alphabetical sorting
+
+- Quantity sorting
+
+- Broad sorting preferences
+
+- Per-item AI feedback High / Medium / Low
+
+- Advanced Packing List search/filtering
+
+- Automatic semantic similar-trip matching
+
+- Packing templates
+
+Prefer strong defaults over settings that have not demonstrated user value.
+
+---
+
 ## Frontend freeze
 
-After MP1–MP5 and Cleanup Phases 2–5.
+After MP1–MP6 and Cleanup Phases 2–5.
 
 This is a formal milestone before production backend integrations.
 
@@ -558,6 +1085,8 @@ Home
 
 → Packing Profiles
 
+→ Important
+
 → Summary
 
 → Generate / Manual
@@ -570,9 +1099,15 @@ Home
 
 → Trip Overview
 
-→ Important
+→ Edit Trip
 
 → Profile
+
+→ Multiple drafts
+
+→ Previous Trips / Archive
+
+→ Duplicate Trip
 
 ### Quality pass
 
@@ -586,11 +1121,15 @@ Home
 
 - Error states
 
-- Responsive web behavior
+- Responsive behavior
+
+- Trip Summary narrow-screen layout
 
 - Keyboard behavior
 
-- Accessibility
+- Accessibility sanity check
+
+- Clear text/icon affordances
 
 - Web console warnings
 
@@ -610,27 +1149,29 @@ Home
 
 - Regression cleanup
 
-After frontend freeze, avoid major frontend/domain refactors unless a real product
+After frontend freeze, avoid major frontend/domain refactors unless a real product or
 
-or integration issue requires one.
+integration issue requires one.
 
 ---
 
 # Production backend / integrations
 
-Start after the multi-person model and frontend are stable unless explicitly
+Start after the multi-person model, Trip lifecycle, and frontend are stable unless
 
-reprioritized.
+explicitly reprioritized.
 
 Mock implementations remain the default until their integration phase begins.
 
 ## Backend 1 — Supabase persistence
 
-Implement the MP5 persistence contract.
+Implement the MP6 persistence contract.
 
 Persist:
 
 - Trips
+
+- Trip lifecycle/archive state
 
 - Packing Profiles
 
@@ -643,6 +1184,8 @@ Persist:
 - preferences
 
 - relevant user state
+
+- drafts where required by the final lifecycle contract
 
 Also address:
 
@@ -726,6 +1269,32 @@ Google Places or selected equivalent:
 
 - Failure / unavailable-data fallback
 
+### Forecast refresh near departure
+
+For Trips within approximately 7 days of departure:
+
+- allow PackingWiz to refresh the real forecast
+
+- avoid silently changing an existing Packing List
+
+- track refresh timing so users are not repeatedly prompted
+
+- surface meaningful forecast changes when relevant
+
+- prefer reviewable recommendations over automatic list mutation
+
+Potential UX:
+
+> Weather forecast updated.
+
+> Rain is now expected on Tuesday.
+
+> Review packing suggestions.
+
+Exact cadence should be validated rather than hardcoding a daily prompt without
+
+evidence.
+
 ## Integration 3 — OpenAI packing generation
 
 Implement the real `PackingGenerator`.
@@ -742,17 +1311,30 @@ Input context:
 
 - Packing Profile
 
-- profile-scoped Important Items
-
 - packing preferences
+
+Important Items remain a deterministic profile-owned guarantee and are injected into
+
+the resulting PackingList through the Important snapshot/merge path rather than
+
+depending on AI to remember them.
 
 Output:
 
 - one Packing List per profile
 
-- trip/list-level Insights summarizing noteworthy packing decisions (weather, laundry,
-  activities, destination-specific requirements) — **not** per-item Pack commentary;
-  Pack stays task-focused and quiet; do not generate rationale for every obvious item
+- trip/list-level Insights summarizing noteworthy packing decisions:
+    - weather
+
+    - laundry
+
+    - activities
+
+    - destination-specific requirements
+
+- no rationale for every obvious Packing Item
+
+Pack stays task-focused and quiet.
 
 Production requirements:
 
@@ -774,7 +1356,25 @@ Production requirements:
 
 - packing-list quality testing
 
-## Integration 4 — Images
+## Integration 4 — Need to wash
+
+Introduce **Need to wash** before launch if product testing continues to support it.
+
+Define:
+
+- item state
+
+- Pack presentation
+
+- interaction with packed state
+
+- reset/completion semantics
+
+- persistence contract
+
+Avoid implementing it as an isolated UI flag without lifecycle semantics.
+
+## Integration 5 — Images
 
 Only where validated as useful.
 
@@ -948,7 +1548,15 @@ Test:
 
 - Important Items
 
-- trip editing
+- Trip editing
+
+- adding/removing travellers from an existing Trip
+
+- multiple drafts
+
+- archive/restore/delete
+
+- Duplicate Trip
 
 - app restart
 
@@ -961,6 +1569,8 @@ Test:
 - generator failure
 
 - stale data
+
+- changed weather
 
 - switching accounts where applicable
 
@@ -1012,6 +1622,22 @@ Measure and observe:
 
 - Is switching between people easy?
 
+- Do they understand what happens when adding/removing a traveller?
+
+### Trip lifecycle
+
+- Can users find Edit Trip?
+
+- Do users understand that editing Trip details does not overwrite their lists?
+
+- Can users resume multiple drafts?
+
+- Do Archive and Delete behave as expected?
+
+- Is Duplicate Trip useful?
+
+- Do users reuse previous Trip content?
+
 ### Retention
 
 - Do users return to active trips?
@@ -1020,7 +1646,9 @@ Measure and observe:
 
 - Do they maintain Important Items?
 
-- Do they create another trip?
+- Do they create another Trip?
+
+- Do they duplicate or reuse previous Trips?
 
 Use beta findings for targeted fixes rather than reopening architecture without
 
@@ -1051,6 +1679,30 @@ evidence.
 - Privacy/data handling
 
 - Account deletion
+
+## Product / UX
+
+- Final Trip lifecycle regression
+
+- Final multi-person regression
+
+- Final Important regression
+
+- Final destructive-action review
+
+- Accessibility sanity check
+
+- Responsive-device pass
+
+- Verify no remaining Trove naming
+
+- Verify greeting behavior
+
+- Verify Generate / Manual recovery behavior
+
+- Verify forecast-refresh behavior
+
+- Verify Need to wash if included in 1.0.0
 
 ## App stores
 
@@ -1110,27 +1762,136 @@ After launch, prioritize measured user behavior and feedback over roadmap assump
 
 ---
 
-# Post-MVP
+# Post-MVP / Version 1.0.1+
 
-Validate demand before implementing:
+Validate demand before implementing.
 
-- Historical similar-trip reuse
+## Sharing / collaboration
 
-- AI tag suggestions
+- Share Packing Lists
+
+- Export list data where useful
+
+- JSON export
+
+- XLS/XLSX export if validated
+
+- Invite another user to PackingWiz
+
+- Open/share a Packing List with family or another traveller
+
+## Bags
+
+- Personal bag notes
+    - e.g. "The yellow one"
+
+## Trip tags
+
+- Multiple custom trip tags
+
+- Edit/remove default tags
+
+- AI tag suggestions when useful
+
+## Packing Profiles
+
+- Traveller profile pictures
+
+- Additional saved-profile reuse polish
+
+- Explore default traveller/group selections for people who usually travel together
+
+## Packing List organization
+
+- Move items between categories
+
+- Define `Uncategorized` / `Misc` fallback if required
+
+- Search Packing List
+
+- Expanded filters if demanded
+
+- Alphabetical sorting if demanded
+
+- Quantity sorting if demanded
+
+## Item entry intelligence
+
+- Item-name autocomplete
+
+- Duplicate-item detection
+
+- Typo-aware duplicate suggestions
+
+- Language-aware duplicate suggestions
+
+Example:
+
+> You already have "Lommebok" in Important.
+
+## Historical / similar-trip reuse
+
+Build only after explicit Duplicate Trip has been validated.
+
+Potential behavior:
+
+- exact destination/duration reuse suggestions
+
+- similarity based on weather
+
+- similarity based on trip context
+
+- similarity based on duration
+
+- explicit user acceptance
+
+Example:
+
+> This looks similar to Bergen · Aug 2026.
+
+> Start with that packing list?
+
+Do not rely on permanently deleted Trip data.
+
+## Packing templates
+
+Explore only if user behavior demonstrates that Duplicate Trip does not adequately
+
+cover the use case.
+
+Potential template dimensions:
+
+- duration
+
+- temperature
+
+- bag type
+
+- trip context
+
+## Web app
+
+Separate from the public marketing/SEO site:
+
+- full PackingWiz web-app experience
+
+- keyboard navigation
+
+- web-specific accessibility
+
+- richer responsive behavior
+
+## Other validated-demand candidates
 
 - Affiliate shopping / product recommendations
 
 - Full i18n
-
-- Packing Profile reuse polish
 
 - Subscription / premium
 
 - Broader travel assistant
 
 - Item → bag assignment UX
-
-- Need to wash
 
 - Programmatic SEO at scale
 
@@ -1140,15 +1901,21 @@ Validate demand before implementing:
 
 - Gender on Packing Profile
 
-- Need to wash
-
 - Full i18n
 
 - Affiliate shopping
 
 - Subscription / premium
 
-- Similar-trip reuse
+- Automatic semantic similar-trip reuse
+
+- Packing templates
+
+- Advanced configurable sorting
+
+- Advanced Packing List search/filtering
+
+- Per-item AI feedback level settings
 
 - Broader travel assistant
 
@@ -1170,7 +1937,11 @@ must not be implemented early during MP/frontend cleanup unless explicitly reque
 
 - Read `AGENTS.md`, `PRODUCT.md`, `ARCHITECTURE.md`, and this roadmap before major work.
 
-- Multi-person Packing MP1–MP5 takes precedence over production backend integrations.
+- MP1–MP4 establish the multi-person packing model.
+
+- MP5 establishes Trip lifecycle and management before persistence contracts are locked.
+
+- MP6 cleans migration debt and defines the final persistence contract.
 
 - Do not skip ahead to Supabase/OpenAI/Places/weather unless explicitly approved.
 
@@ -1178,7 +1949,11 @@ must not be implemented early during MP/frontend cleanup unless explicitly reque
 
 - Preserve mock/session behavior until the relevant persistence phase.
 
-- Do not silently remove compatibility code before MP5 evaluates its migration purpose.
+- Existing Packing Lists are authoritative user work; never silently regenerate or
+
+    overwrite them when shared Trip context changes.
+
+- Do not silently remove compatibility code before MP6 evaluates its migration purpose.
 
 - Do not implement deferred features opportunistically.
 
