@@ -1,6 +1,12 @@
+import { runMp4InvariantChecks } from '@/dev/mp4-invariants';
 import { runMp1InvariantChecks } from '@/dev/mp1-invariants';
 
-runMp1InvariantChecks()
+async function main(): Promise<void> {
+  await runMp1InvariantChecks();
+  runMp4InvariantChecks();
+}
+
+main()
   .then(() => {
     console.log('MP1 invariant checks passed.');
   })

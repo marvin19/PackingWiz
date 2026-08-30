@@ -308,11 +308,27 @@ Before marking MP3 complete:
 
 ---
 
-## MP4 — Important Items per Packing Profile — NEXT
+## MP4 — Important Items per Packing Profile — IN PROGRESS
 
 Migrate Important Items from the temporary self/global behavior to the final
 
 profile-scoped model.
+
+### MP4A — Profile-scoped domain/state — COMPLETE
+
+- Important master stored per canonical `PackingProfile.id` (`profile-self` for Me)
+
+- Profile-scoped provider APIs (`saveImportantItemsForProfile`, etc.)
+
+- Legacy self Important data migrates to `profile-self` deterministically
+
+- Disable retains saved items per profile; no cross-profile leakage
+
+- Existing packing lists are not dynamically mutated by master edits
+
+- Session/mock only — Supabase persistence deferred (MP5)
+
+**Next:** MP4B snapshot/generation integration · MP4C Important UX
 
 ### Domain
 

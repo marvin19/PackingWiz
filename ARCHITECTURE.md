@@ -93,16 +93,21 @@ Helpers: `createDestinationFromText`, `getDestinationLabel`, `getDestinationCoun
 - `packed`, `needToBuy`, `quantity`, `assignedTo`, `note`
 - **`assignedTo`** — legacy traveler assignment; may become obsolete or change meaning after MP5
 
-### Important master vs snapshot (current)
+### Important master vs snapshot
 
 | Layer | Location | Responsibility |
 |-------|----------|----------------|
-| Master | `ProfileProvider` → `ImportantItemsPreferences` | User-global today; **target:** per `PackingProfile` |
-| Snapshot | Trip `items` with `source: 'important'` | **Target:** per `PackingList` |
+| Master | `ProfileProvider.importantByProfileId` keyed by canonical `PackingProfile.id` (`profile-self` for Me) | **Sole mutable runtime source of truth** for Important master (MP4A) |
+| Bootstrap | `PackingProfile.importantItemsBootstrap?` | Read-only session/mock snapshot for remembered profiles; seeds canonical store only when missing |
+| Snapshot | `PackingList.items` with `source: 'important'` | Trip-specific item copies (MP4B snapshot integration) |
 | Stale logic | `src/domain/important-snapshot.ts` | Exact key match; user-initiated sync only |
 | Sync | `src/services/packing/sync-important-snapshot.ts` | Preserves packed state |
 
-When Important feature is **disabled**: master retained; not injected into new trips/lists; Pack hides Important section.
+**MP4A source-of-truth:** `importantByProfileId` is the canonical Important master. All edits (add/update/remove/enable) mutate that store only. `PackingProfile.importantItemsBootstrap` is never read preferentially after initialization — it may seed a **missing** canonical entry on bootstrap, but must not overwrite an existing one. `rememberPackingProfile()` exports canonical → bootstrap (one-way); re-selecting a remembered profile does not revert canonical state from stale embedded data.
+
+**MP4A contract:** Changing profile master data does **not** mutate existing packing lists.
+
+Legacy self/global Important data resolves to canonical id `profile-self`. Trip creation still uses temporary self-only injection until MP4B.
 
 ---
 

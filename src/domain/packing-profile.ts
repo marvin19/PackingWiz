@@ -2,8 +2,10 @@
  * A person the user packs for across trips.
  *
  * Profiles are reusable master data (e.g. Anna, Emilie, or the user's own "Me"
- * profile when `isSelf` is true). Important Items will attach here in MP4.
+ * profile when `isSelf` is true). Important Items master data is profile-scoped (MP4A).
  */
+import type { ImportantItemsConfig } from '@/domain/important-items-config';
+
 export interface PackingProfile {
   id: string;
   name: string;
@@ -19,6 +21,12 @@ export interface PackingProfile {
   birthDate?: string;
   /** True when this profile represents the authenticated or anonymous user ("Me"). */
   isSelf: boolean;
+  /**
+   * Read-only bootstrap snapshot for session/mock persistence of Important master.
+   * Canonical runtime master lives in ProfileProvider.importantByProfileId (MP4A).
+   * Never mutate this field directly — export from canonical store only.
+   */
+  importantItemsBootstrap?: ImportantItemsConfig;
 }
 
 /**
