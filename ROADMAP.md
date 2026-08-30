@@ -8,22 +8,21 @@ Current status and intended sequencing. Order may change based on user testing.
 
 ## Current focus
 
-PackingWiz is completing the multi-person packing refactor and trip lifecycle before
-external integrations.
+PackingWiz has completed the core multi-person packing and profile-scoped Important
+work. The next focus is establishing a lightweight automated quality foundation,
+then implementing Trip lifecycle and management before external integrations.
 
 Current sequence:
 
-1. Finish review and merge **MP4 — Important Items per Packing Profile**
+1. **Quality Foundation — CI + unit-test harness**
 2. **MP5 — Trip Lifecycle & Management**
 3. **MP6 — Multi-person cleanup / migration / persistence contract**
-4. **Cleanup Phase 4–5**
-5. **Frontend freeze**
-6. Backend integrations and Web/SEO work
-7. Alpha / beta
-8. Launch
-
-External integrations remain deferred until the multi-person domain, trip lifecycle,
-and UX are stable.
+4. **Verification & Test Hardening**
+5. **Cleanup Phase 4–5**
+6. **Frontend freeze + manual accessibility pass**
+7. Backend integrations and Web/SEO work
+8. Alpha / beta
+9. Launch
 
 ---
 
