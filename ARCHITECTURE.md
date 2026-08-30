@@ -99,7 +99,7 @@ Helpers: `createDestinationFromText`, `getDestinationLabel`, `getDestinationCoun
 |-------|----------|----------------|
 | Master | `ProfileProvider.importantByProfileId` keyed by canonical `PackingProfile.id` (`profile-self` for Me) | **Sole mutable runtime source of truth** for Important master (MP4A) |
 | Bootstrap | `PackingProfile.importantItemsBootstrap?` | Read-only session/mock snapshot for remembered profiles; seeds canonical store only when missing |
-| Snapshot | `PackingList.items` with `source: 'important'` | Trip-specific item copies (MP4B snapshot integration) |
+| Snapshot | `PackingList.items` with `source: 'important'` | Trip-specific item copies snapshotted at list creation (MP4B) |
 | Stale logic | `src/domain/important-snapshot.ts` | Exact key match; user-initiated sync only |
 | Sync | `src/services/packing/sync-important-snapshot.ts` | Preserves packed state |
 
@@ -107,7 +107,7 @@ Helpers: `createDestinationFromText`, `getDestinationLabel`, `getDestinationCoun
 
 **MP4A contract:** Changing profile master data does **not** mutate existing packing lists.
 
-Legacy self/global Important data resolves to canonical id `profile-self`. Trip creation still uses temporary self-only injection until MP4B.
+**MP4B creation flow:** `assembleTripFromDraft` reads `importantByProfileId` and, for each selected `PackingProfile`, resolves enabled master items via `importantItemsForProfileList`, then merges them into that profile's new `PackingList` using `mergeImportantItems` (generated and manual). Existing lists never re-read the master after creation.
 
 ---
 
@@ -234,7 +234,7 @@ Otherwise → **mock**.
 
 ### Trip assembly (`src/services/trip-assembly.ts`) — current
 
-`assembleTripFromDraft(draft, { packingGenerator, weatherService }, { packingMode, importantItems })`
+`assembleTripFromDraft(draft, { packingGenerator, weatherService }, { packingMode, importantByProfileId })`
 
 - Fetches weather (trip-level)
 - Generates **one** flat item list (or empty for manual)

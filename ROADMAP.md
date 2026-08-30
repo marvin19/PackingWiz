@@ -328,7 +328,23 @@ profile-scoped model.
 
 - Session/mock only — Supabase persistence deferred (MP5)
 
-**Next:** MP4B snapshot/generation integration · MP4C Important UX
+**Next:** MP4C Important UX
+
+### MP4B — Snapshot into PackingLists — COMPLETE
+
+- Each new PackingList receives a snapshot of its profile's enabled Important master items
+
+- Generated and manual creation share the same profile-scoped resolution path
+
+- `importantItemsForProfileList` reads canonical `importantByProfileId` (not bootstrap snapshots)
+
+- Important items injected post-generation via existing `mergeImportantItems` (no generator changes)
+
+- Profile-level and item-level disable semantics preserved at snapshot time
+
+- Existing lists remain independent of later master edits
+
+**Next:** MP4C Important UX
 
 ### Domain
 

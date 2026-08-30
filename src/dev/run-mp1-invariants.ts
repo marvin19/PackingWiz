@@ -3,7 +3,7 @@ import { runMp1InvariantChecks } from '@/dev/mp1-invariants';
 
 async function main(): Promise<void> {
   await runMp1InvariantChecks();
-  runMp4InvariantChecks();
+  await runMp4InvariantChecks();
 }
 
 main()

@@ -48,6 +48,8 @@ interface ProfileContextValue {
   savedPackingProfiles: PackingProfile[];
   /** Canonical self profile id for Important master lookups. */
   selfImportantProfileId: string;
+  /** Canonical profile-scoped Important master store (read-only for trip assembly). */
+  importantByProfileId: ImportantItemsByProfileId;
   importantItems: ImportantItem[];
   enabledImportantItems: ImportantItem[];
   isImportantConfigured: boolean;
@@ -347,6 +349,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       savedTravelers,
       savedPackingProfiles,
       selfImportantProfileId: SELF_IMPORTANT_PROFILE_ID,
+      importantByProfileId,
       importantItems: selfImportantConfig.items,
       enabledImportantItems,
       isImportantConfigured: selfImportantConfig.isConfigured,
@@ -391,6 +394,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       getImportantItemsForProfile,
       getImportantMasterVersionForProfile,
       importantFeatureActive,
+      importantByProfileId,
       importantMasterVersion,
       isImportantConfiguredForProfile,
       isImportantEnabledForProfile,

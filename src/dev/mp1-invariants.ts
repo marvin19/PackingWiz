@@ -28,6 +28,10 @@ import {
   patchDraftPackingProfiles,
 } from '@/domain/trip-draft-profiles';
 import { packingListIdForTripProfile, uniquePackingProfilesById } from '@/domain/trip-packing-lists';
+import {
+  saveImportantItemNamesForProfile,
+  SELF_IMPORTANT_PROFILE_ID,
+} from '@/domain/profile-important-items';
 import { cloneTrip } from '@/lib/clone-trip';
 import {
   createMultiListFixtureTrip,
@@ -279,7 +283,12 @@ function createAssemblyTestDraft(): TripDraft {
 
 async function verifyMultiProfileTripAssembly(): Promise<void> {
   const draft = createAssemblyTestDraft();
-  const importantItems = [{ id: 'imp-keys', name: 'Keys', quantity: 1, enabled: true }];
+  const importantByProfileId = saveImportantItemNamesForProfile(
+    {},
+    SELF_IMPORTANT_PROFILE_ID,
+    ['Keys'],
+    () => 'imp-keys',
+  ).store;
   const services = {
     packingGenerator: mockPackingGenerator,
     weatherService: mockWeatherService,
@@ -295,7 +304,7 @@ async function verifyMultiProfileTripAssembly(): Promise<void> {
 
   const generated = await assembleTripFromDraft(draft, services, {
     packingMode: 'generated',
-    importantItems,
+    importantByProfileId,
   });
 
   assert(generated.packingLists.length === 2, 'two profiles create two packing lists');
@@ -318,25 +327,29 @@ async function verifyMultiProfileTripAssembly(): Promise<void> {
     'child profile receives person-specific generated item',
   );
   assert(
-    generated.packingLists[0].items.some((item) => item.category === 'Important'),
-    'temporary Important rule: self list receives Important items',
+    generated.packingLists[0].items.some((item) => item.name === 'Keys' && item.category === 'Important'),
+    'MP4B: self list receives self Important snapshot',
   );
   assert(
-    !generated.packingLists[1].items.some((item) => item.category === 'Important'),
-    'temporary Important rule: non-self list has no Important items',
+    !generated.packingLists[1].items.some((item) => item.name === 'Keys'),
+    'MP4B: non-self list does not receive self Important items',
   );
   assert(generated.weather.summary.length > 0, 'weather is trip-level');
 
   const manual = await assembleTripFromDraft(draft, services, {
     packingMode: 'manual',
-    importantItems,
+    importantByProfileId,
   });
   assert(manual.packingLists.length === 2, 'manual mode creates two lists');
   assert(
     manual.packingLists.every((list) => list.packingMode === 'manual'),
     'manual mode stored on each list',
   );
-  assert(manual.packingLists[1].items.length === 0, 'manual non-self list starts empty');
+  assert(
+    manual.packingLists[0].items.some((item) => item.name === 'Keys'),
+    'manual self list receives self Important snapshot',
+  );
+  assert(manual.packingLists[1].items.length === 0, 'manual non-self list starts empty without profile Important');
 
   const repo = new MockTripRepository();
   const saved = await repo.createTrip(generated);

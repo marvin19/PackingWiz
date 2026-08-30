@@ -111,7 +111,7 @@ function resolvePackingListSelection(
 export function TripsProvider({ children }: { children: ReactNode }) {
   const { tripRepository, packingGenerator, weatherService } = useServices();
   const { isAuthReady, authError } = useAuth();
-  const { enabledImportantItems } = useProfile();
+  const { importantByProfileId } = useProfile();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTripId, setActiveTripIdState] = useState<string | null>(null);
@@ -295,7 +295,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
             packingGenerator,
             weatherService,
           },
-          { packingMode, importantItems: enabledImportantItems },
+          { packingMode, importantByProfileId },
         );
         const saved = await tripRepository.createTrip(assembled);
         setTrips((current) => {
@@ -324,7 +324,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         commitDraftInFlightRef.current = null;
       }
     },
-    [draft, enabledImportantItems, packingGenerator, weatherService, tripRepository],
+    [draft, importantByProfileId, packingGenerator, weatherService, tripRepository],
   );
 
   const togglePacked = useCallback(
