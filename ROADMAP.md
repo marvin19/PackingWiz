@@ -9,24 +9,31 @@ Current status and intended sequencing. Order may change based on user testing.
 ## Current focus
 
 PackingWiz has completed the core multi-person packing and profile-scoped Important
-work. The next focus is establishing a lightweight automated quality foundation,
-then implementing Trip lifecycle and management before external integrations.
+work plus the lightweight Quality Foundation (CI + unit-test harness). The next focus
+is Trip lifecycle and management before external integrations.
 
 Current sequence:
 
-1. **Quality Foundation — CI + unit-test harness**
-2. **MP5 — Trip Lifecycle & Management**
-3. **MP6 — Multi-person cleanup / migration / persistence contract**
-4. **Verification & Test Hardening**
-5. **Cleanup Phase 4–5**
-6. **Frontend freeze + manual accessibility pass**
-7. Backend integrations and Web/SEO work
-8. Alpha / beta
-9. Launch
+1. **MP5 — Trip Lifecycle & Management**
+2. **MP6 — Multi-person cleanup / migration / persistence contract**
+3. **Verification & Test Hardening**
+4. **Cleanup Phase 4–5**
+5. **Frontend freeze + manual accessibility pass**
+6. Backend integrations and Web/SEO work
+7. Alpha / beta
+8. Launch
 
 ---
 
 ## Completed
+
+### Quality Foundation — CI + unit-test harness — COMPLETE
+
+- Jest + `jest-expo` for Expo SDK 57
+- `npm test` / `npm test:watch` scripts
+- Co-located `*.test.ts` unit tests for pure domain helpers
+- GitHub Actions: TypeScript, ESLint, `verify:mp1`, unit tests
+- Invariant harness preserved (`npm run verify:mp1`) — not migrated to Jest
 
 ### Foundation / Cleanup Phase 1
 

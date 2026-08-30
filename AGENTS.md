@@ -143,7 +143,16 @@ Default checks after code changes:
 ```bash
 npx tsc --noEmit
 npx eslint src
+npm run verify:mp1
+npm test
 ```
+
+Keep these green during feature work.
+
+| Layer | Purpose |
+|-------|---------|
+| **Unit tests** (`*.test.ts`) | Focused deterministic domain/helper checks; easier failure localization |
+| **Invariant harness** (`npm run verify:mp1`) | Broader MP regression contracts and cross-domain scenarios — not migrated to Jest |
 
 Full web/native smoke tests may be requested separately by the user.
 
