@@ -30,9 +30,11 @@ Current sequence:
 ### Quality Foundation — CI + unit-test harness — COMPLETE
 
 - Jest + `jest-expo` for Expo SDK 57
-- `npm test` / `npm test:watch` scripts
+- `npm test` / `npm test:watch` / `npm run test:typecheck` scripts
 - Co-located `*.test.ts` unit tests for pure domain helpers
-- GitHub Actions: TypeScript, ESLint, `verify:mp1`, unit tests
+- `tsconfig.test.json` for Jest file typechecking (app `tsc` excludes tests)
+- Tracked `package-lock.json` for reproducible `npm ci`
+- GitHub Actions: app typecheck, test typecheck, ESLint, `verify:mp1`, unit tests
 - Invariant harness preserved (`npm run verify:mp1`) — not migrated to Jest
 
 ### Foundation / Cleanup Phase 1

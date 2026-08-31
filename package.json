@@ -55,6 +55,7 @@
     "lint": "expo lint",
     "test": "jest --ci",
     "test:watch": "jest --watch",
+    "test:typecheck": "tsc --noEmit -p tsconfig.test.json",
     "refresh": "expo start --clear",
     "verify:mp1": "npx ts-node src/dev/run-mp1-invariants.ts"
   },
