@@ -26,6 +26,7 @@ import type {
   PackingItemPatch,
   TripRepository,
 } from '@/repositories/trips/trip-repository';
+import { assertSupabaseTripSaveSupported } from '@/repositories/trips/supabase-trip-save-guard';
 
 const TRIP_SELECT = `
   *,
@@ -51,6 +52,13 @@ export class SupabaseTripRepository implements TripRepository {
         'Supabase persistence supports the primary packing list only until MP5. Use mock persistence for multi-list trips.',
       );
     }
+  }
+
+  /**
+   * MP5A save guard — see assertSupabaseTripSaveSupported() for scenario semantics.
+   */
+  private assertMultiListTripEditSupported(existing: Trip, trip: Trip): void {
+    assertSupabaseTripSaveSupported(existing, trip);
   }
 
   async getAll(): Promise<Trip[]> {
@@ -82,7 +90,10 @@ export class SupabaseTripRepository implements TripRepository {
 
   async save(trip: Trip): Promise<Trip> {
     const existing = await this.getById(trip.id);
+
     if (existing) {
+      this.assertMultiListTripEditSupported(existing, trip);
+
       const { error } = await this.client
         .from('trips')
         .update({

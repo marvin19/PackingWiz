@@ -16,6 +16,12 @@ import type { ImportantItem } from '@/domain/important-item';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import type { PackingList } from '@/domain/packing-list';
+import type { PackingProfile } from '@/domain/packing-profile';
+import type {
+  RemoveTravellerFromTripInput,
+  TripPackingRelevantChanges,
+  TripSharedDetailsUserEdit,
+} from '@/domain/trip-edit';
 import type { PackingMode, Trip } from '@/domain/trip';
 import {
   appendPackingListItem,
@@ -36,6 +42,12 @@ import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 import { useServices } from '@/providers/services-provider';
 import { assembleTripFromDraft } from '@/services/trip-assembly';
+import {
+  addTravellerToTrip as orchestrateAddTravellerToTrip,
+  reconcileActiveListAfterTravellerRemoval,
+  removeTravellerFromTrip as orchestrateRemoveTravellerFromTrip,
+  updateTripSharedDetails as orchestrateTripSharedDetailsUpdate,
+} from '@/services/trip-edit-orchestration';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
 import { syncTripImportantSnapshot } from '@/services/packing/sync-important-snapshot';
 
@@ -64,6 +76,19 @@ interface TripsContextValue {
   resetDraft: () => void;
   refreshTrips: () => Promise<void>;
   commitDraftTrip: (packingMode?: PackingMode) => Promise<Trip>;
+  updateTripSharedDetails: (
+    tripId: string,
+    patch: TripSharedDetailsUserEdit,
+  ) => Promise<{ trip: Trip; packingRelevantChanges: TripPackingRelevantChanges }>;
+  addTravellerToTrip: (
+    tripId: string,
+    profile: PackingProfile,
+    packingMode: PackingMode,
+  ) => Promise<Trip>;
+  removeTravellerFromTrip: (
+    tripId: string,
+    input: RemoveTravellerFromTripInput,
+  ) => Promise<Trip>;
   togglePacked: (itemId: string) => void;
   setItemQuantity: (itemId: string, quantity: number) => void;
   renamePackingItem: (itemId: string, name: string) => void;
@@ -347,6 +372,112 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
     },
     [importantByProfileId, packingGenerator, rememberPackingProfile, weatherService, tripRepository],
+  );
+
+  const updateTripSharedDetails = useCallback(
+    async (tripId: string, patch: TripSharedDetailsUserEdit) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!trip) {
+        throw new Error('Trip not found');
+      }
+
+      const previousTrips = tripsRef.current;
+      const { trip: updatedTrip, packingRelevantChanges } = orchestrateTripSharedDetailsUpdate(
+        trip,
+        patch,
+      );
+
+      setTrips(mapTripById(previousTrips, tripId, () => updatedTrip));
+
+      try {
+        const saved = await tripRepository.save(updatedTrip);
+        setTrips(mapTripById(tripsRef.current, tripId, () => saved));
+        setRepositoryError(null);
+        return { trip: saved, packingRelevantChanges };
+      } catch (error) {
+        setTrips(previousTrips);
+        setRepositoryError(error instanceof Error ? error.message : 'Failed to update trip');
+        throw error;
+      }
+    },
+    [tripRepository],
+  );
+
+  const addTravellerToTrip = useCallback(
+    async (tripId: string, profile: PackingProfile, packingMode: PackingMode) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!trip) {
+        throw new Error('Trip not found');
+      }
+
+      const previousTrips = tripsRef.current;
+      const result = await orchestrateAddTravellerToTrip(
+        { trip, profile, packingMode, importantByProfileId },
+        { packingGenerator },
+      );
+
+      setTrips(mapTripById(previousTrips, tripId, () => result.trip));
+
+      try {
+        const saved = await tripRepository.save(result.trip);
+        setTrips(mapTripById(tripsRef.current, tripId, () => saved));
+        setRepositoryError(null);
+        return saved;
+      } catch (error) {
+        setTrips(previousTrips);
+        setRepositoryError(error instanceof Error ? error.message : 'Failed to add traveller');
+        throw error;
+      }
+    },
+    [importantByProfileId, packingGenerator, tripRepository],
+  );
+
+  const removeTravellerFromTrip = useCallback(
+    async (tripId: string, input: RemoveTravellerFromTripInput) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!trip) {
+        throw new Error('Trip not found');
+      }
+
+      const removedListId =
+        input.packingListId ??
+        trip.packingLists.find(
+          (list) =>
+            list.packingProfileId === input.packingProfileId ||
+            list.profileSnapshot.id === input.packingProfileId,
+        )?.id;
+
+      const previousTrips = tripsRef.current;
+      const previousActiveListId = activePackingListIdRef.current;
+      const updatedTrip = orchestrateRemoveTravellerFromTrip(trip, input);
+
+      setTrips(mapTripById(previousTrips, tripId, () => updatedTrip));
+      if (activeTripIdRef.current === tripId && removedListId) {
+        setActivePackingListIdState(
+          reconcileActiveListAfterTravellerRemoval(
+            tripId,
+            previousActiveListId,
+            removedListId,
+            updatedTrip,
+          ),
+        );
+      }
+
+      try {
+        const saved = await tripRepository.save(updatedTrip);
+        setTrips(mapTripById(tripsRef.current, tripId, () => saved));
+        setRepositoryError(null);
+        return saved;
+      } catch (error) {
+        setTrips(previousTrips);
+        if (activeTripIdRef.current === tripId) {
+          setActivePackingListIdState(previousActiveListId);
+        }
+        setRepositoryError(error instanceof Error ? error.message : 'Failed to remove traveller');
+        throw error;
+      }
+    },
+    [tripRepository],
   );
 
   const togglePacked = useCallback(
@@ -922,6 +1053,9 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       resetDraft,
       refreshTrips,
       commitDraftTrip,
+      updateTripSharedDetails,
+      addTravellerToTrip,
+      removeTravellerFromTrip,
       togglePacked,
       setItemQuantity,
       renamePackingItem,
@@ -957,6 +1091,9 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       resetDraft,
       refreshTrips,
       commitDraftTrip,
+      updateTripSharedDetails,
+      addTravellerToTrip,
+      removeTravellerFromTrip,
       togglePacked,
       setItemQuantity,
       renamePackingItem,
