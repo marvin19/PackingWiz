@@ -1,4 +1,5 @@
 import type { PackingProfile } from '@/domain/packing-profile';
+import { formatNaturalEnglishList } from '@/domain/natural-list-format';
 import type { Traveler, TravelerRole } from '@/domain/traveler';
 import type { TripDraft } from '@/domain/trip-draft';
 import { createUuid } from '@/lib/id';
@@ -223,10 +224,5 @@ export function normalizeTripDraft(draft: TripDraft): TripDraft {
 
 export function getPackingForSummaryLabel(profiles: PackingProfile[]): string {
   const labels = profiles.map((profile) => (profile.isSelf ? 'Me' : profile.name));
-
-  if (labels.length <= 3) {
-    return labels.join(', ');
-  }
-
-  return `${labels.length} people`;
+  return formatNaturalEnglishList(labels);
 }

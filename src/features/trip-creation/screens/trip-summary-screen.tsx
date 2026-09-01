@@ -11,7 +11,6 @@ import { durationDays, formatRange } from '@/domain/dates';
 import { SummaryDetailCard } from '@/features/trip-creation/components/summary-detail-card';
 import { SummaryEditButton } from '@/features/trip-creation/components/summary-edit-button';
 import { SummaryFooter } from '@/features/trip-creation/components/summary-footer';
-import { TripFact } from '@/features/trip-creation/components/trip-fact';
 import { WeatherPreview } from '@/features/trip-creation/components/weather-preview';
 import { getAccommodationIcon, getBagIcon } from '@/features/trip-creation/utils/catalog-icons';
 import {
@@ -19,9 +18,9 @@ import {
   type WizardStepKey,
 } from '@/features/trip-creation/utils/wizard-navigation';
 import {
-  getAccommodationLabel,
   getBagsSummaryLabel,
   getPackingForLabel,
+  getStayingInSummaryLabel,
   getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
@@ -121,39 +120,46 @@ export function TripSummaryScreen() {
           </View>
         </View>
 
-        <View style={styles.factsGrid}>
-          <View style={styles.factsRow}>
-            <TripFact
-              icon={<Feather name={tripContextIcon} size={16} color={theme.colors.mutedForeground} />}
-              label="Trip context"
-              value={getTripContextLabel(normalizedDraft.tripContext)}
-              editAccessibilityLabel="Edit trip context"
-              onEdit={() => openEdit('trip-context')}
-            />
-            <TripFact
-              icon={<Feather name={accommodationIcon} size={16} color={theme.colors.mutedForeground} />}
-              label="Staying in"
-              value={getAccommodationLabel(normalizedDraft.accommodation)}
-              editAccessibilityLabel="Edit accommodation and laundry"
-              onEdit={() => openEdit('accommodation')}
-            />
-          </View>
-          <View style={styles.factsRow}>
-            <TripFact
-              icon={<Feather name="users" size={16} color={theme.colors.mutedForeground} />}
-              label="Packing for"
-              value={getPackingForLabel(normalizedDraft.packingProfiles)}
-              editAccessibilityLabel="Edit who you are packing for"
-              onEdit={() => openEdit('packing-profiles')}
-            />
-            <TripFact
-              icon={<Feather name={packingInIcon} size={16} color={theme.colors.mutedForeground} />}
-              label="Packing in"
-              value={getBagsSummaryLabel(normalizedDraft.bags)}
-              editAccessibilityLabel="Edit bags"
-              onEdit={() => openEdit('bags')}
-            />
-          </View>
+        <View style={styles.factsStack}>
+          <SummaryDetailCard
+            icon={<Feather name={tripContextIcon} size={16} color={theme.colors.primary} />}
+            title="Trip context"
+            editAccessibilityLabel="Edit trip context"
+            onEdit={() => openEdit('trip-context')}>
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {getTripContextLabel(normalizedDraft.tripContext)}
+            </AppText>
+          </SummaryDetailCard>
+
+          <SummaryDetailCard
+            icon={<Feather name={accommodationIcon} size={16} color={theme.colors.primary} />}
+            title="Staying in"
+            editAccessibilityLabel="Edit accommodation and laundry"
+            onEdit={() => openEdit('accommodation')}>
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {getStayingInSummaryLabel(normalizedDraft.accommodation, normalizedDraft.laundry)}
+            </AppText>
+          </SummaryDetailCard>
+
+          <SummaryDetailCard
+            icon={<Feather name="users" size={16} color={theme.colors.primary} />}
+            title="Packing for"
+            editAccessibilityLabel="Edit who you are packing for"
+            onEdit={() => openEdit('packing-profiles')}>
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {getPackingForLabel(normalizedDraft.packingProfiles)}
+            </AppText>
+          </SummaryDetailCard>
+
+          <SummaryDetailCard
+            icon={<Feather name={packingInIcon} size={16} color={theme.colors.primary} />}
+            title="Packing in"
+            editAccessibilityLabel="Edit bags"
+            onEdit={() => openEdit('bags')}>
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {getBagsSummaryLabel(normalizedDraft.bags)}
+            </AppText>
+          </SummaryDetailCard>
         </View>
 
         <WeatherPreview key={weatherKey} draft={normalizedDraft} />
@@ -217,13 +223,12 @@ const styles = StyleSheet.create({
   heroMeta: {
     lineHeight: 20,
   },
-  factsGrid: {
-    gap: spacing.md,
+  factsStack: {
+    gap: 0,
     marginBottom: spacing.lg,
   },
-  factsRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
+  factValue: {
+    lineHeight: 20,
   },
   noteBody: {
     lineHeight: 20,

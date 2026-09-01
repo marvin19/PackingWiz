@@ -5,6 +5,7 @@ import { ProgressBar } from '@/components/ui/progress-bar';
 import { AppText } from '@/components/ui/app-text';
 import { getDestinationCountryLabel } from '@/domain/destination';
 import { durationDays, formatRange } from '@/domain/dates';
+import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
 import { packingStats } from '@/domain/packing-stats';
 import type { Trip } from '@/domain/trip';
 import { getTripName } from '@/domain/trip-name';
@@ -75,15 +76,29 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
 
       <View style={styles.body}>
         <View style={styles.metaRow}>
-          <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansMedium }}>
-            {formatRange(trip.startDate, trip.endDate)}
-          </AppText>
-          <AppText variant="bodySmall" color="mutedForeground">
-            {days} {days === 1 ? 'day' : 'days'}
-            {trip.packingLists.length > 1
-              ? ` · ${trip.packingLists.length} people`
-              : ''}
-          </AppText>
+          <View style={styles.metaZone}>
+            <AppText
+              variant="bodySmall"
+              numberOfLines={1}
+              color="mutedForeground"
+              style={styles.metaLeft}>
+              {formatRange(trip.startDate, trip.endDate)}
+            </AppText>
+          </View>
+          <View style={styles.metaZone}>
+            <AppText
+              variant="bodySmall"
+              numberOfLines={1}
+              color="mutedForeground"
+              style={styles.metaCenter}>
+              {formatTripPeopleCount(getTripPackingPeopleCount(trip))}
+            </AppText>
+          </View>
+          <View style={styles.metaZone}>
+            <AppText variant="bodySmall" numberOfLines={1} color="mutedForeground" style={styles.metaRight}>
+              {days} {days === 1 ? 'day' : 'days'}
+            </AppText>
+          </View>
         </View>
 
         <View style={styles.progressBlock}>
@@ -155,7 +170,20 @@ const styles = StyleSheet.create({
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    width: '100%',
+  },
+  metaZone: {
+    flex: 1,
+    minWidth: 0,
+  },
+  metaLeft: {
+    textAlign: 'left',
+  },
+  metaCenter: {
+    textAlign: 'center',
+  },
+  metaRight: {
+    textAlign: 'right',
   },
   progressBlock: {
     gap: 6,

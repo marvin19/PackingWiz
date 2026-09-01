@@ -41,7 +41,17 @@ function createGenerationTrip(): Trip {
           isSelf: true,
         },
         packingMode: 'generated',
-        items: [{ id: 'item-1', name: 'Packed shirt', quantity: 1, category: 'Clothing', packed: true, needToBuy: false, assignedTo: null }],
+        items: [
+          {
+            id: 'item-1',
+            name: 'Packed shirt',
+            quantity: 1,
+            category: 'Clothing',
+            packed: true,
+            needToBuy: false,
+            assignedTo: null,
+          },
+        ],
       },
       {
         id: `${tripId}-list-emilie`,

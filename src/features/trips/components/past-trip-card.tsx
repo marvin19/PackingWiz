@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { durationDays, formatRange } from '@/domain/dates';
+import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
 import type { Trip } from '@/domain/trip';
 import { getTripName } from '@/domain/trip-name';
 import { TripHeroImage } from '@/features/trips/components/trip-hero-image';
@@ -41,6 +42,9 @@ export function PastTripCard({ trip, onPress }: PastTripCardProps) {
         </AppText>
         <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
           {formatRange(trip.startDate, trip.endDate)} · {days} {days === 1 ? 'day' : 'days'}
+        </AppText>
+        <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
+          {formatTripPeopleCount(getTripPackingPeopleCount(trip))}
         </AppText>
       </View>
       <Feather name="chevron-right" size={16} color={theme.colors.mutedForeground} />

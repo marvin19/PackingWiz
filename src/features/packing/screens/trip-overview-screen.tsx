@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/navigation/screen-header';
@@ -16,8 +16,9 @@ import { OverviewBagRow } from '@/features/packing/components/overview-bag-row';
 import { OverviewCategoryRow } from '@/features/packing/components/overview-category-row';
 import { OverviewInsightCard } from '@/features/packing/components/overview-insight-card';
 import { OverviewTripStat } from '@/features/packing/components/overview-trip-stat';
+import { buildEditTripHref } from '@/features/trip-edit/utils/edit-trip-navigation';
+import { SummaryDetailCard } from '@/features/trip-creation/components/summary-detail-card';
 import { SummarySection } from '@/features/trip-creation/components/summary-section';
-import { TripFact } from '@/features/trip-creation/components/trip-fact';
 import { WeatherCard } from '@/features/trip-creation/components/weather-card';
 import { getAccommodationIcon } from '@/features/trip-creation/utils/catalog-icons';
 import {
@@ -30,7 +31,7 @@ import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { goBackOrReplace } from '@/lib/safe-navigation';
-import { screenPaddingHorizontal } from '@/theme/spacing';
+import { spacing, screenPaddingHorizontal } from '@/theme/spacing';
 
 export function TripOverviewScreen() {
   const router = useRouter();
@@ -53,6 +54,10 @@ export function TripOverviewScreen() {
     goBackOrReplace('/(tabs)/pack');
   }, []);
 
+  const handleEditTrip = useCallback(() => {
+    router.push(buildEditTripHref('overview'));
+  }, [router]);
+
   if (!activeTrip) {
     const emptyMessage = activeTripId
       ? 'This trip is no longer available. Choose another trip from Trips.'
@@ -60,7 +65,7 @@ export function TripOverviewScreen() {
 
     return (
       <AppScreen style={styles.emptyScreen}>
-        <ScreenHeader title="Trip overview" onBack={handleBack} border />
+        <ScreenHeader title="Insights" onBack={handleBack} border />
         <View style={styles.emptyBody}>
           <Feather name="star" size={32} color={theme.colors.mutedForeground} />
           <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
@@ -85,7 +90,7 @@ export function TripOverviewScreen() {
 
   return (
     <AppScreen style={styles.screen}>
-      <ScreenHeader title="Trip overview" onBack={handleBack} border />
+      <ScreenHeader title="Insights" onBack={handleBack} border />
 
       <ScrollView
         contentContainerStyle={[
@@ -94,14 +99,35 @@ export function TripOverviewScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-            {destinationLabel}
-          </AppText>
-          <AppText variant="bodySmall" color="mutedForeground">
-            {countryLabel ? `${countryLabel} · ` : ''}
-            {formatRange(activeTrip.startDate, activeTrip.endDate)}
-            {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
-          </AppText>
+          <View style={styles.heroHeader}>
+            <View style={styles.heroCopy}>
+              <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
+                {destinationLabel}
+              </AppText>
+              <AppText variant="bodySmall" color="mutedForeground">
+                {countryLabel ? `${countryLabel} · ` : ''}
+                {formatRange(activeTrip.startDate, activeTrip.endDate)}
+                {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
+              </AppText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit trip"
+              onPress={handleEditTrip}
+              style={({ pressed }) => [
+                styles.editTripAction,
+                {
+                  backgroundColor: theme.colors.muted,
+                  borderColor: theme.colors.border,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}>
+              <Feather name="edit-2" size={14} color={theme.colors.primary} />
+              <AppText variant="caption" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+                Edit trip
+              </AppText>
+            </Pressable>
+          </View>
         </View>
 
         <View
@@ -163,54 +189,39 @@ export function TripOverviewScreen() {
           {formatDisplayDate(activeTrip.startDate)} — {formatDisplayDate(activeTrip.endDate)}
         </AppText>
 
-        <View style={styles.factsGrid}>
-          <View style={styles.factsRow}>
-            <TripFact
-              icon={<Feather name={tripContextIcon} size={16} color={theme.colors.mutedForeground} />}
-              label="Trip context"
-              value={getTripContextLabel(activeTrip.tripContext)}
-            />
-            <TripFact
-              icon={<Feather name={accommodationIcon} size={16} color={theme.colors.mutedForeground} />}
-              label="Staying in"
-              value={getAccommodationLabel(activeTrip.accommodation)}
-            />
-          </View>
-          <View style={styles.factsRow}>
-            <TripFact
-              icon={<Feather name="users" size={16} color={theme.colors.mutedForeground} />}
-              label="Packing for"
-              value={packingForLabel}
-            />
-            <TripFact
-              icon={<Feather name="droplet" size={16} color={theme.colors.mutedForeground} />}
-              label="Laundry"
-              value={getLaundryLabel(activeTrip.laundry)}
-            />
-          </View>
-        </View>
+        <View style={styles.factsStack}>
+          <SummaryDetailCard
+            icon={<Feather name={tripContextIcon} size={16} color={theme.colors.primary} />}
+            title="Trip context">
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {getTripContextLabel(activeTrip.tripContext)}
+            </AppText>
+          </SummaryDetailCard>
 
-        {activeTrip.tripContext.length > 0 ? (
-          <SummarySection title="Trip context">
-            <View style={styles.chipRow}>
-              {activeTrip.tripContext.map((tag) => (
-                <View
-                  key={tag}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: theme.colors.secondary,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}>
-                  <AppText variant="bodySmall" color="secondaryForeground">
-                    {tag}
-                  </AppText>
-                </View>
-              ))}
-            </View>
-          </SummarySection>
-        ) : null}
+          <SummaryDetailCard
+            icon={<Feather name={accommodationIcon} size={16} color={theme.colors.primary} />}
+            title="Staying in">
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {getAccommodationLabel(activeTrip.accommodation)}
+            </AppText>
+          </SummaryDetailCard>
+
+          <SummaryDetailCard
+            icon={<Feather name="users" size={16} color={theme.colors.primary} />}
+            title="Packing for">
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {packingForLabel}
+            </AppText>
+          </SummaryDetailCard>
+
+          <SummaryDetailCard
+            icon={<Feather name="droplet" size={16} color={theme.colors.primary} />}
+            title="Laundry">
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {getLaundryLabel(activeTrip.laundry)}
+            </AppText>
+          </SummaryDetailCard>
+        </View>
 
         {activeTrip.insights.length > 0 ? (
           <SummarySection title="Why PackingWiz packed this">
@@ -276,6 +287,28 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     gap: 4,
   },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  editTripAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    flexShrink: 0,
+  },
   progressCard: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
@@ -313,24 +346,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     lineHeight: 18,
   },
-  factsGrid: {
-    gap: 12,
-    marginBottom: 20,
+  factsStack: {
+    gap: 0,
+    marginBottom: spacing.lg,
   },
-  factsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  factValue: {
+    lineHeight: 20,
   },
   weatherSection: {
     marginBottom: 20,

@@ -392,6 +392,21 @@ Define a later-safe direction such as:
 A recommendation flow may propose additions/removals based on changed weather or
 context, but the user must approve changes.
 
+### MP5A — Edit Trip UI — COMPLETE
+
+Implemented dedicated Edit Trip flow at `/trip/edit` with staged shared-details save,
+add-traveller (generate/manual with explicit confirm), and remove-traveller
+(destructive confirm). Entry points: Trip Overview (primary) and compact Pack header
+action. Review Trip / create wizard unchanged for draft editing.
+
+Product contract retained:
+
+- Shared edits preserve existing PackingLists (no regeneration)
+- Adding a traveller creates only that traveller's list
+- Removing a traveller is destructive only for that trip-specific list
+- Recommendation / weather refresh after material Trip changes is deferred and
+  user-controlled (no dead CTA)
+
 ---
 
 ## MP5B — Multiple drafts

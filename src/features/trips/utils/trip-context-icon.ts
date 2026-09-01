@@ -66,5 +66,5 @@ export function formatTripContext(tags: string[]): string {
     return 'Not specified';
   }
 
-  return tags.join(', ');
+  return tags.join(' · ');
 }

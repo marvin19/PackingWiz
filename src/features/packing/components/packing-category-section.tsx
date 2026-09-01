@@ -1,11 +1,17 @@
 import { Feather } from '@expo/vector-icons';
-import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
-import { PackingItemRow, type PackingCheckboxIntent } from '@/features/packing/components/packing-item-row';
+import {
+  PackingItemRow,
+  type PackingCheckboxIntent,
+} from '@/features/packing/components/packing-item-row';
+import {
+  PACKING_ITEM_ACTION_SIZE,
+  PACKING_ITEM_CARD_PADDING_HORIZONTAL,
+} from '@/features/packing/components/packing-list-layout';
 import { getCategoryIcon } from '@/features/packing/utils/category-icons';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
@@ -26,7 +32,6 @@ type PackingCategoryHeaderProps = {
   items: PackingItem[];
   collapsed: boolean;
   onToggleCollapsed: () => void;
-  trailing?: ReactNode;
 };
 
 export function PackingCategoryHeader({
@@ -34,7 +39,6 @@ export function PackingCategoryHeader({
   items,
   collapsed,
   onToggleCollapsed,
-  trailing,
 }: PackingCategoryHeaderProps) {
   const theme = useTheme();
   const icon = getCategoryIcon(category);
@@ -97,13 +101,11 @@ export function PackingCategoryHeader({
         )}
       </Pressable>
 
-      <View style={styles.headerTrailing}>
-        {trailing}
+      <View style={styles.headerActionColumn}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={collapsed ? `Expand ${category}` : `Collapse ${category}`}
           onPress={onToggleCollapsed}
-          hitSlop={8}
           style={styles.chevronButton}>
           <Feather
             name="chevron-down"
@@ -166,6 +168,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     paddingVertical: 4,
+    paddingRight: PACKING_ITEM_CARD_PADDING_HORIZONTAL,
   },
   headerMain: {
     flex: 1,
@@ -189,13 +192,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  headerTrailing: {
-    flexDirection: 'row',
+  headerActionColumn: {
+    width: PACKING_ITEM_ACTION_SIZE,
+    height: PACKING_ITEM_ACTION_SIZE,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   chevronButton: {
-    padding: 4,
+    width: PACKING_ITEM_ACTION_SIZE,
+    height: PACKING_ITEM_ACTION_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   items: {
     gap: 8,

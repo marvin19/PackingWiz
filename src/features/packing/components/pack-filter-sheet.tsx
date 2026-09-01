@@ -22,62 +22,6 @@ type FilterOption = {
   detail?: string;
 };
 
-export function PackFilterButton({
-  activeFilter,
-  onPress,
-  compact = false,
-  iconOnly = false,
-}: {
-  activeFilter: PackingFilter;
-  onPress: () => void;
-  compact?: boolean;
-  iconOnly?: boolean;
-}) {
-  const theme = useTheme();
-  const isDefault = activeFilter === 'all';
-  const label = isDefault ? 'Filter' : 'Filter · 1';
-  const showActiveBadge = !isDefault;
-
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={
-        isDefault ? 'Filter packing list' : `Filter packing list, ${activeFilter === 'todo' ? 'To pack' : 'Shopping'} active`
-      }
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.filterButton,
-        compact && styles.filterButtonCompact,
-        iconOnly && styles.filterButtonIconOnly,
-        {
-          backgroundColor: isDefault ? theme.colors.muted : `${theme.colors.primary}14`,
-          borderColor: isDefault ? theme.colors.border : theme.colors.primary,
-          opacity: pressed ? 0.9 : 1,
-        },
-      ]}>
-      <Feather
-        name="sliders"
-        size={14}
-        color={isDefault ? theme.colors.mutedForeground : theme.colors.primary}
-      />
-      {iconOnly ? (
-        showActiveBadge ? (
-          <View style={[styles.filterActiveDot, { backgroundColor: theme.colors.primary }]} />
-        ) : null
-      ) : (
-        <AppText
-          variant="caption"
-          style={{
-            fontFamily: theme.fontFamilies.sansSemiBold,
-            color: isDefault ? theme.colors.mutedForeground : theme.colors.primary,
-          }}>
-          {label}
-        </AppText>
-      )}
-    </Pressable>
-  );
-}
-
 export function PackFilterSheet({
   visible,
   activeFilter,
@@ -168,37 +112,6 @@ export function PackFilterSheet({
 }
 
 const styles = StyleSheet.create({
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    minHeight: 34,
-  },
-  filterButtonCompact: {
-    alignSelf: 'auto',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    minHeight: 32,
-  },
-  filterButtonIconOnly: {
-    paddingHorizontal: 9,
-    width: 34,
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  filterActiveDot: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 6,
-    height: 6,
-    borderRadius: 9999,
-  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

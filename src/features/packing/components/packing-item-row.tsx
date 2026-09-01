@@ -4,6 +4,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
+import {
+  PACKING_ITEM_ACTION_SIZE,
+  PACKING_ITEM_CARD_PADDING_HORIZONTAL,
+} from '@/features/packing/components/packing-list-layout';
 import { useTheme } from '@/hooks/use-theme';
 
 export type PackingCheckboxIntent = 'packed' | 'purchased';
@@ -155,7 +159,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 10,
-    paddingHorizontal: 12,
+    paddingHorizontal: PACKING_ITEM_CARD_PADDING_HORIZONTAL,
     paddingVertical: 10,
   },
   checkButton: {
@@ -224,8 +228,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   iconButton: {
-    width: 32,
-    height: 32,
+    width: PACKING_ITEM_ACTION_SIZE,
+    height: PACKING_ITEM_ACTION_SIZE,
     borderRadius: 9999,
     alignItems: 'center',
     justifyContent: 'center',

@@ -13,6 +13,30 @@ export function getAccommodationLabel(id: AccommodationId | null): string {
   return ACCOMMODATIONS.find((entry) => entry.id === (id ?? 'hotel'))?.label ?? 'Hotel';
 }
 
+export function getLaundrySummaryLabel(id: LaundryOption): string {
+  switch (id) {
+    case 'yes':
+      return 'Laundry available';
+    case 'no':
+      return 'No laundry available';
+    case 'unsure':
+      return 'Laundry not sure';
+  }
+}
+
+export function getStayingInSummaryLabel(
+  accommodation: AccommodationId | null,
+  laundry: LaundryOption | null,
+): string {
+  const accommodationLabel = getAccommodationLabel(accommodation);
+
+  if (laundry === null) {
+    return accommodationLabel;
+  }
+
+  return `${accommodationLabel} · ${getLaundrySummaryLabel(laundry)}`;
+}
+
 export function getLaundryLabel(id: LaundryOption | null): string {
   switch (id) {
     case 'yes':
