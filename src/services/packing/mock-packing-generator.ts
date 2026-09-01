@@ -3,7 +3,7 @@ import type {
   PackingGenerationResult,
   PackingGenerator,
 } from '@/services/packing/packing-generator';
-import { buildMockInsights, buildMockPackingList } from '@/mocks/mock-packing-generator-logic';
+import { buildMockPackingList } from '@/mocks/mock-packing-generator-logic';
 
 export class MockPackingGenerator implements PackingGenerator {
   async generate(input: PackingGenerationInput): Promise<PackingGenerationResult> {
@@ -13,7 +13,6 @@ export class MockPackingGenerator implements PackingGenerator {
 
     return {
       items: buildMockPackingList(input.draft, input.profile),
-      insights: buildMockInsights(input.draft, input.profile),
     };
   }
 }

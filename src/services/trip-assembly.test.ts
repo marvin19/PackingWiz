@@ -52,7 +52,7 @@ describe('assembleTripFromDraft regression after per-profile extraction', () => 
     const packingGenerator: PackingGenerator = {
       generate: jest.fn(async ({ profile }) => {
         generatorCalls.push(profile.id);
-        return { items: [], insights: [] };
+        return { items: [] };
       }),
     };
 
@@ -67,6 +67,46 @@ describe('assembleTripFromDraft regression after per-profile extraction', () => 
     expect(generatorCalls).toEqual([DRAFT_SELF_PROFILE_ID, emilieProfile.id]);
     expect(trip.packingLists).toHaveLength(2);
     expect(trip.weather.summary).toBe('Sunny');
+    expect(trip.insights.some((insight) => insight.id === 'insight-laundry-available')).toBe(true);
+    expect(trip.insights.filter((insight) => insight.category === 'trip-context')).toHaveLength(0);
+  });
+
+  it('creates one trip-level insight snapshot for multi-person generated trips', async () => {
+    const draft = {
+      ...createTwoProfileDraft(),
+      tripContext: ['Business', 'Vacation'],
+      laundry: 'no' as const,
+    };
+    const weather = {
+      mode: 'forecast' as const,
+      summary: 'Mixed sun and rain',
+      detail: 'Rain expected on several days.',
+      high: 23,
+      low: 17,
+      rainfall: 'Moderate',
+      conditions: 'Mild with occasional rain',
+      days: [{ label: 'Mon', icon: 'rain' as const, high: 19, low: 15 }],
+    };
+
+    const weatherService: WeatherService = {
+      getWeatherForTrip: jest.fn(async () => weather),
+    };
+
+    const packingGenerator: PackingGenerator = {
+      generate: jest.fn(async () => ({ items: [] })),
+    };
+
+    const trip = await assembleTripFromDraft(
+      draft,
+      { packingGenerator, weatherService },
+      { packingMode: 'generated' },
+    );
+
+    expect(trip.insights.some((insight) => insight.id === 'insight-trip-context-business-vacation')).toBe(
+      true,
+    );
+    expect(trip.insights.some((insight) => insight.id === 'insight-weather-rain')).toBe(true);
+    expect(trip.insights.filter((insight) => insight.id === 'insight-laundry-unavailable')).toHaveLength(1);
   });
 
   it('does not invoke generator for manual lists but still injects Important per profile', async () => {
@@ -90,7 +130,7 @@ describe('assembleTripFromDraft regression after per-profile extraction', () => 
     };
 
     const packingGenerator: PackingGenerator = {
-      generate: jest.fn(async () => ({ items: [], insights: [] })),
+      generate: jest.fn(async () => ({ items: [] })),
     };
 
     const trip = await assembleTripFromDraft(

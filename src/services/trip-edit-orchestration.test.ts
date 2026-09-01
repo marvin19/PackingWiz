@@ -1,3 +1,4 @@
+import { normalizeInsight } from '@/domain/insight';
 import type { PackingItem } from '@/domain/packing-item';
 import type { PackingProfile } from '@/domain/packing-profile';
 import {
@@ -148,7 +149,6 @@ function createTrackingGenerator() {
             category: 'Essentials',
           }),
         ],
-        insights: [`Generated insight for ${profile.name}`],
       };
     }),
   };
@@ -248,17 +248,12 @@ describe('addTravellerToTrip orchestration', () => {
     expect(generator.generate).not.toHaveBeenCalled();
   });
 
-  it('merges generated Jonas insights without removing existing insights or duplicating strings', async () => {
-    const sharedInsight = 'Shared laundry tip';
+  it('preserves existing trip insights when adding a generated traveller', async () => {
+    const sharedInsight = normalizeInsight('Shared laundry tip');
     const before = createMeEmilieTrip({
-      insights: ['Existing Me insight', sharedInsight],
+      insights: [normalizeInsight('Existing Me insight'), sharedInsight],
     });
     const { generator } = createTrackingGenerator();
-
-    (generator.generate as jest.Mock).mockImplementation(async ({ profile }) => ({
-      items: [makeItem(`generated-${profile.id}`, `${profile.name} item`)],
-      insights: [sharedInsight, 'Generated insight for Jonas'],
-    }));
 
     const result = await addTravellerToTrip(
       { trip: before, profile: jonasProfile, packingMode: 'generated' },
@@ -266,15 +261,14 @@ describe('addTravellerToTrip orchestration', () => {
     );
 
     expect(result.trip.insights).toEqual([
-      'Existing Me insight',
+      normalizeInsight('Existing Me insight'),
       sharedInsight,
-      'Generated insight for Jonas',
     ]);
   });
 
   it('does not alter insights when Jonas is added manually', async () => {
     const before = createMeEmilieTrip({
-      insights: ['Existing Me insight', 'Another tip'],
+      insights: [normalizeInsight('Existing Me insight'), normalizeInsight('Another tip')],
     });
     const { generator } = createTrackingGenerator();
 
@@ -283,7 +277,10 @@ describe('addTravellerToTrip orchestration', () => {
       { packingGenerator: generator },
     );
 
-    expect(result.trip.insights).toEqual(['Existing Me insight', 'Another tip']);
+    expect(result.trip.insights).toEqual([
+      normalizeInsight('Existing Me insight'),
+      normalizeInsight('Another tip'),
+    ]);
     expect(generator.generate).not.toHaveBeenCalled();
   });
 });

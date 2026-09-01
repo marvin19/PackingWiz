@@ -1,5 +1,6 @@
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
+import type { Insight } from '@/domain/insight';
 import type { PackingItem } from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
 import type { Traveler } from '@/domain/traveler';
@@ -37,7 +38,8 @@ export interface Trip {
   weather: TripWeather;
   /** One or more packing lists; primary list is packingLists[0] during single-list compatibility. */
   packingLists: PackingList[];
-  insights: string[];
+  /** Trip-level packing reasoning snapshot — not user-provided trip facts. */
+  insights: Insight[];
   status: TripStatus;
   image?: string;
   /**

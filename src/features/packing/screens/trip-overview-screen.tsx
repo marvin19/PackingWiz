@@ -9,6 +9,7 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
+import { insightDisplayText } from '@/domain/insight';
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import { durationDays, formatDisplayDate, formatRange } from '@/domain/dates';
 import { categoryBreakdown, packingListBreakdownForTrip, packingStatsForTrip, shoppingCount } from '@/domain/packing-stats';
@@ -226,8 +227,8 @@ export function TripOverviewScreen() {
         {activeTrip.insights.length > 0 ? (
           <SummarySection title="Why PackingWiz packed this">
             <View style={styles.stack}>
-              {activeTrip.insights.map((insight, index) => (
-                <OverviewInsightCard key={`${index}-${insight}`} text={insight} />
+              {activeTrip.insights.map((insight) => (
+                <OverviewInsightCard key={insight.id} text={insightDisplayText(insight)} />
               ))}
             </View>
           </SummarySection>

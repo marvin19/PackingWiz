@@ -17,7 +17,6 @@ import {
 } from '@/domain/trip-edit';
 import { tripToTripDraft } from '@/domain/trip-to-draft';
 import { normalizeTrip } from '@/domain/trip-compatibility';
-import { dedupeInsights } from '@/domain/trip-packing-lists';
 import type { TripRepository } from '@/repositories/trips/trip-repository';
 import { assemblePackingListForProfile } from '@/services/trip-assembly';
 import type { PackingGenerator } from '@/services/packing/packing-generator';
@@ -37,7 +36,6 @@ export type AddTravellerToTripInput = {
 export type AddTravellerToTripResult = {
   trip: Trip;
   addedList: PackingList;
-  insights: string[];
 };
 
 export function updateTripSharedDetails(
@@ -52,7 +50,7 @@ export function updateTripSharedDetails(
   };
 }
 
-/** Add one traveller PackingList to an existing trip — never regenerates existing lists. */
+/** Add one traveller PackingList to an existing trip — never regenerates existing lists or trip Insights. */
 export async function addTravellerToTrip(
   input: AddTravellerToTripInput,
   services: { packingGenerator: PackingGenerator },
@@ -67,25 +65,17 @@ export async function addTravellerToTrip(
   }
 
   const draft = tripToTripDraft(trip);
-  const { list, insights } = await assemblePackingListForProfile(draft, profile, services, {
+  const { list } = await assemblePackingListForProfile(draft, profile, services, {
     tripId: trip.id,
     packingMode,
     importantByProfileId,
   });
 
   const appendedTrip = appendTravellerPackingListToTrip(trip, list);
-  const tripWithInsights =
-    packingMode === 'generated' && insights.length > 0
-      ? {
-          ...appendedTrip,
-          insights: dedupeInsights([...appendedTrip.insights, ...insights]),
-        }
-      : appendedTrip;
 
   return {
-    trip: normalizeTrip(tripWithInsights),
+    trip: normalizeTrip(appendedTrip),
     addedList: list,
-    insights,
   };
 }
 

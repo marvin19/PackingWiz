@@ -72,10 +72,29 @@ The codebase still reflects an earlier single-list model. Agents must treat this
 - `weather: TripWeather` — snapshot at creation (trip-level — unchanged in target)
 - `items: PackingItem[]` — **legacy flat list** (target: nested under `PackingList`)
 - `packingMode: 'generated' | 'manual'` — **legacy trip-level** (target: per `PackingList`)
-- `insights: string[]`
+- `insights: Insight[]` — trip-level packing **reasoning** snapshot (Insights v1A); not user-provided trip facts
 - `status: 'upcoming' | 'past'`
 - `generated: boolean` — mirrors packing mode for Supabase schema
 - `image?: string` — reserved for future assets
+
+### Insights vs Trip Details vs Pack (v1A)
+
+| Surface | Meaning |
+|---------|---------|
+| **Trip Details / Trip Summary** | User-provided trip facts (destination, dates, context tags, accommodation, laundry, …) |
+| **Insights** | PackingWiz reasoning about what those facts mean for packing — e.g. why rain gear or fewer shirts were included |
+| **Pack** | The resulting packing lists and item state |
+
+**Insights v1 rules:**
+
+- Trip-level only — one shared snapshot on `Trip.insights`, not per `PackingList` or profile.
+- Created once during generated trip assembly (`assembleTripFromDraft` → `InsightGenerator`); not recomputed when Trip Details later change.
+- Deterministic generator today (`generateDeterministicTripInsights`); OpenAI-backed generator can implement the same `Insight` contract later.
+- Legacy string insights normalize to structured `Insight` records on read (`normalizeInsights`).
+- Legacy ids are **content-derived** (`legacyInsightIdFromBody`) — stable across repeated reads, not index-based or random.
+- Supabase persistence is **content-only** for now: save `body`, reload with DB row `id` plus compatibility `category`/`title` defaults (`insightFromPersistedContent`). Category/title do not survive Supabase reload until schema evolves; mock/session structured insights stay fully structured until saved.
+
+Contract: `src/domain/insight.ts` — `id`, `category`, `title`, `body`.
 
 ### Destination (`src/domain/destination.ts`)
 

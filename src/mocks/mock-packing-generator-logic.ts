@@ -103,32 +103,3 @@ export function buildMockPackingList(draft: TripDraft, profile: PackingProfile):
 
   return items;
 }
-
-export function buildMockInsights(draft: TripDraft, profile: PackingProfile): string[] {
-  const insights: string[] = [];
-  const tags = draft.tripContext;
-
-  if (draft.laundry === 'yes') {
-    insights.push(
-      "You'll have laundry available, so we've reduced the amount of clothing you need to pack.",
-    );
-  }
-
-  if (includesContext(tags, 'run') || includesContext(tags, 'marathon')) {
-    insights.push('Because you are running, we added race-day essentials to your list.');
-  }
-
-  if (profile.age !== undefined && profile.age < 18) {
-    insights.push(`We added child-sized essentials for ${profile.name}.`);
-  }
-
-  if (draft.note.toLowerCase().includes('light')) {
-    insights.push('You asked to pack light, so we kept clothing to versatile pieces you can mix and match.');
-  }
-
-  if (insights.length < 2) {
-    insights.push('We tailored quantities to your trip length so you are covered without overpacking.');
-  }
-
-  return insights.slice(0, 4);
-}

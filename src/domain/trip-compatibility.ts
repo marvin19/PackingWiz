@@ -1,3 +1,5 @@
+import type { InsightLike } from '@/domain/insight';
+import { normalizeInsights } from '@/domain/insight';
 import type { PackingItem } from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfileSnapshot } from '@/domain/packing-profile';
@@ -13,9 +15,10 @@ function cloneItem(item: PackingItem): PackingItem {
  * Trip input before normalization — legacy reads may omit nested packingLists/name.
  * Repository and assembly paths should pass through normalizeTrip before use.
  */
-export type TripLike = Omit<Trip, 'name' | 'packingLists'> & {
+export type TripLike = Omit<Trip, 'name' | 'packingLists' | 'insights'> & {
   name?: string;
   packingLists?: PackingList[];
+  insights?: readonly InsightLike[];
 };
 
 /** Deterministic primary list id for the single-list compatibility migration. */
@@ -164,6 +167,7 @@ export function normalizeTrip(trip: TripLike): Trip {
     items: primaryList.items.map(cloneItem),
     packingMode: primaryList.packingMode,
     generated: primaryList.packingMode === 'generated',
+    insights: normalizeInsights(trip.insights),
   };
 }
 

@@ -1,6 +1,8 @@
-import type { PackingItem } from '@/domain/packing-item';
+import type { Insight, InsightLike } from '@/domain/insight';
+import { dedupeInsights as dedupeInsightRecords } from '@/domain/insight';
 import type { ImportantItem } from '@/domain/important-item';
 import { enabledImportantItemsFromConfig } from '@/domain/important-items-config';
+import type { PackingItem } from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { snapshotPackingProfile } from '@/domain/packing-profile';
@@ -81,20 +83,8 @@ export function uniquePackingProfilesById(profiles: PackingProfile[]): PackingPr
   return unique;
 }
 
-export function dedupeInsights(insights: string[]): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-
-  for (const insight of insights) {
-    if (seen.has(insight)) {
-      continue;
-    }
-
-    seen.add(insight);
-    result.push(insight);
-  }
-
-  return result;
+export function dedupeInsights(insights: readonly InsightLike[]): Insight[] {
+  return dedupeInsightRecords(insights);
 }
 
 /**

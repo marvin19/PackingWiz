@@ -1,3 +1,4 @@
+import { normalizeInsight } from '@/domain/insight';
 import type { TripEditFormState } from '@/features/trip-edit/utils/edit-trip-view-model';
 import {
   availableSavedProfilesForTrip,
@@ -177,7 +178,7 @@ describe('edit trip view-model', () => {
     expect(hasStagedSharedChanges(form, trip)).toBe(true);
 
     const { trip: updated } = updateTripSharedDetails(trip, patch);
-    expect(updated.insights).toEqual(['Existing insight']);
+    expect(updated.insights).toEqual([normalizeInsight('Existing insight')]);
     expect(updated.packingLists[0].items[0].packed).toBe(true);
     expect(updated.packingLists[1].items).toEqual([]);
   });
