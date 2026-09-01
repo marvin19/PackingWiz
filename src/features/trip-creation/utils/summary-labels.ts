@@ -20,7 +20,7 @@ export function getLaundrySummaryLabel(id: LaundryOption): string {
     case 'no':
       return 'No laundry available';
     case 'unsure':
-      return 'Laundry not sure';
+      return 'Not sure about laundry';
   }
 }
 
