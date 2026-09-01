@@ -394,10 +394,10 @@ context, but the user must approve changes.
 
 ### MP5A — Edit Trip UI — COMPLETE
 
-Implemented dedicated Edit Trip flow at `/trip/edit` with staged shared-details save,
-add-traveller (generate/manual with explicit confirm), and remove-traveller
-(destructive confirm). Entry points: Trip Overview (primary) and compact Pack header
-action. Review Trip / create wizard unchanged for draft editing.
+Section-level **Trip Details** at `/trip/edit` reuses the Trip Summary presentation
+(`TripSummaryDetailsContent`). Entry: Pack menu or Insights → Edit trip → Trip Details
+→ focused section editors (`/trip/edit-section`). Creation review remains at
+`/trip/summary` with Weather preview and Generate/Manual footer.
 
 Product contract retained:
 

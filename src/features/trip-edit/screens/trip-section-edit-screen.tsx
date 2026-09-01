@@ -21,15 +21,14 @@ import { BAG_TYPES } from '@/domain/catalog';
 import type { Bag, BagType } from '@/domain/bag';
 import type { PackingProfile } from '@/domain/packing-profile';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
-import { findTripContextTag, tripContextIncludes } from '@/domain/trip-context-tags';
 import type { TripDraft } from '@/domain/trip-draft';
+import { findTripContextTag, tripContextIncludes } from '@/domain/trip-context-tags';
 import { AddTravellerSheet } from '@/features/trip-edit/components/add-traveller-sheet';
 import { DiscardChangesSheet } from '@/features/trip-edit/components/discard-changes-sheet';
 import { EditTripTravellerRow } from '@/features/trip-edit/components/edit-trip-traveller-row';
 import { RemoveTravellerConfirmSheet } from '@/features/trip-edit/components/remove-traveller-confirm-sheet';
 import {
   parseEditTripReturnTo,
-  resolveEditTripReturnPath,
 } from '@/features/trip-edit/utils/edit-trip-navigation';
 import {
   buildPostSaveNotice,
@@ -38,32 +37,36 @@ import {
   buildTravellerRemovedNotice,
   canRemoveTravellerFromTrip,
   createEditFormStateFromTrip,
-  getEditTripPrimaryFooterLabel,
   getEditTripTravellerRows,
-  hasStagedSharedChanges,
-  isEditTripPrimaryFooterEnabled,
+  getSectionSaveLabel,
+  pickSharedDetailsPatchForSection,
   shouldDiscardStagedEdits,
   shouldExecuteRemoveTraveller,
   shouldProceedWithAddTraveller,
   type TripEditFormState,
 } from '@/features/trip-edit/utils/edit-trip-view-model';
+import {
+  buildTripDetailsReturnHref,
+  getTripDetailsSectionScreenTitle,
+  parseTripDetailsSection,
+} from '@/features/trip-edit/utils/trip-details-navigation';
 import { AccommodationStep } from '@/features/trip-creation/components/steps/accommodation-step';
 import { BagsStep } from '@/features/trip-creation/components/steps/bags-step';
 import { DestinationStep } from '@/features/trip-creation/components/steps/destination-step';
 import { NoteStep } from '@/features/trip-creation/components/steps/note-step';
 import { TripContextStep } from '@/features/trip-creation/components/steps/trip-context-step';
-import { SummarySection } from '@/features/trip-creation/components/summary-section';
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { blurActiveElement } from '@/lib/blur-active-element';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
-export function EditTripScreen() {
+export function TripSectionEditScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ returnTo?: string }>();
+  const params = useLocalSearchParams<{ section?: string; returnTo?: string }>();
+  const section = parseTripDetailsSection(params.section);
   const returnTo = parseEditTripReturnTo(params.returnTo);
 
   const {
@@ -117,12 +120,14 @@ export function EditTripScreen() {
   );
 
   const hasChanges = useMemo(() => {
-    if (!form || !activeTrip) {
+    if (!form || !activeTrip || section === 'packing-for') {
       return false;
     }
 
-    return hasStagedSharedChanges(form, activeTrip);
-  }, [activeTrip, form]);
+    const fullPatch = buildSharedDetailsPatch(form, activeTrip);
+    const sectionPatch = pickSharedDetailsPatchForSection(section!, fullPatch);
+    return Object.keys(sectionPatch).length > 0;
+  }, [activeTrip, form, section]);
 
   const travellerRows = useMemo(
     () => (activeTrip ? getEditTripTravellerRows(activeTrip) : []),
@@ -224,36 +229,45 @@ export function EditTripScreen() {
     [form, patchDraft],
   );
 
-  const navigateAway = useCallback(() => {
-    router.replace(resolveEditTripReturnPath(returnTo));
+  const navigateToDetails = useCallback(() => {
+    router.replace(buildTripDetailsReturnHref(returnTo));
   }, [returnTo, router]);
 
   const handleAttemptClose = useCallback(() => {
     blurActiveElement();
 
-    if (shouldDiscardStagedEdits(hasChanges, false)) {
-      navigateAway();
+    if (section === 'packing-for' || shouldDiscardStagedEdits(hasChanges, false)) {
+      navigateToDetails();
       return;
     }
 
     setDiscardVisible(true);
-  }, [hasChanges, navigateAway]);
+  }, [hasChanges, navigateToDetails, section]);
 
-  const handlePrimaryFooterPress = useCallback(async () => {
-    if (!activeTrip || !form || saveLoading) {
+  const handleSave = useCallback(async () => {
+    if (!activeTrip || !form || !section || saveLoading) {
       return;
     }
 
     blurActiveElement();
 
-    if (!hasChanges) {
-      navigateAway();
+    if (section === 'packing-for') {
+      navigateToDetails();
       return;
     }
 
-    const patch = buildSharedDetailsPatch(form, activeTrip);
-    if (Object.keys(patch).length === 0) {
-      navigateAway();
+    if (!hasChanges) {
+      navigateToDetails();
+      return;
+    }
+
+    const sectionPatch = pickSharedDetailsPatchForSection(
+      section,
+      buildSharedDetailsPatch(form, activeTrip),
+    );
+
+    if (Object.keys(sectionPatch).length === 0) {
+      navigateToDetails();
       return;
     }
 
@@ -263,17 +277,25 @@ export function EditTripScreen() {
     try {
       const { trip: saved, packingRelevantChanges } = await updateTripSharedDetails(
         activeTrip.id,
-        patch,
+        sectionPatch,
       );
       setStagedForm({ tripId: saved.id, form: createEditFormStateFromTrip(saved) });
       setFeedbackNotice(buildPostSaveNotice(packingRelevantChanges));
-      navigateAway();
+      navigateToDetails();
     } catch {
       // repositoryError is set in TripsProvider; staged form is preserved.
     } finally {
       setSaveLoading(false);
     }
-  }, [activeTrip, form, hasChanges, navigateAway, saveLoading, updateTripSharedDetails]);
+  }, [
+    activeTrip,
+    form,
+    hasChanges,
+    navigateToDetails,
+    saveLoading,
+    section,
+    updateTripSharedDetails,
+  ]);
 
   const handleAddTraveller = useCallback(
     async (profile: PackingProfile, packingMode: 'generated' | 'manual') => {
@@ -305,14 +327,6 @@ export function EditTripScreen() {
     [activeTrip, addTravellerLoading, addTravellerToTrip, rememberPackingProfile],
   );
 
-  const handleRemovePress = useCallback((listId: string) => {
-    setPendingRemoveListId(listId);
-  }, []);
-
-  const handleRemoveCancel = useCallback(() => {
-    setPendingRemoveListId(null);
-  }, []);
-
   const handleRemoveConfirm = useCallback(async () => {
     if (!activeTrip || removeLoading) {
       return;
@@ -336,6 +350,19 @@ export function EditTripScreen() {
     }
   }, [activeTrip, pendingRemoveListId, pendingRemoveRow, removeLoading, removeTravellerFromTrip]);
 
+  if (!section) {
+    return (
+      <AppScreen>
+        <ScreenHeader title="Edit section" onClose={() => router.back()} />
+        <View style={styles.emptyBody}>
+          <AppText variant="bodySmall" color="mutedForeground">
+            Unknown section.
+          </AppText>
+        </View>
+      </AppScreen>
+    );
+  }
+
   if (!activeTrip || !form) {
     const emptyMessage = activeTripId
       ? 'This trip is no longer available. Choose another trip from Trips.'
@@ -343,7 +370,7 @@ export function EditTripScreen() {
 
     return (
       <AppScreen style={styles.emptyScreen}>
-        <ScreenHeader title="Edit trip" onClose={() => router.replace('/(tabs)')} />
+        <ScreenHeader title={getTripDetailsSectionScreenTitle(section)} onClose={navigateToDetails} />
         <View style={styles.emptyBody}>
           <Feather name="edit-2" size={32} color={theme.colors.mutedForeground} />
           <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
@@ -355,12 +382,99 @@ export function EditTripScreen() {
     );
   }
 
+  const renderSectionBody = () => {
+    switch (section) {
+      case 'destination':
+        return (
+          <>
+            <Field label="Trip name">
+              <AppTextInput
+                value={form.name}
+                onChangeText={(name) => setForm((current) => ({ ...current, name }))}
+                placeholder="Trip name"
+                accessibilityLabel="Trip name"
+              />
+            </Field>
+            <DestinationStep draft={form.draft} onChange={patchDraft} />
+          </>
+        );
+      case 'trip-context':
+        return (
+          <TripContextStep
+            draft={form.draft}
+            onToggleTag={toggleTripContextTag}
+            onAddTag={addTripContextTag}
+          />
+        );
+      case 'accommodation':
+        return (
+          <AccommodationStep
+            draft={form.draft}
+            onSelectAccommodation={(id: AccommodationId) => patchDraft({ accommodation: id })}
+            onSelectLaundry={(id: LaundryOption) => patchDraft({ laundry: id })}
+          />
+        );
+      case 'packing-for':
+        return (
+          <>
+            <AppText variant="caption" color="mutedForeground" style={styles.preservationCopy}>
+              Your existing packing lists won&apos;t be changed.
+            </AppText>
+            <View style={styles.travellerList}>
+              {travellerRows.map((row) => (
+                <EditTripTravellerRow
+                  key={row.listId}
+                  row={row}
+                  onRemovePress={() => setPendingRemoveListId(row.listId)}
+                />
+              ))}
+            </View>
+            {!canRemoveTravellerFromTrip(activeTrip) ? (
+              <AppText variant="caption" color="mutedForeground" style={styles.singleTravellerNote}>
+                A trip needs at least one person.
+              </AppText>
+            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add traveller"
+              onPress={() => {
+                setAddTravellerSession((current) => current + 1);
+                setAddTravellerVisible(true);
+              }}
+              style={({ pressed }) => [
+                styles.addTravellerTrigger,
+                { borderColor: theme.colors.border },
+                pressed && styles.pressed,
+              ]}>
+              <Feather name="plus" size={16} color={theme.colors.primary} />
+              <AppText variant="bodySmall" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+                Add traveller
+              </AppText>
+            </Pressable>
+          </>
+        );
+      case 'bags':
+        return (
+          <BagsStep
+            draft={form.draft}
+            onAddBag={addBag}
+            onUpdateBag={updateBag}
+            onRemoveBag={removeBag}
+          />
+        );
+      case 'note':
+        return <NoteStep draft={form.draft} onChangeNote={(note) => patchDraft({ note })} />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <AppScreen style={styles.screen}>
       <ScreenHeader
-        title="Edit trip"
+        title={getTripDetailsSectionScreenTitle(section)}
         onClose={handleAttemptClose}
-        closeAccessibilityLabel="Close edit trip"
+        closeAccessibilityLabel="Close section editor"
       />
 
       <KeyboardAvoidingView
@@ -390,86 +504,7 @@ export function EditTripScreen() {
             </View>
           ) : null}
 
-          <SummarySection title="Trip name">
-            <Field label="Name">
-              <AppTextInput
-                value={form.name}
-                onChangeText={(name) => setForm((current) => ({ ...current, name }))}
-                placeholder="Trip name"
-                accessibilityLabel="Trip name"
-              />
-            </Field>
-          </SummarySection>
-
-          <SummarySection title="Destination">
-            <DestinationStep draft={form.draft} onChange={patchDraft} />
-          </SummarySection>
-
-          <SummarySection title="Trip type / context">
-            <TripContextStep
-              draft={form.draft}
-              onToggleTag={toggleTripContextTag}
-              onAddTag={addTripContextTag}
-            />
-          </SummarySection>
-
-          <SummarySection title="Accommodation">
-            <AccommodationStep
-              draft={form.draft}
-              onSelectAccommodation={(id: AccommodationId) => patchDraft({ accommodation: id })}
-              onSelectLaundry={(id: LaundryOption) => patchDraft({ laundry: id })}
-            />
-          </SummarySection>
-
-          <SummarySection title="Packing for">
-            <AppText variant="caption" color="mutedForeground" style={styles.preservationCopy}>
-              Your existing packing lists won&apos;t be changed.
-            </AppText>
-            <View style={styles.travellerList}>
-              {travellerRows.map((row) => (
-                <EditTripTravellerRow
-                  key={row.listId}
-                  row={row}
-                  onRemovePress={() => handleRemovePress(row.listId)}
-                />
-              ))}
-            </View>
-            {!canRemoveTravellerFromTrip(activeTrip) ? (
-              <AppText variant="caption" color="mutedForeground" style={styles.singleTravellerNote}>
-                A trip needs at least one person.
-              </AppText>
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Add traveller"
-              onPress={() => {
-                setAddTravellerSession((current) => current + 1);
-                setAddTravellerVisible(true);
-              }}
-              style={({ pressed }) => [
-                styles.addTravellerTrigger,
-                { borderColor: theme.colors.border },
-                pressed && styles.pressed,
-              ]}>
-              <Feather name="plus" size={16} color={theme.colors.primary} />
-              <AppText variant="bodySmall" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-                Add traveller
-              </AppText>
-            </Pressable>
-          </SummarySection>
-
-          <SummarySection title="Bags">
-            <BagsStep
-              draft={form.draft}
-              onAddBag={addBag}
-              onUpdateBag={updateBag}
-              onRemoveBag={removeBag}
-            />
-          </SummarySection>
-
-          <SummarySection title="Additional information">
-            <NoteStep draft={form.draft} onChangeNote={(note) => patchDraft({ note })} />
-          </SummarySection>
+          {renderSectionBody()}
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -483,9 +518,9 @@ export function EditTripScreen() {
           },
         ]}>
         <PrimaryButton
-          label={getEditTripPrimaryFooterLabel(hasChanges, saveLoading)}
-          onPress={handlePrimaryFooterPress}
-          disabled={!isEditTripPrimaryFooterEnabled(saveLoading)}
+          label={getSectionSaveLabel(section, saveLoading)}
+          onPress={handleSave}
+          disabled={saveLoading}
         />
         {saveLoading ? <ActivityIndicator size="small" color={theme.colors.primary} style={styles.saveSpinner} /> : null}
       </View>
@@ -495,7 +530,7 @@ export function EditTripScreen() {
         onKeepEditing={() => setDiscardVisible(false)}
         onDiscard={() => {
           setDiscardVisible(false);
-          navigateAway();
+          navigateToDetails();
         }}
       />
 
@@ -513,7 +548,7 @@ export function EditTripScreen() {
         visible={pendingRemoveListId !== null}
         travellerName={pendingRemoveRow?.name ?? null}
         loading={removeLoading}
-        onCancel={handleRemoveCancel}
+        onCancel={() => setPendingRemoveListId(null)}
         onConfirm={handleRemoveConfirm}
       />
     </AppScreen>
@@ -544,6 +579,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: screenPaddingHorizontal,
     paddingTop: 16,
+    gap: 16,
   },
   noticeBanner: {
     flexDirection: 'row',
@@ -552,7 +588,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 16,
-    marginBottom: 16,
   },
   noticeCopy: {
     flex: 1,
@@ -562,20 +597,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 16,
-    marginBottom: 16,
   },
   preservationCopy: {
     lineHeight: 18,
-    marginBottom: 12,
     paddingHorizontal: 4,
   },
   travellerList: {
     gap: 8,
-    marginBottom: 12,
   },
   singleTravellerNote: {
     lineHeight: 18,
-    marginBottom: 12,
     paddingHorizontal: 4,
   },
   addTravellerTrigger: {

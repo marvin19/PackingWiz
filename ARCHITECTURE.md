@@ -96,6 +96,16 @@ The codebase still reflects an earlier single-list model. Agents must treat this
 
 Contract: `src/domain/insight.ts` — `id`, `category`, `title`, `body`.
 
+**Trip Summary vs Trip Details (MP5A IA):**
+
+| Surface | When | Purpose |
+|---------|------|---------|
+| **Trip Summary** | Creation review (`/trip/summary`) | Draft facts before generate/manual create; includes Weather preview + Important |
+| **Trip Details** | Existing trip (`/trip/edit`) | User-provided facts with section-level editing; no Weather (see Insights) |
+| **Insights** | Existing trip (`/(tabs)/pack/overview`) | Packing reasoning + Weather snapshot |
+
+Shared presentation: `TripSummaryDetailsContent` (`src/features/trip-creation/components/trip-summary-details-content.tsx`).
+
 ### Destination (`src/domain/destination.ts`)
 
 ```typescript
@@ -147,7 +157,7 @@ src/app/
     pack/
       _layout.tsx          Pack stack
       index.tsx            Pack screen
-      overview.tsx         Trip overview
+      overview.tsx         Insights (packing reasoning + weather)
     profile.tsx            Profile
   trip/
     create.tsx             6-step wizard

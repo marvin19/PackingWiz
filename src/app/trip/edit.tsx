@@ -1,5 +1,5 @@
-import { EditTripScreen } from '@/features/trip-edit/screens/edit-trip-screen';
+import { TripDetailsScreen } from '@/features/trip-edit/screens/trip-details-screen';
 
 export default function EditTripRoute() {
-  return <EditTripScreen />;
+  return <TripDetailsScreen />;
 }

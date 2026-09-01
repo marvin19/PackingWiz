@@ -1,4 +1,5 @@
 import { normalizeInsight } from '@/domain/insight';
+import type { TripDetailsSection } from '@/features/trip-edit/utils/trip-details-navigation';
 import type { TripEditFormState } from '@/features/trip-edit/utils/edit-trip-view-model';
 import {
   availableSavedProfilesForTrip,
@@ -10,9 +11,11 @@ import {
   createEditFormStateFromTrip,
   getEditTripPrimaryFooterLabel,
   getEditTripTravellerRows,
+  getTripDetailsDoneLabel,
   hasStagedSharedChanges,
   isEditTripPrimaryFooterEnabled,
   isProfileAlreadyOnTrip,
+  pickSharedDetailsPatchForSection,
   resolveEditTripPrimaryFooterAction,
   shouldDiscardStagedEdits,
   shouldExecuteRemoveTraveller,
@@ -267,5 +270,31 @@ describe('edit trip view-model', () => {
 
     expect(available).toHaveLength(1);
     expect(available[0].name).toBe('Jonas');
+  });
+
+  it('filters shared-details patch to the active section', () => {
+    const trip = createMeEmilieTrip();
+    const patch = buildSharedDetailsPatch(
+      {
+        ...createEditFormStateFromTrip(trip),
+        draft: {
+          ...createEditFormStateFromTrip(trip).draft,
+          note: 'Updated note',
+          tripContext: ['Marathon'],
+        },
+      },
+      trip,
+    );
+
+    expect(pickSharedDetailsPatchForSection('note' as TripDetailsSection, patch)).toEqual({
+      note: 'Updated note',
+    });
+    expect(pickSharedDetailsPatchForSection('trip-context' as TripDetailsSection, patch)).toEqual({
+      tripContext: ['Marathon'],
+    });
+  });
+
+  it('uses Done on Trip Details main screen', () => {
+    expect(getTripDetailsDoneLabel()).toBe('Done');
   });
 });

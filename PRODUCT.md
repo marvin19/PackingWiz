@@ -182,6 +182,17 @@ A bag may optionally have an owner as metadata; shared bags remain supported. Pa
 
 Flow: wizard → **Summary** → **Generating** (mock steps) → **Pack** tab with new trip active.
 
+**Existing-trip surfaces (MP5A IA):**
+
+| Surface | Role |
+|---------|------|
+| **Trip Summary** | Creation review only — draft facts, Weather preview, Generate/Manual |
+| **Trip Details** | Existing trip facts + section-level editing (`/trip/edit`) |
+| **Insights** | Packing reasoning + Weather snapshot (`/(tabs)/pack/overview`) |
+| **Pack** | Active packing list(s) and item state |
+
+Creation Summary and existing Trip Details share the same card presentation; Trip Details omits Weather (see Insights).
+
 Adding a person to a draft selects them for that trip only. **Remember this person** is stored on the draft profile and committed to reusable saved profiles at **trip creation**, not when the person is first added.
 
 ### Target creation UX (MP2)

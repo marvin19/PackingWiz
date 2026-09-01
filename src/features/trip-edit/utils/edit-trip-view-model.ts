@@ -1,3 +1,4 @@
+import type { TripDetailsSection } from '@/features/trip-edit/utils/trip-details-navigation';
 import type { Bag } from '@/domain/bag';
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingProfile } from '@/domain/packing-profile';
@@ -189,6 +190,43 @@ export function availableSavedProfilesForTrip(
   return savedProfiles.filter(
     (profile) => !profile.isSelf && !tripHasPackingProfile(trip, profile),
   );
+}
+
+const SECTION_PATCH_KEYS: Record<TripDetailsSection, (keyof TripSharedDetailsUserEdit)[]> = {
+  destination: ['name', 'destination', 'startDate', 'endDate'],
+  'trip-context': ['tripContext'],
+  accommodation: ['accommodation', 'laundry'],
+  'packing-for': [],
+  bags: ['bags'],
+  note: ['note'],
+};
+
+export function getTripDetailsDoneLabel(): string {
+  return 'Done';
+}
+
+export function pickSharedDetailsPatchForSection(
+  section: TripDetailsSection,
+  patch: TripSharedDetailsUserEdit,
+): TripSharedDetailsUserEdit {
+  const allowed = new Set(SECTION_PATCH_KEYS[section]);
+  const picked: TripSharedDetailsUserEdit = {};
+
+  for (const key of allowed) {
+    if (patch[key] !== undefined) {
+      (picked as Record<string, unknown>)[key] = patch[key];
+    }
+  }
+
+  return picked;
+}
+
+export function getSectionSaveLabel(section: TripDetailsSection, saving = false): string {
+  if (saving) {
+    return 'Saving…';
+  }
+
+  return section === 'packing-for' ? 'Done' : 'Save';
 }
 
 export function shouldProceedWithAddTraveller(
