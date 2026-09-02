@@ -216,6 +216,7 @@ export class SupabaseTripRepository implements TripRepository {
   }
 
   async delete(id: string): Promise<void> {
+    // Child rows (packing_items, trip_weather, trip_insights, …) cascade via FK ON DELETE CASCADE.
     const { error } = await this.client.from('trips').delete().eq('id', id);
     if (error) {
       throw new Error(error.message);

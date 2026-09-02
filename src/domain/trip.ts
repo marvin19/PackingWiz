@@ -16,7 +16,7 @@ export type AccommodationId =
 
 export type LaundryOption = 'yes' | 'no' | 'unsure';
 
-export type TripStatus = 'upcoming' | 'past';
+export type TripStatus = 'upcoming' | 'past' | 'archived';
 
 /** How a packing list was created — not inferred from item count. */
 export type PackingMode = 'generated' | 'manual';

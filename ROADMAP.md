@@ -422,14 +422,13 @@ Replace the current single-draft assumption.
 - Wizard step + reached-summary stored per draft
 - Supabase/local persistence deferred
 
-### MP5B-B — Home / Trips multi-draft UI — in progress (session/mock)
+### MP5B-B — Home / Trips multi-draft UI — COMPLETE (session/mock)
 
 - Home **Continue planning** shows up to **2** most recently touched in-progress drafts; **View all drafts (N)** opens `/trip/drafts` for the full list
 - Draft cards: destination or **New trip**, dates/people metadata (no wizard step on card); resume via explicit `resumeDraft(id)`; delete with confirmation sheet
 - Trip Summary: **Save and close** (X) preserves draft + `reachedSummary`; resume returns to Summary
 - **Plan new trip** calls `createNewDraft()` then navigates — never overwrites existing drafts
 - Stale `/trip/create` or `/trip/summary` without valid `activeDraftId` redirects to Trips/Home; successful commit clears draft but `isCommitDraftInFlight` prevents guard from stealing Pack navigation
-- Archive/delete for completed trips, duplicate/reuse, and persistence remain deferred
 
 ### Draft model
 
@@ -472,6 +471,21 @@ Potential behavior:
 ## MP5C — Trip archive & deletion
 
 Define clear lifecycle states for completed/previous Trips.
+
+### MP5C-A — Lifecycle domain/state foundation — COMPLETE (session/mock)
+
+- `TripStatus`: `upcoming` | `past` | `archived` (`past` = product Previous)
+- Upcoming/Previous derived from trip `endDate` vs reference calendar day; archived is explicit persisted state
+- Pure ops: `archiveTrip`, `restoreArchivedTrip`; permanent delete via `TripRepository.delete` (removes aggregate)
+- Provider: `archiveTrip`, `restoreTrip`, `deleteTripPermanently` with rollback on repository failure
+- Active trip/list cleared when archiving/deleting the active trip; never auto-selects another trip
+- Home selectors exclude archived trips; drafts remain isolated (`deleteDraft` ≠ trip delete)
+- Reusable Packing Profiles / Important masters survive trip permanent delete
+- Supabase: `delete` relies on existing FK cascades; no schema migration in this slice
+
+### MP5C-B — Archive/manage UI — deferred
+
+UI for archive, restore, permanent delete, and View trip archive.
 
 ### Lifecycle
 

@@ -12,6 +12,11 @@ import {
 
 import { resolveTripPackEntry } from '@/domain/trip-pack-entry';
 import { findActiveTrip, reconcileActiveTripId } from '@/domain/packing-stats';
+import {
+  archiveTrip as archiveTripInState,
+  reconcileActiveTripAfterLifecycleChange,
+  restoreArchivedTrip as restoreArchivedTripInState,
+} from '@/domain/trip-lifecycle';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { ImportantItem } from '@/domain/important-item';
 import type { ImportantItemsConfig } from '@/domain/important-items-config';
@@ -136,6 +141,9 @@ interface TripsContextValue {
   acknowledgeCommitDraftNavigation: () => void;
   refreshTrips: () => Promise<void>;
   commitDraftTrip: (packingMode?: PackingMode, draftId?: string) => Promise<Trip>;
+  archiveTrip: (tripId: string) => Promise<Trip>;
+  restoreTrip: (tripId: string) => Promise<Trip>;
+  deleteTripPermanently: (tripId: string) => Promise<void>;
   updateTripSharedDetails: (
     tripId: string,
     patch: TripSharedDetailsUserEdit,
@@ -627,6 +635,107 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       weatherService,
       tripRepository,
     ],
+  );
+
+  const archiveTrip = useCallback(
+    async (tripId: string) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!trip) {
+        throw new Error('Trip not found');
+      }
+
+      const previousTrips = tripsRef.current;
+      const previousActiveTripId = activeTripIdRef.current;
+      const previousActiveListId = activePackingListIdRef.current;
+      const archived = archiveTripInState(trip);
+
+      setTrips(mapTripById(previousTrips, tripId, () => archived));
+      const reconciled = reconcileActiveTripAfterLifecycleChange(
+        previousActiveTripId,
+        previousActiveListId,
+        tripId,
+        'archive',
+      );
+      setActiveTripIdState(reconciled.activeTripId);
+      setActivePackingListIdState(reconciled.activePackingListId);
+
+      try {
+        const saved = await tripRepository.save(archived);
+        setTrips(mapTripById(tripsRef.current, tripId, () => saved));
+        setRepositoryError(null);
+        return saved;
+      } catch (error) {
+        setTrips(previousTrips);
+        setActiveTripIdState(previousActiveTripId);
+        setActivePackingListIdState(previousActiveListId);
+        setRepositoryError(error instanceof Error ? error.message : 'Failed to archive trip');
+        throw error;
+      }
+    },
+    [tripRepository],
+  );
+
+  const restoreTrip = useCallback(
+    async (tripId: string) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!trip) {
+        throw new Error('Trip not found');
+      }
+
+      const previousTrips = tripsRef.current;
+      const restored = restoreArchivedTripInState(trip);
+
+      setTrips(mapTripById(previousTrips, tripId, () => restored));
+
+      try {
+        const saved = await tripRepository.save(restored);
+        setTrips(mapTripById(tripsRef.current, tripId, () => saved));
+        setRepositoryError(null);
+        return saved;
+      } catch (error) {
+        setTrips(previousTrips);
+        setRepositoryError(error instanceof Error ? error.message : 'Failed to restore trip');
+        throw error;
+      }
+    },
+    [tripRepository],
+  );
+
+  const deleteTripPermanently = useCallback(
+    async (tripId: string) => {
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!trip) {
+        throw new Error('Trip not found');
+      }
+
+      const previousTrips = tripsRef.current;
+      const previousActiveTripId = activeTripIdRef.current;
+      const previousActiveListId = activePackingListIdRef.current;
+
+      setTrips(previousTrips.filter((entry) => entry.id !== tripId));
+      const reconciled = reconcileActiveTripAfterLifecycleChange(
+        previousActiveTripId,
+        previousActiveListId,
+        tripId,
+        'permanent_delete',
+      );
+      setActiveTripIdState(reconciled.activeTripId);
+      setActivePackingListIdState(reconciled.activePackingListId);
+
+      try {
+        await tripRepository.delete(tripId);
+        setRepositoryError(null);
+      } catch (error) {
+        setTrips(previousTrips);
+        setActiveTripIdState(previousActiveTripId);
+        setActivePackingListIdState(previousActiveListId);
+        setRepositoryError(
+          error instanceof Error ? error.message : 'Failed to delete trip permanently',
+        );
+        throw error;
+      }
+    },
+    [tripRepository],
   );
 
   const updateTripSharedDetails = useCallback(
@@ -1322,6 +1431,9 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       acknowledgeCommitDraftNavigation,
       refreshTrips,
       commitDraftTrip,
+      archiveTrip,
+      restoreTrip,
+      deleteTripPermanently,
       updateTripSharedDetails,
       addTravellerToTrip,
       removeTravellerFromTrip,
@@ -1374,6 +1486,9 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       acknowledgeCommitDraftNavigation,
       refreshTrips,
       commitDraftTrip,
+      archiveTrip,
+      restoreTrip,
+      deleteTripPermanently,
       updateTripSharedDetails,
       addTravellerToTrip,
       removeTravellerFromTrip,

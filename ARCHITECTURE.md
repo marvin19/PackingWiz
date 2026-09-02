@@ -217,6 +217,8 @@ AuthProvider
 
 **Home draft navigation (MP5B-B):** Normal Create Trip entry is via Home **Plan new trip** (`createNewDraft` + navigate) or **Continue planning** card (`resumeDraft(id)` + navigate to wizard or summary). Home shows at most two in-progress drafts; `/trip/drafts` lists all. Direct `/trip/create` or `/trip/summary` without a valid `activeDraftId` redirects to Trips/Home unless a trip commit is in flight (post-create Pack navigation). Trip Summary **Save and close** preserves the draft without committing.
 
+**Committed trip lifecycle (MP5C-A):** Drafts (`StoredTripDraft`) are separate from committed `Trip` records. `Trip.status` includes `archived`; non-archived Upcoming vs Previous (`past`) is derived from `endDate` (trips ending today remain Upcoming). Archive is reversible via `restoreTrip` and changes lifecycle metadata only. Permanent delete removes the trip aggregate from repository/state via `deleteTripPermanently` / `TripRepository.delete` — no tombstone. Saved Packing Profiles and profile-scoped Important masters are not deleted with a trip. Archiving or permanently deleting the active trip clears `activeTripId` and `activePackingListId` without selecting another trip.
+
 ### ProfileProvider
 
 - In-memory only today (no repository persistence)
