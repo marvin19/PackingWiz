@@ -1,10 +1,10 @@
 import { parseDate, toIsoDate } from '@/domain/dates';
 import type { Trip, TripStatus } from '@/domain/trip';
 
-/** User-visible lifecycle bucket for committed trips (drafts are excluded). */
-export type TripLifecycleBucket = 'upcoming' | 'past' | 'archived';
+/** Date-derived lifecycle bucket for committed trips (drafts excluded). */
+export type TripLifecycleBucket = 'upcoming' | 'past';
 
-export type TripLifecycleMutation = 'archive' | 'permanent_delete' | 'restore';
+export type TripLifecycleMutation = 'permanent_delete';
 
 export type ActiveTripReconciliation = {
   activeTripId: string | null;
@@ -20,21 +20,13 @@ function startOfLocalDay(date: Date): Date {
  * - endDate strictly before the reference day → Previous (`past`)
  * - endDate on or after the reference day → Upcoming (includes trips ending today)
  */
-export function deriveTripDateBucket(trip: Trip, referenceDate: Date): Exclude<TripStatus, 'archived'> {
+export function deriveTripDateBucket(trip: Trip, referenceDate: Date): TripStatus {
   const referenceDay = startOfLocalDay(referenceDate).getTime();
   const endDay = startOfLocalDay(parseDate(trip.endDate)).getTime();
   return endDay < referenceDay ? 'past' : 'upcoming';
 }
 
-export function isArchivedTrip(trip: Trip): boolean {
-  return trip.status === 'archived';
-}
-
 export function classifyTripLifecycle(trip: Trip, referenceDate: Date): TripLifecycleBucket {
-  if (isArchivedTrip(trip)) {
-    return 'archived';
-  }
-
   return deriveTripDateBucket(trip, referenceDate);
 }
 
@@ -47,49 +39,14 @@ export function isPreviousTrip(trip: Trip, referenceDate: Date): boolean {
   return classifyTripLifecycle(trip, referenceDate) === 'past';
 }
 
-/** Persisted status for a non-archived trip from its dates. */
-export function statusForRestoredTrip(trip: Trip, referenceDate: Date): Exclude<TripStatus, 'archived'> {
-  return deriveTripDateBucket(trip, referenceDate);
-}
-
-/**
- * Archive a committed trip — lifecycle metadata only; full nested snapshot preserved.
- * Idempotent when already archived.
- */
-export function archiveTrip(trip: Trip): Trip {
-  if (isArchivedTrip(trip)) {
-    return trip;
-  }
-
-  return {
-    ...trip,
-    status: 'archived',
-  };
-}
-
-/**
- * Restore an archived trip — returns trip to date-derived Upcoming/Previous status.
- * Idempotent when not archived (status unchanged).
- */
-export function restoreArchivedTrip(trip: Trip, referenceDate: Date = new Date()): Trip {
-  if (!isArchivedTrip(trip)) {
-    return trip;
-  }
-
-  return {
-    ...trip,
-    status: statusForRestoredTrip(trip, referenceDate),
-  };
-}
-
-/** Clears active trip/list when the affected trip was active; never auto-selects another trip. */
+/** Clears active trip/list when the deleted trip was active; never auto-selects another trip. */
 export function reconcileActiveTripAfterLifecycleChange(
   activeTripId: string | null,
   activePackingListId: string | null,
   affectedTripId: string,
   mutation: TripLifecycleMutation,
 ): ActiveTripReconciliation {
-  if (mutation === 'restore') {
+  if (mutation !== 'permanent_delete') {
     return { activeTripId, activePackingListId };
   }
 
@@ -108,7 +65,7 @@ export function referenceDateFromIso(iso: string): Date {
   return parseDate(iso);
 }
 
-/** Sort previous/archived trips with most recent end dates first; tie-break by id desc. */
+/** Sort previous trips with most recent end dates first; tie-break by id desc. */
 export function compareTripsByRecentEndDate(left: Trip, right: Trip): number {
   const byEndDate = right.endDate.localeCompare(left.endDate);
   if (byEndDate !== 0) {
@@ -116,6 +73,16 @@ export function compareTripsByRecentEndDate(left: Trip, right: Trip): number {
   }
 
   return right.id.localeCompare(left.id);
+}
+
+/** Sort upcoming trips with nearest start dates first; tie-break by id asc. */
+export function compareTripsByNearestStartDate(left: Trip, right: Trip): number {
+  const byStartDate = left.startDate.localeCompare(right.startDate);
+  if (byStartDate !== 0) {
+    return byStartDate;
+  }
+
+  return left.id.localeCompare(right.id);
 }
 
 export function todayIsoDate(referenceDate: Date = new Date()): string {

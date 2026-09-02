@@ -424,7 +424,7 @@ Replace the current single-draft assumption.
 
 ### MP5B-B — Home / Trips multi-draft UI — COMPLETE (session/mock)
 
-- Home **Continue planning** shows up to **2** most recently touched in-progress drafts; **View all drafts (N)** opens `/trip/drafts` for the full list
+- Home **Continue planning** shows up to **2** most recently touched in-progress drafts; **View all drafts (N)** opens `/trip/browse?filter=drafts`
 - Draft cards: destination or **New trip**, dates/people metadata (no wizard step on card); resume via explicit `resumeDraft(id)`; delete with confirmation sheet
 - Trip Summary: **Save and close** (X) preserves draft + `reachedSummary`; resume returns to Summary
 - **Plan new trip** calls `createNewDraft()` then navigates — never overwrites existing drafts
@@ -468,60 +468,51 @@ Potential behavior:
 
 ---
 
-## MP5C — Trip archive & deletion
+## MP5C — Trip lifecycle & management
 
-Define clear lifecycle states for completed/previous Trips.
+Date-derived Previous lifecycle, canonical Trips browser, and permanent deletion.
 
 ### MP5C-A — Lifecycle domain/state foundation — COMPLETE (session/mock)
 
-- `TripStatus`: `upcoming` | `past` | `archived` (`past` = product Previous)
-- Upcoming/Previous derived from trip `endDate` vs reference calendar day; archived is explicit persisted state
-- Pure ops: `archiveTrip`, `restoreArchivedTrip`; permanent delete via `TripRepository.delete` (removes aggregate)
-- Provider: `archiveTrip`, `restoreTrip`, `deleteTripPermanently` with rollback on repository failure
-- Active trip/list cleared when archiving/deleting the active trip; never auto-selects another trip
-- Home selectors exclude archived trips; drafts remain isolated (`deleteDraft` ≠ trip delete)
+- `TripStatus`: `upcoming` | `past` (`past` = product Previous)
+- Upcoming/Previous derived from trip `endDate` vs reference calendar day
+- Permanent delete via `TripRepository.delete` (removes aggregate)
+- Provider: `deleteTripPermanently` with rollback on repository failure
+- Active trip/list cleared when deleting the active trip; never auto-selects another trip
+- Drafts remain isolated (`deleteDraft` ≠ trip delete)
 - Reusable Packing Profiles / Important masters survive trip permanent delete
 - Supabase: `delete` relies on existing FK cascades; no schema migration in this slice
 
-### MP5C-B — Archive/manage UI — deferred
+### MP5C-B — Canonical Trips browser — implementation complete (manual verification pending)
 
-UI for archive, restore, permanent delete, and View trip archive.
+- One **Trips** screen (`/trip/browse`): All | Drafts | Upcoming | Previous view filters
+- Home compact previews: max 2 drafts, max 2 previous trips; **View all trips** footer always reachable from Home
+- Contextual View all drafts/previous deep-links when counts exceed preview limits
+- Previous trips: overflow **Delete permanently** (with ownership-aware confirmation)
+- No manual Archive/Restore in 1.0; `/trip/drafts` and `/trip/archive` redirect to browse filters
+- Search deferred; filter architecture ready for future query
 
-### Lifecycle
+### Lifecycle (1.0)
 
-Distinguish:
+- **Draft** — in-progress planning (`StoredTripDraft`)
+- **Upcoming** — committed trip with `endDate` on/after today
+- **Previous** — committed trip with `endDate` before today (automatic history)
+- **Permanent delete** — trip aggregate removed; no trash/recovery
 
-- draft
-- active/upcoming
-- previous
-- archived
-- permanently deleted
+There is no manual Archive/Restore in 1.0.
 
-Archive and delete must not mean the same thing.
+### Previous Trips (Home preview)
 
-### Previous Trips
+- Home shows up to **2** most recent Previous trips
+- **View all previous trips (N)** opens Trips browser with Previous filter
 
-Home should show a limited number of recent Previous Trips.
+### Trips browser
 
-Preferred initial behavior:
+Canonical `/trip/browse` surface:
 
-- show approximately 3–5 recent trips
-- provide **View trip archive** when more history exists
-
-### Trip Archive
-
-Add a Trip Archive / Manage Trips surface.
-
-Initial behavior:
-
-- chronological, newest first
-- optionally grouped by year
-- Archive
-- Restore
-- Delete permanently
-- Duplicate
-
-Do not add advanced search/filtering until there is enough trip history to justify it.
+- filters: All | Drafts | Upcoming | Previous
+- Previous: overflow **Delete permanently**
+- Search deferred; architecture ready for future query field
 
 ### Delete semantics
 

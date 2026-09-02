@@ -10,6 +10,11 @@ import {
   getDestinationLabel,
 } from '@/domain/destination';
 import { durationDays, parseDate } from '@/domain/dates';
+import {
+  getNewTripDateValidationMessage,
+  startOfLocalCalendarDay,
+  validateNewTripDateRange,
+} from '@/domain/new-trip-date-validation';
 import type { TripDraft } from '@/domain/trip-draft';
 import {
   DESTINATION_SUGGESTIONS,
@@ -27,6 +32,9 @@ export function DestinationStep({ draft, onChange }: DestinationStepProps) {
   const [destinationFocused, setDestinationFocused] = useState(false);
   const days =
     draft.startDate && draft.endDate && durationDays(draft.startDate, draft.endDate);
+  const minimumStartDate = startOfLocalCalendarDay(new Date());
+  const dateValidation = validateNewTripDateRange(draft.startDate, draft.endDate);
+  const dateError = getNewTripDateValidationMessage(dateValidation);
 
   return (
     <View style={styles.container}>
@@ -89,14 +97,21 @@ export function DestinationStep({ draft, onChange }: DestinationStepProps) {
           label="Departure"
           value={draft.startDate}
           onChange={(startDate) => onChange({ startDate })}
+          minimumDate={minimumStartDate}
         />
         <DateField
           label="Return"
           value={draft.endDate}
           onChange={(endDate) => onChange({ endDate })}
-          minimumDate={draft.startDate ? parseDate(draft.startDate) : undefined}
+          minimumDate={draft.startDate ? parseDate(draft.startDate) : minimumStartDate}
         />
       </View>
+
+      {dateError ? (
+        <AppText variant="bodySmall" color="destructive" style={styles.dateError}>
+          {dateError}
+        </AppText>
+      ) : null}
 
       {days && days > 0 ? (
         <View style={[styles.durationBanner, { backgroundColor: theme.colors.accent }]}>
@@ -140,6 +155,9 @@ const styles = StyleSheet.create({
   dateRow: {
     flexDirection: 'row',
     gap: 12,
+  },
+  dateError: {
+    lineHeight: 20,
   },
   durationBanner: {
     borderRadius: 16,

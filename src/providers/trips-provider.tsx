@@ -13,9 +13,11 @@ import {
 import { resolveTripPackEntry } from '@/domain/trip-pack-entry';
 import { findActiveTrip, reconcileActiveTripId } from '@/domain/packing-stats';
 import {
-  archiveTrip as archiveTripInState,
+  getNewTripDateValidationMessage,
+  validateNewTripDateRange,
+} from '@/domain/new-trip-date-validation';
+import {
   reconcileActiveTripAfterLifecycleChange,
-  restoreArchivedTrip as restoreArchivedTripInState,
 } from '@/domain/trip-lifecycle';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { ImportantItem } from '@/domain/important-item';
@@ -141,8 +143,6 @@ interface TripsContextValue {
   acknowledgeCommitDraftNavigation: () => void;
   refreshTrips: () => Promise<void>;
   commitDraftTrip: (packingMode?: PackingMode, draftId?: string) => Promise<Trip>;
-  archiveTrip: (tripId: string) => Promise<Trip>;
-  restoreTrip: (tripId: string) => Promise<Trip>;
   deleteTripPermanently: (tripId: string) => Promise<void>;
   updateTripSharedDetails: (
     tripId: string,
@@ -578,6 +578,16 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         const stored = getStoredDraftById(stateSnapshot, targetDraftId)!;
 
         const draftSnapshot = stored.draft;
+        const dateValidation = validateNewTripDateRange(
+          draftSnapshot.startDate,
+          draftSnapshot.endDate,
+        );
+        if (!dateValidation.ok) {
+          throw new Error(
+            getNewTripDateValidationMessage(dateValidation) ?? 'Trip dates are invalid.',
+          );
+        }
+
         const mergedImportant = mergeImportantStores(
           importantByProfileId,
           stored.draftImportantByProfileId,
@@ -635,70 +645,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       weatherService,
       tripRepository,
     ],
-  );
-
-  const archiveTrip = useCallback(
-    async (tripId: string) => {
-      const trip = tripsRef.current.find((entry) => entry.id === tripId);
-      if (!trip) {
-        throw new Error('Trip not found');
-      }
-
-      const previousTrips = tripsRef.current;
-      const previousActiveTripId = activeTripIdRef.current;
-      const previousActiveListId = activePackingListIdRef.current;
-      const archived = archiveTripInState(trip);
-
-      setTrips(mapTripById(previousTrips, tripId, () => archived));
-      const reconciled = reconcileActiveTripAfterLifecycleChange(
-        previousActiveTripId,
-        previousActiveListId,
-        tripId,
-        'archive',
-      );
-      setActiveTripIdState(reconciled.activeTripId);
-      setActivePackingListIdState(reconciled.activePackingListId);
-
-      try {
-        const saved = await tripRepository.save(archived);
-        setTrips(mapTripById(tripsRef.current, tripId, () => saved));
-        setRepositoryError(null);
-        return saved;
-      } catch (error) {
-        setTrips(previousTrips);
-        setActiveTripIdState(previousActiveTripId);
-        setActivePackingListIdState(previousActiveListId);
-        setRepositoryError(error instanceof Error ? error.message : 'Failed to archive trip');
-        throw error;
-      }
-    },
-    [tripRepository],
-  );
-
-  const restoreTrip = useCallback(
-    async (tripId: string) => {
-      const trip = tripsRef.current.find((entry) => entry.id === tripId);
-      if (!trip) {
-        throw new Error('Trip not found');
-      }
-
-      const previousTrips = tripsRef.current;
-      const restored = restoreArchivedTripInState(trip);
-
-      setTrips(mapTripById(previousTrips, tripId, () => restored));
-
-      try {
-        const saved = await tripRepository.save(restored);
-        setTrips(mapTripById(tripsRef.current, tripId, () => saved));
-        setRepositoryError(null);
-        return saved;
-      } catch (error) {
-        setTrips(previousTrips);
-        setRepositoryError(error instanceof Error ? error.message : 'Failed to restore trip');
-        throw error;
-      }
-    },
-    [tripRepository],
   );
 
   const deleteTripPermanently = useCallback(
@@ -1431,8 +1377,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       acknowledgeCommitDraftNavigation,
       refreshTrips,
       commitDraftTrip,
-      archiveTrip,
-      restoreTrip,
       deleteTripPermanently,
       updateTripSharedDetails,
       addTravellerToTrip,
@@ -1486,8 +1430,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       acknowledgeCommitDraftNavigation,
       refreshTrips,
       commitDraftTrip,
-      archiveTrip,
-      restoreTrip,
       deleteTripPermanently,
       updateTripSharedDetails,
       addTravellerToTrip,

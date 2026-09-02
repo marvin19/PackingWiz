@@ -4,7 +4,8 @@ import type { PackingItem } from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfileSnapshot } from '@/domain/packing-profile';
 import type { Traveler } from '@/domain/traveler';
-import type { Trip, PackingMode } from '@/domain/trip';
+import type { Trip, PackingMode, TripStatus } from '@/domain/trip';
+import { deriveTripDateBucket } from '@/domain/trip-lifecycle';
 import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
 
 function cloneItem(item: PackingItem): PackingItem {
@@ -158,8 +159,7 @@ export function normalizeTrip(trip: TripLike): Trip {
   }
 
   const primaryList = packingLists[0];
-
-  return {
+  const normalizedTrip: Trip = {
     ...trip,
     name,
     title: name,
@@ -168,7 +168,29 @@ export function normalizeTrip(trip: TripLike): Trip {
     packingMode: primaryList.packingMode,
     generated: primaryList.packingMode === 'generated',
     insights: normalizeInsights(trip.insights),
+    status: normalizeTripStatus(trip),
   };
+
+  return normalizedTrip;
+}
+
+/** Maps legacy archived/missing status to date-derived buckets; preserves stored upcoming/past. */
+function normalizeTripStatus(trip: TripLike, referenceDate: Date = new Date()): TripStatus {
+  if (trip.status === 'past' || trip.status === 'upcoming') {
+    return trip.status;
+  }
+
+  const withDates = {
+    ...trip,
+    name: resolveTripName(trip),
+    title: resolveTripName(trip),
+    packingLists: trip.packingLists ?? [],
+    items: trip.items ?? [],
+    insights: normalizeInsights(trip.insights),
+    status: 'upcoming',
+  } as Trip;
+
+  return deriveTripDateBucket(withDates, referenceDate);
 }
 
 /** Primary/default packing list — call on a normalized trip. */

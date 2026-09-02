@@ -6,15 +6,20 @@ import { BrandMark } from '@/components/brand/brand-mark';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { SectionTitle } from '@/components/ui/section-title';
-import {
-  listPreviousTripsForHome,
-  listUpcomingTripsForHome,
-} from '@/domain/trip-home-selectors';
+import { listPreviousTrips, listUpcomingTrips } from '@/domain/trip-selectors';
 import { ContinuePlanningSection } from '@/features/trips/components/continue-planning-section';
 import { PlanNewTripCta } from '@/features/trips/components/plan-new-trip-cta';
-import { PastTripCard } from '@/features/trips/components/past-trip-card';
+import { PreviousTripsSection } from '@/features/trips/components/previous-trips-section';
 import { TripsEmptyState } from '@/features/trips/components/trips-empty-state';
 import { UpcomingTripCard } from '@/features/trips/components/upcoming-trip-card';
+import { HomeViewAllLink, VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL, VIEW_ALL_TRIPS_LABEL } from '@/features/trips/components/home-view-all-link';
+import {
+  HOME_AFTER_DRAFTS_SPACING,
+  HOME_FOOTER_SPACING,
+  HOME_SCROLL_TOP_PADDING,
+  HOME_SECTION_SPACING,
+} from '@/features/trips/utils/home-screen-spacing';
+import { buildTripsBrowseHref } from '@/features/trips/utils/trips-browse-navigation';
 import { useTripNavigation } from '@/hooks/use-trip-navigation';
 import { useTrips } from '@/hooks/use-trips';
 import { getTimeBasedGreeting, mockUserProfile } from '@/mocks/user-profile';
@@ -26,8 +31,9 @@ export function HomeScreen() {
   const { trips, isLoading, inProgressDraftsOrdered, deleteDraft } = useTrips();
   const { openTrip, startCreateTrip, resumeDraftTrip } = useTripNavigation();
 
-  const upcoming = listUpcomingTripsForHome(trips);
-  const past = listPreviousTripsForHome(trips);
+  const upcoming = listUpcomingTrips(trips);
+  const hasDrafts = inProgressDraftsOrdered.length > 0;
+  const hasPrevious = listPreviousTrips(trips).length > 0;
 
   if (isLoading) {
     return (
@@ -67,13 +73,18 @@ export function HomeScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}>
-        <ContinuePlanningSection
-          drafts={inProgressDraftsOrdered}
-          onResumeDraft={resumeDraftTrip}
-          onDeleteDraft={deleteDraft}
-          onViewAllDrafts={() => router.push('/trip/drafts')}
-        />
-        <PlanNewTripCta onPress={startCreateTrip} />
+        {hasDrafts ? (
+          <ContinuePlanningSection
+            drafts={inProgressDraftsOrdered}
+            onResumeDraft={resumeDraftTrip}
+            onDeleteDraft={deleteDraft}
+            onViewAllDrafts={() => router.push(buildTripsBrowseHref('drafts'))}
+          />
+        ) : null}
+
+        <View style={hasDrafts ? styles.afterDrafts : undefined}>
+          <PlanNewTripCta onPress={startCreateTrip} />
+        </View>
 
         <View style={styles.section}>
           <SectionTitle>Upcoming</SectionTitle>
@@ -88,17 +99,22 @@ export function HomeScreen() {
           )}
         </View>
 
-        <View style={styles.section}>
-          <SectionTitle>Previous trips</SectionTitle>
-          {past.length === 0 ? (
-            <TripsEmptyState message="Your past trips will appear here." />
-          ) : (
-            <View style={styles.compactList}>
-              {past.map((trip) => (
-                <PastTripCard key={trip.id} trip={trip} onPress={openTrip} />
-              ))}
-            </View>
-          )}
+        {hasPrevious ? (
+          <View style={styles.section}>
+            <PreviousTripsSection
+              trips={trips}
+              onOpenTrip={openTrip}
+              onViewAllPrevious={() => router.push(buildTripsBrowseHref('previous'))}
+            />
+          </View>
+        ) : null}
+
+        <View style={styles.footer}>
+          <HomeViewAllLink
+            label={VIEW_ALL_TRIPS_LABEL}
+            accessibilityLabel={VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL}
+            onPress={() => router.push(buildTripsBrowseHref('all'))}
+          />
         </View>
       </ScrollView>
     </AppScreen>
@@ -123,15 +139,19 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   scrollContent: {
-    paddingTop: 4,
+    paddingTop: HOME_SCROLL_TOP_PADDING,
+  },
+  afterDrafts: {
+    marginTop: HOME_AFTER_DRAFTS_SPACING,
   },
   section: {
-    marginTop: 28,
+    marginTop: HOME_SECTION_SPACING,
   },
   cardList: {
     gap: 16,
   },
-  compactList: {
-    gap: 10,
+  footer: {
+    marginTop: HOME_FOOTER_SPACING,
+    alignItems: 'center',
   },
 });

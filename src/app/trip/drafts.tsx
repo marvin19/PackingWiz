@@ -1,5 +1,5 @@
-import { AllDraftsScreen } from '@/features/trips/screens/all-drafts-screen';
+import { Redirect } from 'expo-router';
 
-export default function AllDraftsRoute() {
-  return <AllDraftsScreen />;
+export default function LegacyDraftsRoute() {
+  return <Redirect href="/trip/browse?filter=drafts" />;
 }

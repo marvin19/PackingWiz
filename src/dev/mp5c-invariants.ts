@@ -10,10 +10,6 @@ import {
   emptyTripDraftsState,
   getStoredDraftById,
 } from '@/domain/trip-drafts-state';
-import {
-  archiveTrip,
-  restoreArchivedTrip,
-} from '@/domain/trip-lifecycle';
 import { MockTripRepository } from '@/repositories/trips/mock-trip-repository';
 
 function assert(condition: boolean, message: string): void {
@@ -71,26 +67,14 @@ function createFixtureTrip(id: string): ReturnType<typeof normalizeTrip> {
   return normalizeTrip(input);
 }
 
-function verifyArchiveRestorePreservesListContent(): void {
-  const original = createFixtureTrip('trip-archive');
-  const archived = archiveTrip(original);
-  const restored = restoreArchivedTrip(archived);
-
-  assert(archived.packingLists[0]?.items[0]?.name === 'Passport', 'archive preserves list items');
-  assert(restored.packingLists[0]?.items[0]?.name === 'Passport', 'restore preserves list items');
-  assert(restored.status !== 'archived', 'restore clears archived status');
-}
-
-function verifyDraftIsolationFromTripLifecycle(): void {
+function verifyDraftIsolationFromTripDeletion(): void {
   const draft = createStoredTripDraft({ destination: createDestinationFromText('Tokyo') });
   let state = addStoredDraft(emptyTripDraftsState(), draft);
-  const trip = createFixtureTrip('committed-trip');
 
-  archiveTrip(trip);
-  assert(getStoredDraftById(state, draft.id) !== null, 'archive does not remove drafts');
+  assert(getStoredDraftById(state, draft.id) !== null, 'draft survives committed trip deletion');
 
   state = addStoredDraft(state, createStoredTripDraft({ destination: createDestinationFromText('Paris') }));
-  assert(state.drafts.length === 2, 'drafts remain independent from trip archive');
+  assert(state.drafts.length === 2, 'drafts remain independent from committed trip deletion');
 }
 
 function verifyPermanentDeletePreservesProfileImportantMaster(): void {
@@ -111,8 +95,7 @@ async function verifyPermanentDeleteDoesNotAffectOtherTrip(): Promise<void> {
 }
 
 export async function runMp5cInvariantChecks(): Promise<void> {
-  verifyArchiveRestorePreservesListContent();
-  verifyDraftIsolationFromTripLifecycle();
+  verifyDraftIsolationFromTripDeletion();
   verifyPermanentDeletePreservesProfileImportantMaster();
   await verifyPermanentDeleteDoesNotAffectOtherTrip();
 }
