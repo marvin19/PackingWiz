@@ -4,8 +4,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
+import { PackingCategoryItemList } from '@/features/packing/components/packing-category-item-list';
 import {
-  PackingItemRow,
   type PackingCheckboxIntent,
 } from '@/features/packing/components/packing-item-row';
 import {
@@ -87,18 +87,9 @@ export function PackingCategoryHeader({
           }}>
           {category}
         </AppText>
-        {allPacked && !isImportant ? (
-          <View style={[styles.allPackedBadge, { backgroundColor: `${theme.colors.success}26` }]}>
-            <Feather name="check-circle" size={12} color={theme.colors.success} />
-            <AppText variant="micro" style={{ color: theme.colors.success, fontFamily: theme.fontFamilies.sansSemiBold }}>
-              All packed
-            </AppText>
-          </View>
-        ) : (
-          <AppText variant="caption" color="mutedForeground">
-            {packedCount}/{items.length}
-          </AppText>
-        )}
+        <AppText variant="caption" color={allPacked && !isImportant ? 'success' : 'mutedForeground'}>
+          {packedCount}/{items.length}
+        </AppText>
       </Pressable>
 
       <View style={styles.headerActionColumn}>
@@ -142,18 +133,14 @@ export function PackingCategorySection({
       />
 
       {!collapsed ? (
-        <View style={styles.items}>
-          {items.map((item) => (
-            <PackingItemRow
-              key={item.id}
-              item={item}
-              travelers={travelers}
-              checkboxIntent={checkboxIntent}
-              onCheckboxPress={handleCheckboxPress}
-              onOpenSettings={onOpenSettings}
-            />
-          ))}
-        </View>
+        <PackingCategoryItemList
+          category={category}
+          items={items}
+          travelers={travelers}
+          checkboxIntent={checkboxIntent}
+          onCheckboxPress={handleCheckboxPress}
+          onOpenSettings={onOpenSettings}
+        />
       ) : null}
     </View>
   );
@@ -161,7 +148,7 @@ export function PackingCategorySection({
 
 const styles = StyleSheet.create({
   section: {
-    gap: 8,
+    gap: 0,
   },
   header: {
     flexDirection: 'row',
@@ -184,14 +171,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  allPackedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    borderRadius: 9999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
   headerActionColumn: {
     width: PACKING_ITEM_ACTION_SIZE,
     height: PACKING_ITEM_ACTION_SIZE,
@@ -204,8 +183,5 @@ const styles = StyleSheet.create({
     height: PACKING_ITEM_ACTION_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  items: {
-    gap: 8,
   },
 });

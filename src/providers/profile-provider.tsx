@@ -26,6 +26,7 @@ import {
   removeImportantItemForProfileStore,
   resolveImportantProfileId,
   saveImportantItemNamesForProfile,
+  setImportantConfigForProfile,
   SELF_IMPORTANT_PROFILE_ID,
   setImportantEnabledForProfileStore,
   setImportantPromptDismissedForProfileStore,
@@ -79,7 +80,11 @@ interface ProfileContextValue {
   resolveImportantProfileId: typeof resolveImportantProfileId;
   setPreference: (key: PreferenceKey, value: boolean) => void;
   addSavedTraveler: () => void;
-  rememberPackingProfile: (profile: PackingProfile) => void;
+  rememberPackingProfile: (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => void;
+  /** Remove draft-only Important keys after draft deletion (MP5B). */
+  purgeImportantProfileIds: (profileIds: string[]) => void;
+  /** Promote draft-scoped Important to global store at trip commit (MP5B). */
+  importImportantConfigForProfile: (profileId: string, config: ImportantItemsConfig) => void;
   saveImportantItems: (names: string[]) => ImportantItem[];
   setImportantEnabled: (enabled: boolean) => void;
   dismissImportantPrompt: () => void;
@@ -252,7 +257,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const rememberPackingProfile = useCallback((profile: PackingProfile) => {
+  const rememberPackingProfile = useCallback(
+    (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => {
     if (profile.isSelf) {
       return;
     }
@@ -265,7 +271,11 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     };
 
     setImportantByProfileId((current) => {
-      let nextStore = bootstrapImportantConfigFromProfiles(current, [profile]);
+      let nextStore = current;
+      if (draftImportantConfig?.isConfigured) {
+        nextStore = setImportantConfigForProfile(nextStore, normalized.id, draftImportantConfig);
+      }
+      nextStore = bootstrapImportantConfigFromProfiles(nextStore, [profile]);
 
       setSavedPackingProfiles((savedProfiles) => {
         const byId = savedProfiles.findIndex((entry) => entry.id === normalized.id);
@@ -308,7 +318,39 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
       return nextStore;
     });
-  }, []);
+  },
+  [],
+);
+
+  const purgeImportantProfileIds = useCallback((profileIds: string[]) => {
+    if (profileIds.length === 0) {
+      return;
+    }
+
+    commitImportantStore((current) => {
+      const idsToRemove = new Set(profileIds);
+      let changed = false;
+      const next = { ...current };
+
+      for (const profileId of idsToRemove) {
+        if (Object.prototype.hasOwnProperty.call(next, profileId)) {
+          delete next[profileId];
+          changed = true;
+        }
+      }
+
+      return changed ? next : current;
+    });
+  }, [commitImportantStore]);
+
+  const importImportantConfigForProfile = useCallback(
+    (profileId: string, config: ImportantItemsConfig) => {
+      commitImportantStore((current) =>
+        setImportantConfigForProfile(current, profileId, config),
+      );
+    },
+    [commitImportantStore],
+  );
 
   const saveImportantItems = useCallback(
     (names: string[]) => saveImportantItemsForProfile(SELF_IMPORTANT_PROFILE_ID, names),
@@ -419,6 +461,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setPreference,
       addSavedTraveler,
       rememberPackingProfile,
+      purgeImportantProfileIds,
+      importImportantConfigForProfile,
       saveImportantItems,
       setImportantEnabled,
       dismissImportantPrompt,
@@ -453,6 +497,8 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       preferences,
       readImportantConfigForProfile,
       rememberPackingProfile,
+      purgeImportantProfileIds,
+      importImportantConfigForProfile,
       removeImportantItemForProfile,
       requestOpenImportantEditor,
       resetImportantPromptDismissed,

@@ -13,8 +13,34 @@ import { resolveTripPackEntry } from '@/domain/trip-pack-entry';
 import { findActiveTrip, reconcileActiveTripId } from '@/domain/packing-stats';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { ImportantItem } from '@/domain/important-item';
+import type { ImportantItemsConfig } from '@/domain/important-items-config';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
+import {
+  collectDraftOnlyProfileIds,
+  mergeImportantStores,
+} from '@/domain/draft-important-scope';
+import {
+  saveImportantItemNamesForProfile,
+} from '@/domain/profile-important-items';
+import {
+  addStoredDraft,
+  createStoredTripDraft,
+  deleteDraftInState,
+  dismissDraftImportantPrompt,
+  emptyTripDraftsState,
+  findPrimaryInProgressDraft,
+  getActiveStoredDraft,
+  getStoredDraftById,
+  removeCommittedDraft,
+  resumeDraftInState,
+  type StoredTripDraft,
+  type TripDraftsState,
+  resolveActiveDraftIdForMutation,
+  resolveCommitDraftTargetId,
+  updateStoredDraftMeta,
+  updateStoredDraftTrip,
+} from '@/domain/trip-drafts-state';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile } from '@/domain/packing-profile';
 import type {
@@ -32,7 +58,7 @@ import {
   removePackingListItem,
   replacePackingListItems,
 } from '@/domain/trip-compatibility';
-import { createPackingItemId } from '@/lib/id';
+import { createPackingItemId, createUuid } from '@/lib/id';
 import {
   buildPackingItemSettingsPatch,
   canSavePackingItemSettings,
@@ -59,6 +85,10 @@ interface TripsContextValue {
   activeTrip: Trip | null;
   activePackingListId: string | null;
   activePackingList: PackingList | null;
+  /** All unfinished trip drafts in session (MP5B). */
+  drafts: StoredTripDraft[];
+  activeDraftId: string | null;
+  /** Active creation draft — derived from activeDraftId; empty shell when none active. */
   draft: TripDraft;
   draftWizardStep: number;
   draftReachedSummary: boolean;
@@ -70,12 +100,22 @@ interface TripsContextValue {
   beginTripPackEntry: (tripId: string, explicitListId?: string) => 'pack' | 'select-list';
   /** Explicit list selection within the active trip — does not change activeTripId. */
   selectActivePackingList: (packingListId: string) => void;
+  getDraftById: (draftId: string) => StoredTripDraft | null;
+  /** Most recently touched in-progress draft for temporary Home single-CTA compatibility. */
+  getPrimaryInProgressDraft: () => StoredTripDraft | null;
+  createNewDraft: () => string;
+  resumeDraft: (draftId: string) => boolean;
+  deleteDraft: (draftId: string) => boolean;
   setDraft: (patch: Partial<TripDraft>) => void;
   setDraftWizardStep: (step: number) => void;
   markDraftReachedSummary: () => void;
+  /** @deprecated Use createNewDraft — creates a new draft without removing existing drafts. */
   resetDraft: () => void;
+  saveDraftImportantItemsForProfile: (profileId: string, names: string[]) => ImportantItem[];
+  dismissDraftImportantPromptForProfile: (profileId: string) => void;
+  getActiveDraftImportantByProfileId: () => Record<string, ImportantItemsConfig>;
   refreshTrips: () => Promise<void>;
-  commitDraftTrip: (packingMode?: PackingMode) => Promise<Trip>;
+  commitDraftTrip: (packingMode?: PackingMode, draftId?: string) => Promise<Trip>;
   updateTripSharedDetails: (
     tripId: string,
     patch: TripSharedDetailsUserEdit,
@@ -145,14 +185,12 @@ function resolvePackingListSelection(
 export function TripsProvider({ children }: { children: ReactNode }) {
   const { tripRepository, packingGenerator, weatherService } = useServices();
   const { isAuthReady, authError } = useAuth();
-  const { importantByProfileId, rememberPackingProfile } = useProfile();
+  const { importantByProfileId, rememberPackingProfile, purgeImportantProfileIds, savedPackingProfiles } = useProfile();
 
   const [trips, setTrips] = useState<Trip[]>([]);
   const [activeTripId, setActiveTripIdState] = useState<string | null>(null);
   const [activePackingListId, setActivePackingListIdState] = useState<string | null>(null);
-  const [draft, setDraftState] = useState<TripDraft>(createEmptyTripDraft());
-  const [draftWizardStep, setDraftWizardStep] = useState(0);
-  const [draftReachedSummary, setDraftReachedSummary] = useState(false);
+  const [draftsState, setDraftsState] = useState<TripDraftsState>(emptyTripDraftsState);
   const [isTripsLoading, setIsTripsLoading] = useState(true);
   const [repositoryError, setRepositoryError] = useState<string | null>(null);
   const tripsRef = useRef(trips);
@@ -301,47 +339,206 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     };
   }, [isAuthReady, authError, tripRepository]);
 
-  const draftRef = useRef(draft);
+  const draftsStateRef = useRef(draftsState);
+  const savedProfileIdsRef = useRef(new Set(savedPackingProfiles.map((profile) => profile.id)));
 
   useEffect(() => {
-    draftRef.current = draft;
-  }, [draft]);
+    draftsStateRef.current = draftsState;
+  }, [draftsState]);
+
+  useEffect(() => {
+    savedProfileIdsRef.current = new Set(savedPackingProfiles.map((profile) => profile.id));
+  }, [savedPackingProfiles]);
+
+  const activeStoredDraft = useMemo(
+    () => getActiveStoredDraft(draftsState),
+    [draftsState],
+  );
+
+  const draft = activeStoredDraft?.draft ?? createEmptyTripDraft();
+  const draftWizardStep = activeStoredDraft?.wizardStep ?? 0;
+  const draftReachedSummary = activeStoredDraft?.reachedSummary ?? false;
+
+  const getDraftById = useCallback(
+    (draftId: string) => getStoredDraftById(draftsStateRef.current, draftId),
+    [],
+  );
+
+  const getPrimaryInProgressDraft = useCallback(
+    () => findPrimaryInProgressDraft(draftsStateRef.current),
+    [],
+  );
+
+  const createNewDraft = useCallback(() => {
+    const stored = createStoredTripDraft();
+    setDraftsState((current) => addStoredDraft(current, stored));
+    return stored.id;
+  }, []);
+
+  const resumeDraft = useCallback((draftId: string) => {
+    let resumed = false;
+
+    setDraftsState((current) => {
+      const next = resumeDraftInState(current, draftId);
+      if (!next) {
+        return current;
+      }
+
+      resumed = true;
+      return next;
+    });
+
+    return resumed;
+  }, []);
+
+  const deleteDraft = useCallback(
+    (draftId: string) => {
+      const stored = getStoredDraftById(draftsStateRef.current, draftId);
+      if (!stored) {
+        return false;
+      }
+
+      const draftOnlyProfileIds = collectDraftOnlyProfileIds(
+        stored.draft.packingProfiles,
+        savedProfileIdsRef.current,
+      );
+
+      setDraftsState((current) => deleteDraftInState(current, draftId));
+      purgeImportantProfileIds(draftOnlyProfileIds);
+
+      return true;
+    },
+    [purgeImportantProfileIds],
+  );
+
+  const requireActiveDraftId = useCallback((): string | null => {
+    return resolveActiveDraftIdForMutation(draftsStateRef.current);
+  }, []);
 
   const setDraft = useCallback((patch: Partial<TripDraft>) => {
-    setDraftState((current) => ({ ...current, ...patch }));
-  }, []);
+    const draftId = requireActiveDraftId();
+    if (!draftId) {
+      return;
+    }
+
+    setDraftsState((current) => updateStoredDraftTrip(current, draftId, patch));
+  }, [requireActiveDraftId]);
+
+  const setDraftWizardStep = useCallback(
+    (step: number) => {
+      const draftId = requireActiveDraftId();
+      if (!draftId) {
+        return;
+      }
+
+      setDraftsState((current) => updateStoredDraftMeta(current, draftId, { wizardStep: step }));
+    },
+    [requireActiveDraftId],
+  );
 
   const resetDraft = useCallback(() => {
-    setDraftState(createEmptyTripDraft());
-    setDraftWizardStep(0);
-    setDraftReachedSummary(false);
-  }, []);
+    createNewDraft();
+  }, [createNewDraft]);
 
   const markDraftReachedSummary = useCallback(() => {
-    setDraftReachedSummary(true);
+    const draftId = requireActiveDraftId();
+    if (!draftId) {
+      return;
+    }
+
+    setDraftsState((current) =>
+      updateStoredDraftMeta(current, draftId, { reachedSummary: true }),
+    );
+  }, [requireActiveDraftId]);
+
+  const saveDraftImportantItemsForProfile = useCallback(
+    (profileId: string, names: string[]): ImportantItem[] => {
+      const draftId = requireActiveDraftId();
+      if (!draftId) {
+        return [];
+      }
+
+      let savedItems: ImportantItem[] = [];
+
+      setDraftsState((current) => {
+        const stored = getStoredDraftById(current, draftId);
+        if (!stored) {
+          return current;
+        }
+
+        const result = saveImportantItemNamesForProfile(
+          stored.draftImportantByProfileId,
+          profileId,
+          names,
+          createUuid,
+        );
+        savedItems = result.savedItems;
+
+        return updateStoredDraftMeta(current, draftId, {
+          draftImportantByProfileId: result.store,
+        });
+      });
+
+      return savedItems;
+    },
+    [requireActiveDraftId],
+  );
+
+  const dismissDraftImportantPromptForProfile = useCallback(
+    (profileId: string) => {
+      const draftId = requireActiveDraftId();
+      if (!draftId) {
+        return;
+      }
+
+      setDraftsState((current) => dismissDraftImportantPrompt(current, draftId, profileId));
+    },
+    [requireActiveDraftId],
+  );
+
+  const getActiveDraftImportantByProfileId = useCallback(() => {
+    const stored = getActiveStoredDraft(draftsStateRef.current);
+    return stored?.draftImportantByProfileId ?? {};
   }, []);
 
   const commitDraftTrip = useCallback(
-    async (packingMode: PackingMode = 'generated') => {
+    async (packingMode: PackingMode = 'generated', explicitDraftId?: string) => {
       if (commitDraftInFlightRef.current) {
         return commitDraftInFlightRef.current;
       }
 
       const promise = (async () => {
-        const draftSnapshot = draftRef.current;
+        const stateSnapshot = draftsStateRef.current;
+        const targetDraftId = resolveCommitDraftTargetId(stateSnapshot, explicitDraftId);
+        if (!targetDraftId) {
+          throw new Error(
+            explicitDraftId
+              ? `Trip draft not found: ${explicitDraftId}`
+              : 'No trip draft to commit',
+          );
+        }
+
+        const stored = getStoredDraftById(stateSnapshot, targetDraftId)!;
+
+        const draftSnapshot = stored.draft;
+        const mergedImportant = mergeImportantStores(
+          importantByProfileId,
+          stored.draftImportantByProfileId,
+        );
+
         const assembled = await assembleTripFromDraft(
           draftSnapshot,
           {
             packingGenerator,
             weatherService,
           },
-          { packingMode, importantByProfileId },
+          { packingMode, importantByProfileId: mergedImportant },
         );
         const saved = await tripRepository.createTrip(assembled);
 
         for (const profile of draftSnapshot.packingProfiles) {
           if (!profile.isSelf && profile.rememberForFutureTrips) {
-            rememberPackingProfile(profile);
+            rememberPackingProfile(profile, stored.draftImportantByProfileId[profile.id]);
           }
         }
 
@@ -353,9 +550,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         setActivePackingListIdState(
           resolvePackingListSelection(saved.id, null, null, [saved, ...tripsRef.current.filter((t) => t.id !== saved.id)]),
         );
-        setDraftState(createEmptyTripDraft());
-        setDraftWizardStep(0);
-        setDraftReachedSummary(false);
+        setDraftsState((current) => removeCommittedDraft(current, targetDraftId));
         setRepositoryError(null);
         return saved;
       })().catch((error) => {
@@ -371,7 +566,13 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         commitDraftInFlightRef.current = null;
       }
     },
-    [importantByProfileId, packingGenerator, rememberPackingProfile, weatherService, tripRepository],
+    [
+      importantByProfileId,
+      packingGenerator,
+      rememberPackingProfile,
+      weatherService,
+      tripRepository,
+    ],
   );
 
   const updateTripSharedDetails = useCallback(
@@ -1038,6 +1239,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       activeTrip,
       activePackingListId,
       activePackingList,
+      drafts: draftsState.drafts,
+      activeDraftId: draftsState.activeDraftId,
       draft,
       draftWizardStep,
       draftReachedSummary,
@@ -1047,10 +1250,18 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       setActivePackingListId,
       beginTripPackEntry,
       selectActivePackingList,
+      getDraftById,
+      getPrimaryInProgressDraft,
+      createNewDraft,
+      resumeDraft,
+      deleteDraft,
       setDraft,
       setDraftWizardStep,
       markDraftReachedSummary,
       resetDraft,
+      saveDraftImportantItemsForProfile,
+      dismissDraftImportantPromptForProfile,
+      getActiveDraftImportantByProfileId,
       refreshTrips,
       commitDraftTrip,
       updateTripSharedDetails,
@@ -1077,6 +1288,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       activeTrip,
       activePackingListId,
       activePackingList,
+      draftsState.drafts,
+      draftsState.activeDraftId,
       draft,
       draftWizardStep,
       draftReachedSummary,
@@ -1086,9 +1299,18 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       setActivePackingListId,
       beginTripPackEntry,
       selectActivePackingList,
+      getDraftById,
+      getPrimaryInProgressDraft,
+      createNewDraft,
+      resumeDraft,
+      deleteDraft,
       setDraft,
+      setDraftWizardStep,
       markDraftReachedSummary,
       resetDraft,
+      saveDraftImportantItemsForProfile,
+      dismissDraftImportantPromptForProfile,
+      getActiveDraftImportantByProfileId,
       refreshTrips,
       commitDraftTrip,
       updateTripSharedDetails,

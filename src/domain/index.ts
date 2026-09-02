@@ -9,5 +9,7 @@ export * from '@/domain/traveler';
 export * from '@/domain/trip';
 export * from '@/domain/trip-compatibility';
 export * from '@/domain/trip-draft';
+export * from '@/domain/trip-drafts-state';
+export * from '@/domain/draft-important-scope';
 export * from '@/domain/trip-name';
 export * from '@/domain/weather';

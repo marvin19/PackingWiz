@@ -1,8 +1,10 @@
 import {
   getImportantConfigForProfile,
+  migrateImportantProfileStoreKey,
   normalizeImportantProfileId,
   resolveImportantProfileId,
   saveImportantItemNamesForProfile,
+  setImportantConfigForProfile,
   SELF_IMPORTANT_PROFILE_ID,
   setImportantEnabledForProfileStore,
 } from '@/domain/profile-important-items';
@@ -55,5 +57,22 @@ describe('resolveImportantProfileId', () => {
 
   it('keeps non-self profile ids stable', () => {
     expect(resolveImportantProfileId({ id: 'profile-emilie', isSelf: false })).toBe('profile-emilie');
+  });
+});
+
+describe('remember + Important promotion ordering', () => {
+  it('preserves draft Important when draft profile id migrates to saved profile id', () => {
+    const draftProfileId = 'draft-profile-jonas';
+    const savedProfileId = 'profile-jonas';
+    const draftConfig = saveImportantItemNamesForProfile({}, draftProfileId, ['Passport'], () => 'imp-passport')
+      .store[draftProfileId];
+
+    let store = setImportantConfigForProfile({}, draftProfileId, draftConfig);
+    store = migrateImportantProfileStoreKey(store, draftProfileId, savedProfileId);
+
+    expect(getImportantConfigForProfile(store, savedProfileId).items.map((item) => item.name)).toEqual([
+      'Passport',
+    ]);
+    expect(store[draftProfileId]).toBeUndefined();
   });
 });

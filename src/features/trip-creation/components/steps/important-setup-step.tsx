@@ -12,7 +12,7 @@ import {
   normalizeImportantNameList,
   type ImportantWizardProfileDraftState,
 } from '@/features/trip-creation/utils/important-wizard-draft';
-import { useProfile } from '@/hooks/use-profile';
+import { useDraftImportant } from '@/hooks/use-draft-important';
 
 export type ImportantSetupStepHandle = {
   commitStagedChanges: () => void;
@@ -48,25 +48,17 @@ export const ImportantSetupStep = forwardRef<ImportantSetupStepHandle, Important
     const {
       dismissImportantPromptForProfile,
       getImportantConfigForProfile,
-      getImportantItemsForProfile,
       importantByProfileId,
       resolveImportantProfileId,
       saveImportantItemsForProfile,
-    } = useProfile();
+      getSavedNames,
+    } = useDraftImportant();
 
     const profileIdsKey = profiles.map((profile) => profile.id).join('|');
 
     const orderedProfiles = useMemo(
       () => sortProfilesForImportantWizardStep(profiles, importantByProfileId),
       [importantByProfileId, profiles],
-    );
-
-    const getSavedNames = useCallback(
-      (profile: PackingProfile) => {
-        const canonicalProfileId = resolveImportantProfileId(profile);
-        return getImportantItemsForProfile(canonicalProfileId).map((item) => item.name);
-      },
-      [getImportantItemsForProfile, resolveImportantProfileId],
     );
 
     const [draftsByProfileId, setDraftsByProfileId] = useState<Record<string, ProfileDraftState>>(() =>

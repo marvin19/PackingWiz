@@ -413,6 +413,16 @@ Product contract retained:
 
 Replace the current single-draft assumption.
 
+### MP5B-A — Domain/state foundation — COMPLETE (session/mock)
+
+- Multiple `StoredTripDraft` entries in `TripsProvider` with stable ids
+- `activeDraftId` for the draft currently being edited
+- Explicit create / resume / delete / commit-one-draft APIs
+- Draft-only packing profiles and Important remain draft-scoped
+- Wizard step + reached-summary stored per draft
+- Supabase/local persistence deferred
+- Home still shows a single **Continue planning** CTA (most recently touched in-progress draft) — multi-card UI is MP5B-B
+
 ### Draft model
 
 - Multiple TripDrafts can exist simultaneously

@@ -29,7 +29,9 @@ export function PackingItemRow({
 }: PackingItemRowProps) {
   const theme = useTheme();
 
-  const assigned = travelers.find((traveler) => traveler.id === item.assignedTo);
+  const assigned = travelers.find(
+    (traveler) => traveler.id === item.assignedTo,
+  );
   const isPurchasedIntent = checkboxIntent === 'purchased';
   const checkboxChecked = isPurchasedIntent ? false : item.packed;
   const checkboxLabel = isPurchasedIntent
@@ -38,18 +40,28 @@ export function PackingItemRow({
       ? `Mark ${item.name} as not packed`
       : `Mark ${item.name} as packed`;
   const personalNote = item.note?.trim();
+  const hasSecondaryContent =
+    Boolean(personalNote) ||
+    item.source === 'important' ||
+    item.needToBuy ||
+    Boolean(assigned);
 
   return (
     <View
       style={[
-        styles.card,
-        {
-          backgroundColor: item.packed ? theme.colors.muted : theme.colors.card,
-          borderColor: item.source === 'important' ? `${theme.colors.important}66` : theme.colors.border,
-          opacity: item.packed ? 0.92 : 1,
-        },
+        styles.row,
+        item.packed
+          ? {
+              backgroundColor: theme.colors.muted,
+              opacity: 0.92,
+            }
+          : null,
       ]}>
-      <View style={styles.mainRow}>
+      <View
+        style={[
+          styles.mainRow,
+          !hasSecondaryContent && styles.mainRowSingleLine,
+        ]}>
         <Pressable
           accessibilityRole="checkbox"
           accessibilityLabel={checkboxLabel}
@@ -57,13 +69,22 @@ export function PackingItemRow({
           onPress={() => onCheckboxPress(item.id)}
           style={[
             styles.checkButton,
+            !hasSecondaryContent && styles.checkButtonSingleLine,
             {
-              borderColor: checkboxChecked ? theme.colors.success : theme.colors.border,
-              backgroundColor: checkboxChecked ? theme.colors.success : theme.colors.card,
+              borderColor: checkboxChecked
+                ? theme.colors.success
+                : theme.colors.border,
+              backgroundColor: checkboxChecked
+                ? theme.colors.success
+                : theme.colors.card,
             },
           ]}>
           {checkboxChecked ? (
-            <Feather name="check" size={16} color={theme.colors.primaryForeground} />
+            <Feather
+              name="check"
+              size={16}
+              color={theme.colors.primaryForeground}
+            />
           ) : null}
         </Pressable>
 
@@ -74,39 +95,85 @@ export function PackingItemRow({
               styles.titleText,
               {
                 fontFamily: theme.fontFamilies.sansMedium,
-                color: item.packed ? theme.colors.mutedForeground : theme.colors.foreground,
+                color: item.packed
+                  ? theme.colors.mutedForeground
+                  : theme.colors.foreground,
                 textDecorationLine: item.packed ? 'line-through' : 'none',
               },
             ]}>
             {item.name}
             {item.quantity > 1 ? (
-              <AppText variant="caption" color="mutedForeground" style={styles.quantitySuffix}>
+              <AppText
+                variant="caption"
+                color="mutedForeground"
+                style={styles.quantitySuffix}>
                 {` · ×${item.quantity}`}
               </AppText>
             ) : null}
           </AppText>
 
-          {(item.source === 'important' || item.needToBuy || assigned) ? (
+          {item.source === 'important' || item.needToBuy || assigned ? (
             <View style={styles.metaRow}>
               {item.source === 'important' ? (
-                <View style={[styles.importantBadge, { backgroundColor: `${theme.colors.important}26` }]}>
-                  <Feather name="alert-triangle" size={11} color={theme.colors.important} />
-                  <AppText variant="micro" style={{ color: theme.colors.importantForeground, fontFamily: theme.fontFamilies.sansSemiBold }}>
+                <View
+                  style={[
+                    styles.importantBadge,
+                    {
+                      backgroundColor: `${theme.colors.important}26`,
+                    },
+                  ]}>
+                  <Feather
+                    name="alert-triangle"
+                    size={11}
+                    color={theme.colors.important}
+                  />
+                  <AppText
+                    variant="micro"
+                    style={{
+                      color: theme.colors.importantForeground,
+                      fontFamily: theme.fontFamilies.sansSemiBold,
+                    }}>
                     Important
                   </AppText>
                 </View>
               ) : null}
               {item.needToBuy ? (
-                <View style={[styles.buyBadge, { backgroundColor: `${theme.colors.buy}26` }]}>
-                  <Feather name="shopping-bag" size={11} color={theme.colors.buyForeground} />
-                  <AppText variant="micro" style={{ color: theme.colors.buyForeground, fontFamily: theme.fontFamilies.sansSemiBold }}>
+                <View
+                  style={[
+                    styles.buyBadge,
+                    {
+                      backgroundColor: `${theme.colors.buy}26`,
+                    },
+                  ]}>
+                  <Feather
+                    name="shopping-bag"
+                    size={11}
+                    color={theme.colors.buyForeground}
+                  />
+                  <AppText
+                    variant="micro"
+                    style={{
+                      color: theme.colors.buyForeground,
+                      fontFamily: theme.fontFamilies.sansSemiBold,
+                    }}>
                     Buy
                   </AppText>
                 </View>
               ) : null}
               {assigned ? (
-                <View style={[styles.ownerBadge, { backgroundColor: theme.colors.secondary }]}>
-                  <AppText variant="micro" color="secondaryForeground" style={{ fontFamily: theme.fontFamilies.sansMedium }}>
+                <View
+                  style={[
+                    styles.ownerBadge,
+                    {
+                      backgroundColor: theme.colors.secondary,
+                    },
+                  ]}>
+                  <AppText
+                    variant="micro"
+                    color="secondaryForeground"
+                    style={{
+                      fontFamily: theme.fontFamilies.sansMedium,
+                    }}>
                     {assigned.name}
                   </AppText>
                 </View>
@@ -140,9 +207,16 @@ export function PackingItemRow({
           onPress={() => onOpenSettings(item.id)}
           style={({ pressed }) => [
             styles.iconButton,
-            { backgroundColor: theme.colors.muted, opacity: pressed ? 0.85 : 1 },
+            {
+              backgroundColor: theme.colors.muted,
+              opacity: pressed ? 0.85 : 1,
+            },
           ]}>
-          <Feather name="more-horizontal" size={18} color={theme.colors.foreground} />
+          <Feather
+            name="more-horizontal"
+            size={18}
+            color={theme.colors.foreground}
+          />
         </Pressable>
       </View>
     </View>
@@ -150,10 +224,8 @@ export function PackingItemRow({
 }
 
 const styles = StyleSheet.create({
-  card: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 16,
-    overflow: 'hidden',
+  row: {
+    width: '100%',
   },
   mainRow: {
     flexDirection: 'row',
@@ -161,6 +233,9 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: PACKING_ITEM_CARD_PADDING_HORIZONTAL,
     paddingVertical: 10,
+  },
+  mainRowSingleLine: {
+    alignItems: 'center',
   },
   checkButton: {
     width: 28,
@@ -171,6 +246,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexShrink: 0,
     marginTop: 1,
+  },
+  checkButtonSingleLine: {
+    marginTop: 0,
   },
   nameBlock: {
     flex: 1,

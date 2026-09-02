@@ -32,8 +32,8 @@ import { buildEditTripHref } from '@/features/trip-edit/utils/edit-trip-navigati
 import { PackedCelebration } from '@/features/packing/components/packed-celebration';
 import { PackingItemSettingsSheet } from '@/features/packing/components/packing-item-settings-sheet';
 import { PackingCategoryHeader } from '@/features/packing/components/packing-category-section';
+import { PackingCategoryItemList } from '@/features/packing/components/packing-category-item-list';
 import {
-  PackingItemRow,
   type PackingCheckboxIntent,
 } from '@/features/packing/components/packing-item-row';
 import { usePackedCelebration } from '@/features/packing/hooks/use-packed-celebration';
@@ -51,7 +51,7 @@ import { fabShadow } from '@/theme/shadows';
 type PackSection = {
   category: PackingCategory;
   allItems: PackingItem[];
-  data: PackingItem[];
+  data: { id: string; items: PackingItem[] }[];
 };
 
 export function PackScreen() {
@@ -188,7 +188,7 @@ export function PackScreen() {
       grouped.map(({ category, items }) => ({
         category,
         allItems: items,
-        data: collapsed[category] ? [] : items,
+        data: collapsed[category] ? [] : [{ id: `${category}-items`, items }],
       })),
     [grouped, collapsed],
   );
@@ -465,16 +465,15 @@ export function PackScreen() {
             />
           </View>
         )}
-        renderItem={({ item }) => (
-          <View style={styles.itemWrap}>
-            <PackingItemRow
-              item={item}
-              travelers={activeTrip.travelers}
-              checkboxIntent={checkboxIntent}
-              onCheckboxPress={handleCheckboxPress}
-              onOpenSettings={handleOpenItemSettings}
-            />
-          </View>
+        renderItem={({ item, section }) => (
+          <PackingCategoryItemList
+            category={section.category}
+            items={item.items}
+            travelers={activeTrip.travelers}
+            checkboxIntent={checkboxIntent}
+            onCheckboxPress={handleCheckboxPress}
+            onOpenSettings={handleOpenItemSettings}
+          />
         )}
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
       />
@@ -642,9 +641,6 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     textAlign: 'center',
-  },
-  itemWrap: {
-    marginBottom: 8,
   },
   sectionGap: {
     height: 8,

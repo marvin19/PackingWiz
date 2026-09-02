@@ -142,6 +142,8 @@ Helpers: `createDestinationFromText`, `getDestinationLabel`, `getDestinationCoun
 
 **Draft vs reusable profiles:** Adding a person to a trip draft selects them for that draft only. `rememberForFutureTrips` on the draft profile expresses intent; `rememberPackingProfile()` runs at **trip commit** when Remember is on — not when the person is added to the draft.
 
+**MP5B draft-only Important:** Important for draft-only packing profile ids (`draft-profile-*`) is stored on the draft envelope (`StoredTripDraft.draftImportantByProfileId`), not in the global profile store. Self and remembered/reusable profiles continue to use `importantByProfileId` in ProfileProvider.
+
 **Trip-level progress:** Home and Trip Overview use `packingStatsForTrip` — sum of packed/total item counts across all `PackingList`s (not averaged percentages). Pack and the packing-list picker remain list-scoped via `packingStatsForList`.
 
 ---
@@ -170,7 +172,7 @@ src/app/
 | Action | Behavior |
 |--------|----------|
 | Open trip from Trips | `setActiveTripId` + navigate to Pack (`use-trip-navigation.ts`) |
-| Commit new trip | `commitDraftTrip()` sets active id + clears draft |
+| Commit new trip | `commitDraftTrip()` sets active id + removes only the committed draft (MP5B) |
 | Pack / Overview | Read `activeTrip` from `TripsProvider` |
 | Profile tab | Does **not** clear `activeTripId` |
 | No active trip | Pack shows explicit empty state |
@@ -197,7 +199,7 @@ State will likely need **`activePackingListId`** (or equivalent) alongside `acti
 AuthProvider
   └─ ServicesProvider (createAppServices — singleton per app)
        └─ ProfileProvider (preferences, Important master, saved travelers)
-            └─ TripsProvider (trips[], activeTripId, draft, packing mutations)
+            └─ TripsProvider (trips[], activeTripId, drafts[], activeDraftId, packing mutations)
 ```
 
 **Target additions (planned):** `PackingProfile` storage (ProfileProvider or dedicated provider/repository), `activePackingListId`, list-scoped packing mutations.
@@ -205,10 +207,13 @@ AuthProvider
 ### TripsProvider (`src/providers/trips-provider.tsx`)
 
 - Loads trips from `TripRepository` when auth ready
+- **MP5B session drafts:** `drafts: StoredTripDraft[]` + `activeDraftId`; each draft has stable `id`, wizard step/resume metadata, and draft-scoped Important for draft-only profiles
 - Optimistic packing mutations with **surgical rollback**
 - Important inject/sync via `updateTripPackingItems()` — not full-trip `save()` from stale snapshots
 - `tripsRef` for latest trip list in async callbacks
 - Mutations today assume **flat `Trip.items`** — will need list-scoped APIs in MP1/MP3
+
+**Draft APIs (MP5B-A):** `createNewDraft`, `resumeDraft(id)`, `deleteDraft(id)`, `getDraftById`, `commitDraftTrip(mode, draftId?)`. No silent fallback to an arbitrary draft. Persistence deferred to a later slice; refresh may reset session drafts.
 
 ### ProfileProvider
 

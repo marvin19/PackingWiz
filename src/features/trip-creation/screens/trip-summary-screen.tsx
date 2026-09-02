@@ -17,7 +17,7 @@ import {
 import { getPackingForLabel } from '@/features/trip-creation/utils/summary-labels';
 import { resolveLastWizardStepIndex } from '@/features/trip-creation/utils/wizard-steps';
 import { getTripSummaryDetailsScreenTitle } from '@/features/trip-edit/utils/trip-details-navigation';
-import { useProfile } from '@/hooks/use-profile';
+import { useDraftImportant } from '@/hooks/use-draft-important';
 import { useTrips } from '@/hooks/use-trips';
 import { blurActiveElement } from '@/lib/blur-active-element';
 import { spacing, screenPaddingHorizontal } from '@/theme/spacing';
@@ -25,7 +25,7 @@ import { spacing, screenPaddingHorizontal } from '@/theme/spacing';
 export function TripSummaryScreen() {
   const router = useRouter();
   const { draft, commitDraftTrip, setDraftWizardStep } = useTrips();
-  const { importantByProfileId } = useProfile();
+  const { importantByProfileId } = useDraftImportant();
   const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
   const [manualCreateLoading, setManualCreateLoading] = useState(false);
 

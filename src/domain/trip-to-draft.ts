@@ -28,6 +28,7 @@ function profileFromListSnapshot(
  */
 export function tripToTripDraft(trip: Trip): TripDraft {
   return {
+    id: trip.id,
     destination: { ...trip.destination },
     startDate: trip.startDate,
     endDate: trip.endDate,

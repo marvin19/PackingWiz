@@ -5,7 +5,13 @@ import { useTrips } from '@/hooks/use-trips';
 
 export function useTripNavigation() {
   const router = useRouter();
-  const { beginTripPackEntry, resetDraft, draftReachedSummary } = useTrips();
+  const {
+    beginTripPackEntry,
+    createNewDraft,
+    getDraftById,
+    getPrimaryInProgressDraft,
+    resumeDraft,
+  } = useTrips();
 
   const openTrip = useCallback(
     (tripId: string) => {
@@ -29,18 +35,26 @@ export function useTripNavigation() {
   );
 
   const startCreateTrip = useCallback(() => {
-    resetDraft();
+    createNewDraft();
     router.push('/trip/create');
-  }, [resetDraft, router]);
+  }, [createNewDraft, router]);
 
-  const resumeDraftTrip = useCallback(() => {
-    if (draftReachedSummary) {
-      router.push('/trip/summary');
-      return;
-    }
+  const resumeDraftTrip = useCallback(
+    (draftId?: string) => {
+      const targetId = draftId ?? getPrimaryInProgressDraft()?.id;
+      if (!targetId) {
+        return;
+      }
 
-    router.push('/trip/create');
-  }, [draftReachedSummary, router]);
+      const stored = getDraftById(targetId);
+      if (!stored || !resumeDraft(targetId)) {
+        return;
+      }
+
+      router.push(stored.reachedSummary ? '/trip/summary' : '/trip/create');
+    },
+    [getDraftById, getPrimaryInProgressDraft, resumeDraft, router],
+  );
 
   return { openTrip, selectPackingListAndOpenPack, startCreateTrip, resumeDraftTrip };
 }
