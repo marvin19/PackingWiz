@@ -82,6 +82,7 @@ import {
   removeTravellerFromTrip as orchestrateRemoveTravellerFromTrip,
   updateTripSharedDetails as orchestrateTripSharedDetailsUpdate,
 } from '@/services/trip-edit-orchestration';
+import { reuseTrip as orchestrateReuseTrip, type ReuseTripInput } from '@/services/trip-reuse-orchestration';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
 import { syncTripImportantSnapshot } from '@/services/packing/sync-important-snapshot';
 
@@ -144,6 +145,8 @@ interface TripsContextValue {
   refreshTrips: () => Promise<void>;
   commitDraftTrip: (packingMode?: PackingMode, draftId?: string) => Promise<Trip>;
   deleteTripPermanently: (tripId: string) => Promise<void>;
+  /** Reuse packing-list content from an existing trip into a new trip (MP5D-A). Does not change active trip. */
+  reuseTrip: (sourceTripId: string, input: ReuseTripInput) => Promise<Trip>;
   updateTripSharedDetails: (
     tripId: string,
     patch: TripSharedDetailsUserEdit,
@@ -678,6 +681,26 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         setRepositoryError(
           error instanceof Error ? error.message : 'Failed to delete trip permanently',
         );
+        throw error;
+      }
+    },
+    [tripRepository],
+  );
+
+  const reuseTrip = useCallback(
+    async (sourceTripId: string, input: ReuseTripInput) => {
+      const source = tripsRef.current.find((entry) => entry.id === sourceTripId);
+      if (!source) {
+        throw new Error('Trip not found');
+      }
+
+      try {
+        const created = await orchestrateReuseTrip(source, input, { tripRepository });
+        setTrips((current) => [created, ...current.filter((entry) => entry.id !== created.id)]);
+        setRepositoryError(null);
+        return created;
+      } catch (error) {
+        setRepositoryError(error instanceof Error ? error.message : 'Failed to reuse trip');
         throw error;
       }
     },
@@ -1378,6 +1401,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       refreshTrips,
       commitDraftTrip,
       deleteTripPermanently,
+      reuseTrip,
       updateTripSharedDetails,
       addTravellerToTrip,
       removeTravellerFromTrip,
@@ -1431,6 +1455,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       refreshTrips,
       commitDraftTrip,
       deleteTripPermanently,
+      reuseTrip,
       updateTripSharedDetails,
       addTravellerToTrip,
       removeTravellerFromTrip,

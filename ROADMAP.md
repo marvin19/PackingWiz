@@ -483,7 +483,7 @@ Date-derived Previous lifecycle, canonical Trips browser, and permanent deletion
 - Reusable Packing Profiles / Important masters survive trip permanent delete
 - Supabase: `delete` relies on existing FK cascades; no schema migration in this slice
 
-### MP5C-B — Canonical Trips browser — implementation complete (manual verification pending)
+### MP5C-B — Canonical Trips browser — COMPLETE
 
 - One **Trips** screen (`/trip/browse`): All | Drafts | Upcoming | Previous view filters
 - Home compact previews: max 2 drafts, max 2 previous trips; **View all trips** footer always reachable from Home
@@ -535,7 +535,26 @@ non-deleted/archive data or a future explicit product/privacy contract.
 
 Provide explicit reuse before building intelligent automatic similarity.
 
-### Duplicate Trip
+### MP5D-A — Reuse domain & orchestration foundation — COMPLETE (session/mock)
+
+Pure builder + service/provider API (no UI):
+
+- `buildReusedTrip()` — copies selected packing-list content into a new Trip aggregate
+- Fresh Trip / PackingList / PackingItem ids (UUID); source trip immutable
+- Resets `packed` progress; preserves names, categories, qty, notes, need-to-buy, manual additions, `packingMode`, Important snapshot + `importantItemId` master links
+- Required new dates validated with `validateNewTripDateRange`
+- Traveller subset via selected source list/profile ids
+- No PackingGenerator, weather fetch, InsightGenerator, or Important reinjection
+- Weather = `emptyTripWeather()`; insights = `[]`; image not copied
+- `reuseTrip()` orchestration → `TripRepository.createTrip()`
+- `TripsProvider.reuseTrip(sourceTripId, input)` — returns created trip; does not change `activeTripId`
+- Supabase: multi-list reuse rejected by existing `createTrip()` guard until MP6 persistence
+
+### MP5D-B — Reuse trip UI — NOT STARTED
+
+User-facing **Reuse trip** flow (dates, traveller selection, shared detail edits) on top of MP5D-A.
+
+### Duplicate Trip (product)
 
 Allow a user to create a new Trip from an existing Trip.
 

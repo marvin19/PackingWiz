@@ -223,6 +223,25 @@ AuthProvider
 
 **New trip dates:** Creating a new trip requires `startDate >=` the user's local calendar day. Stale drafts with past start dates remain drafts until corrected; commit is blocked before assembly/persistence. Existing Previous trips may retain historical dates when edited.
 
+**Trip reuse (MP5D-A):** `buildReusedTrip()` (`src/domain/trip-reuse.ts`) copies selected `PackingList` content from a source Trip into a **new** Trip aggregate. `reuseTrip()` orchestration persists via `TripRepository.createTrip()` without PackingGenerator, weather fetch, InsightGenerator, or Important injection. Contract:
+
+| Aspect | Behavior |
+|--------|----------|
+| Source trip | Immutable — ids, packed progress, weather, insights unchanged |
+| New ids | Fresh UUIDs for Trip, each PackingList, each PackingItem, and copied bags |
+| Profile identity | `profileSnapshot` copied from source list; `packingProfileId` preserved |
+| Important | Snapshot rows copied; fresh item id; `importantItemId` master link preserved |
+| Progress | All copied items start `packed: false` |
+| packingMode | Preserved per copied list (describes origin, not permission to regenerate) |
+| Dates | Required new `startDate`/`endDate`; validated with `validateNewTripDateRange` |
+| Travellers | Caller selects source list/profile ids; only selected lists copied |
+| Weather | `emptyTripWeather()` — not copied from source |
+| Insights | `[]` — stale reasoning not carried over |
+| Image | Not copied (`undefined` on new trip) |
+| Active trip | `TripsProvider.reuseTrip()` returns created trip; does **not** set `activeTripId` (unlike `commitDraftTrip`) |
+
+Supabase: `createTrip()` rejects multi-list aggregates until MP6 persistence; mock repository supports multi-list reuse.
+
 ### ProfileProvider
 
 - In-memory only today (no repository persistence)

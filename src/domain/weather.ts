@@ -19,3 +19,14 @@ export interface TripWeather {
   conditions?: string;
   days?: WeatherDay[];
 }
+
+/** Canonical empty weather for trips without a fetched snapshot (reuse, Supabase reload gaps). */
+export function emptyTripWeather(): TripWeather {
+  return {
+    mode: 'climate',
+    summary: '',
+    detail: '',
+    high: 0,
+    low: 0,
+  };
+}
