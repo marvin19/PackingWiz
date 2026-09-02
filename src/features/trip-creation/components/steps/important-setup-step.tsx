@@ -72,6 +72,31 @@ export const ImportantSetupStep = forwardRef<ImportantSetupStepHandle, Important
       });
     }, [getSavedNames, profileIdsKey, profiles]);
 
+    const expandProfile = useCallback(
+      (profileId: string, profile: PackingProfile) => {
+        setDraftsByProfileId((current) => {
+          const next = Object.fromEntries(
+            Object.entries(current).map(([id, draft]) => [
+              id,
+              {
+                ...draft,
+                expanded: id === profileId,
+              },
+            ]),
+          );
+
+          next[profileId] = {
+            ...(next[profileId] ?? { rows: [''], expanded: false }),
+            expanded: true,
+            rows: draftRowsFromImportantNames(getSavedNames(profile)),
+          };
+
+          return next;
+        });
+      },
+      [getSavedNames],
+    );
+
     const updateProfileDraft = useCallback((profileId: string, patch: Partial<ProfileDraftState>) => {
       setDraftsByProfileId((current) => ({
         ...current,
@@ -130,13 +155,7 @@ export const ImportantSetupStep = forwardRef<ImportantSetupStepHandle, Important
                 stagedRows={draft.rows}
                 expanded={draft.expanded}
                 onChangeRows={(rows) => updateProfileDraft(profile.id, { rows })}
-                onExpand={() =>
-                  updateProfileDraft(profile.id, {
-                    expanded: true,
-                    rows: draftRowsFromImportantNames(getSavedNames(profile)),
-                  })
-                }
-                onCollapse={() => updateProfileDraft(profile.id, { expanded: false })}
+                onExpand={() => expandProfile(profile.id, profile)}
                 onConfigureLater={() => {
                   dismissImportantPromptForProfile(canonicalProfileId);
                   updateProfileDraft(profile.id, { expanded: false });

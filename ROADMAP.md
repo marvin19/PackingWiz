@@ -421,7 +421,15 @@ Replace the current single-draft assumption.
 - Draft-only packing profiles and Important remain draft-scoped
 - Wizard step + reached-summary stored per draft
 - Supabase/local persistence deferred
-- Home still shows a single **Continue planning** CTA (most recently touched in-progress draft) — multi-card UI is MP5B-B
+
+### MP5B-B — Home / Trips multi-draft UI — in progress (session/mock)
+
+- Home **Continue planning** shows up to **2** most recently touched in-progress drafts; **View all drafts (N)** opens `/trip/drafts` for the full list
+- Draft cards: destination or **New trip**, dates/people metadata (no wizard step on card); resume via explicit `resumeDraft(id)`; delete with confirmation sheet
+- Trip Summary: **Save and close** (X) preserves draft + `reachedSummary`; resume returns to Summary
+- **Plan new trip** calls `createNewDraft()` then navigates — never overwrites existing drafts
+- Stale `/trip/create` or `/trip/summary` without valid `activeDraftId` redirects to Trips/Home; successful commit clears draft but `isCommitDraftInFlight` prevents guard from stealing Pack navigation
+- Archive/delete for completed trips, duplicate/reuse, and persistence remain deferred
 
 ### Draft model
 

@@ -215,6 +215,8 @@ AuthProvider
 
 **Draft APIs (MP5B-A):** `createNewDraft`, `resumeDraft(id)`, `deleteDraft(id)`, `getDraftById`, `commitDraftTrip(mode, draftId?)`. No silent fallback to an arbitrary draft. Persistence deferred to a later slice; refresh may reset session drafts.
 
+**Home draft navigation (MP5B-B):** Normal Create Trip entry is via Home **Plan new trip** (`createNewDraft` + navigate) or **Continue planning** card (`resumeDraft(id)` + navigate to wizard or summary). Home shows at most two in-progress drafts; `/trip/drafts` lists all. Direct `/trip/create` or `/trip/summary` without a valid `activeDraftId` redirects to Trips/Home unless a trip commit is in flight (post-create Pack navigation). Trip Summary **Save and close** preserves the draft without committing.
+
 ### ProfileProvider
 
 - In-memory only today (no repository persistence)

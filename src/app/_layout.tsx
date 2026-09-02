@@ -37,6 +37,7 @@ export default function RootLayout() {
         <Stack.Screen name="trip/edit-section" />
         <Stack.Screen name="trip/summary" />
         <Stack.Screen name="trip/generating" />
+        <Stack.Screen name="trip/drafts" />
       </Stack>
     </AppProviders>
   );

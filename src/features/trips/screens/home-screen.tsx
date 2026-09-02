@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -5,7 +6,7 @@ import { BrandMark } from '@/components/brand/brand-mark';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { SectionTitle } from '@/components/ui/section-title';
-import { ContinueDraftCta } from '@/features/trips/components/continue-draft-cta';
+import { ContinuePlanningSection } from '@/features/trips/components/continue-planning-section';
 import { PlanNewTripCta } from '@/features/trips/components/plan-new-trip-cta';
 import { PastTripCard } from '@/features/trips/components/past-trip-card';
 import { TripsEmptyState } from '@/features/trips/components/trips-empty-state';
@@ -16,11 +17,10 @@ import { getTimeBasedGreeting, mockUserProfile } from '@/mocks/user-profile';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function HomeScreen() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { trips, isLoading, getPrimaryInProgressDraft } = useTrips();
+  const { trips, isLoading, inProgressDraftsOrdered, deleteDraft } = useTrips();
   const { openTrip, startCreateTrip, resumeDraftTrip } = useTripNavigation();
-  const primaryDraft = getPrimaryInProgressDraft();
-  const hasDraft = primaryDraft !== null;
 
   const upcoming = trips.filter((trip) => trip.status === 'upcoming');
   const past = trips.filter((trip) => trip.status === 'past');
@@ -63,12 +63,12 @@ export function HomeScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}>
-        {hasDraft && primaryDraft ? (
-          <ContinueDraftCta
-            draft={primaryDraft.draft}
-            onPress={() => resumeDraftTrip(primaryDraft.id)}
-          />
-        ) : null}
+        <ContinuePlanningSection
+          drafts={inProgressDraftsOrdered}
+          onResumeDraft={resumeDraftTrip}
+          onDeleteDraft={deleteDraft}
+          onViewAllDrafts={() => router.push('/trip/drafts')}
+        />
         <PlanNewTripCta onPress={startCreateTrip} />
 
         <View style={styles.section}>

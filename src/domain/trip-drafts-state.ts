@@ -85,22 +85,26 @@ export function listInProgressDrafts(state: TripDraftsState): StoredTripDraft[] 
   return state.drafts.filter((entry) => isDraftInProgress(entry.draft));
 }
 
-/** Most recently touched in-progress draft for temporary single-CTA Home compatibility. */
-export function findPrimaryInProgressDraft(state: TripDraftsState): StoredTripDraft | null {
-  const inProgress = listInProgressDrafts(state);
-  if (inProgress.length === 0) {
-    return null;
+/** Deterministic ordering for Home draft lists — most recently touched first. */
+export function compareStoredDraftsByRecentTouch(
+  left: StoredTripDraft,
+  right: StoredTripDraft,
+): number {
+  const byUpdatedAt = right.updatedAt.localeCompare(left.updatedAt);
+  if (byUpdatedAt !== 0) {
+    return byUpdatedAt;
   }
 
-  return [...inProgress].sort((left, right) => {
-    const byUpdatedAt = right.updatedAt.localeCompare(left.updatedAt);
-    if (byUpdatedAt !== 0) {
-      return byUpdatedAt;
-    }
+  return right.id.localeCompare(left.id);
+}
 
-    // Deterministic tie-break — presentation only, not canonical identity.
-    return right.id.localeCompare(left.id);
-  })[0];
+export function listInProgressDraftsOrdered(state: TripDraftsState): StoredTripDraft[] {
+  return [...listInProgressDrafts(state)].sort(compareStoredDraftsByRecentTouch);
+}
+
+/** Most recently touched in-progress draft for temporary single-CTA Home compatibility. */
+export function findPrimaryInProgressDraft(state: TripDraftsState): StoredTripDraft | null {
+  return listInProgressDraftsOrdered(state)[0] ?? null;
 }
 
 /** Envelope id and nested TripDraft.id must remain identical. */

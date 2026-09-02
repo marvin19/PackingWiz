@@ -20,7 +20,7 @@ export function TripGeneratingScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { draft } = useTrips();
+  const { draft, acknowledgeCommitDraftNavigation } = useTrips();
   const [destinationLabel] = useState(() => getDestinationLabel(draft.destination));
   const { activeStep, status, errorMessage, steps, start, retry, isReadyToFinish, finishDelayMs } =
     useTripGeneration();
@@ -37,10 +37,11 @@ export function TripGeneratingScreen() {
     const timer = setTimeout(() => {
       blurActiveElement();
       router.replace('/(tabs)/pack');
+      acknowledgeCommitDraftNavigation();
     }, finishDelayMs);
 
     return () => clearTimeout(timer);
-  }, [finishDelayMs, isReadyToFinish, router]);
+  }, [acknowledgeCommitDraftNavigation, finishDelayMs, isReadyToFinish, router]);
 
   const handleBackToSummary = () => {
     blurActiveElement();

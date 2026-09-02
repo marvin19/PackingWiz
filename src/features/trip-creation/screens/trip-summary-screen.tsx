@@ -17,6 +17,8 @@ import {
 import { getPackingForLabel } from '@/features/trip-creation/utils/summary-labels';
 import { resolveLastWizardStepIndex } from '@/features/trip-creation/utils/wizard-steps';
 import { getTripSummaryDetailsScreenTitle } from '@/features/trip-edit/utils/trip-details-navigation';
+import { useRequireActiveDraftRoute } from '@/features/trip-creation/hooks/use-require-active-draft-route';
+import { resolveDraftSaveAndCloseRoute } from '@/features/trips/utils/draft-home-display';
 import { useDraftImportant } from '@/hooks/use-draft-important';
 import { useTrips } from '@/hooks/use-trips';
 import { blurActiveElement } from '@/lib/blur-active-element';
@@ -24,7 +26,8 @@ import { spacing, screenPaddingHorizontal } from '@/theme/spacing';
 
 export function TripSummaryScreen() {
   const router = useRouter();
-  const { draft, commitDraftTrip, setDraftWizardStep } = useTrips();
+  const hasValidActiveDraft = useRequireActiveDraftRoute();
+  const { draft, commitDraftTrip, setDraftWizardStep, acknowledgeCommitDraftNavigation } = useTrips();
   const { importantByProfileId } = useDraftImportant();
   const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
   const [manualCreateLoading, setManualCreateLoading] = useState(false);
@@ -47,6 +50,11 @@ export function TripSummaryScreen() {
     router.replace('/trip/create');
   };
 
+  const handleClose = useCallback(() => {
+    blurActiveElement();
+    router.replace(resolveDraftSaveAndCloseRoute());
+  }, [router]);
+
   const handleGenerate = () => {
     blurActiveElement();
     router.push('/trip/generating');
@@ -63,6 +71,7 @@ export function TripSummaryScreen() {
     try {
       await commitDraftTrip('manual');
       router.replace('/(tabs)/pack');
+      acknowledgeCommitDraftNavigation();
     } catch {
       // Draft is preserved; repositoryError is set in TripsProvider.
     } finally {
@@ -70,9 +79,18 @@ export function TripSummaryScreen() {
     }
   };
 
+  if (!hasValidActiveDraft) {
+    return null;
+  }
+
   return (
     <AppScreen>
-      <ScreenHeader title={getTripSummaryDetailsScreenTitle('create')} onBack={handleBack} />
+      <ScreenHeader
+        title={getTripSummaryDetailsScreenTitle('create')}
+        onBack={handleBack}
+        onClose={handleClose}
+        closeAccessibilityLabel="Save and close trip"
+      />
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.scrollContent}

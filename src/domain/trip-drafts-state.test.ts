@@ -19,6 +19,7 @@ import {
   emptyTripDraftsState,
   findPrimaryInProgressDraft,
   getStoredDraftById,
+  listInProgressDraftsOrdered,
   removeCommittedDraft,
   resolveActiveDraftIdForMutation,
   resolveCommitDraftTargetId,
@@ -440,5 +441,69 @@ describe('MP5B-A boundary: commit target safety', () => {
 
     expect(resolveCommitDraftTargetId(state, 'missing-id')).toBeNull();
     expect(state.drafts).toHaveLength(2);
+  });
+});
+
+describe('MP5B-B: Home multi-draft navigation targets', () => {
+  it('resumeDraft sets active to the explicitly requested draft id', () => {
+    const tokyo = createStoredTripDraft({ destination: createDestinationFromText('Tokyo') });
+    const paris = createStoredTripDraft({ destination: createDestinationFromText('Paris') });
+    let state = addStoredDraft(addStoredDraft(emptyTripDraftsState(), tokyo), paris);
+
+    state = resumeDraftInState(state, tokyo.id)!;
+
+    expect(state.activeDraftId).toBe(tokyo.id);
+    expect(getStoredDraftById(state, paris.id)).not.toBeNull();
+  });
+
+  it('deleteDraft removes only the selected draft', () => {
+    const tokyo = createStoredTripDraft({ destination: createDestinationFromText('Tokyo') });
+    const paris = createStoredTripDraft({ destination: createDestinationFromText('Paris') });
+    let state = addStoredDraft(addStoredDraft(emptyTripDraftsState(), tokyo), paris);
+
+    state = deleteDraftInState(state, tokyo.id);
+
+    expect(getStoredDraftById(state, tokyo.id)).toBeNull();
+    expect(getStoredDraftById(state, paris.id)).not.toBeNull();
+    expect(listInProgressDraftsOrdered(state).map((entry) => entry.id)).toEqual([paris.id]);
+  });
+
+  it('adding a second draft preserves the first draft', () => {
+    const tokyo = createStoredTripDraft({ destination: createDestinationFromText('Tokyo') });
+    let state = addStoredDraft(emptyTripDraftsState(), tokyo);
+    const paris = createStoredTripDraft({ destination: createDestinationFromText('Paris') });
+    state = addStoredDraft(state, paris);
+
+    expect(state.drafts).toHaveLength(2);
+    expect(getStoredDraftById(state, tokyo.id)!.draft.destination.displayName).toBe('Tokyo');
+    expect(getStoredDraftById(state, paris.id)!.draft.destination.displayName).toBe('Paris');
+  });
+
+  it('returns no in-progress drafts when the drafts list is empty', () => {
+    expect(listInProgressDraftsOrdered(emptyTripDraftsState())).toEqual([]);
+  });
+
+  it('stale create route guard never resolves another draft as active', () => {
+    const paris = createStoredTripDraft({ destination: createDestinationFromText('Paris') });
+    const state = {
+      drafts: [paris],
+      activeDraftId: null,
+    };
+
+    expect(resolveActiveDraftIdForMutation(state)).toBeNull();
+  });
+
+  it('updateStoredDraftTrip no-ops when draft id is missing from state (ref/state desync)', () => {
+    const stored = createStoredTripDraft();
+    const refState = addStoredDraft(emptyTripDraftsState(), stored);
+    const reactState = emptyTripDraftsState();
+    const draftIdFromRef = resolveActiveDraftIdForMutation(refState)!;
+
+    const result = updateStoredDraftTrip(reactState, draftIdFromRef, {
+      destination: createDestinationFromText('Tokyo'),
+    });
+
+    expect(result).toBe(reactState);
+    expect(result.drafts).toHaveLength(0);
   });
 });

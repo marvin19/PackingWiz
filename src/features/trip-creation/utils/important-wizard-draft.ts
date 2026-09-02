@@ -25,7 +25,7 @@ export type ImportantWizardProfileDraftState = {
   expanded: boolean;
 };
 
-/** Preserve expanded cards' staged rows when rebuilding wizard draft state from canonical data. */
+/** Preserve staged rows when rebuilding wizard draft state from canonical data. */
 export function mergeImportantWizardProfileDrafts(
   current: Record<string, ImportantWizardProfileDraftState>,
   next: Record<string, ImportantWizardProfileDraftState>,
@@ -38,10 +38,17 @@ export function mergeImportantWizardProfileDrafts(
       continue;
     }
 
-    if (existing.expanded) {
+    const stagedNames = normalizeImportantNameList(existing.rows);
+    const canonicalNames = normalizeImportantNameList(merged[profileId].rows);
+    const hasUncommittedStagedChanges =
+      !importantNameListsEqual(stagedNames, canonicalNames) &&
+      (canonicalNames.length === 0 ||
+        stagedNames.some((name) => !canonicalNames.includes(name)));
+
+    if (existing.expanded || hasUncommittedStagedChanges) {
       merged[profileId] = {
         ...merged[profileId],
-        expanded: true,
+        expanded: existing.expanded,
         rows: existing.rows,
       };
     }
