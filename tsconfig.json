@@ -34,6 +34,8 @@
   "exclude": [
     "node_modules",
     "v0-prototype",
-    "scripts"
+    "scripts",
+    "**/*.test.ts",
+    "**/*.test.tsx"
   ]
 }

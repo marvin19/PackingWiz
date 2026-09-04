@@ -72,10 +72,39 @@ The codebase still reflects an earlier single-list model. Agents must treat this
 - `weather: TripWeather` — snapshot at creation (trip-level — unchanged in target)
 - `items: PackingItem[]` — **legacy flat list** (target: nested under `PackingList`)
 - `packingMode: 'generated' | 'manual'` — **legacy trip-level** (target: per `PackingList`)
-- `insights: string[]`
+- `insights: Insight[]` — trip-level packing **reasoning** snapshot (Insights v1A); not user-provided trip facts
 - `status: 'upcoming' | 'past'`
 - `generated: boolean` — mirrors packing mode for Supabase schema
 - `image?: string` — reserved for future assets
+
+### Insights vs Trip Details vs Pack (v1A)
+
+| Surface | Meaning |
+|---------|---------|
+| **Trip Details / Trip Summary** | User-provided trip facts (destination, dates, context tags, accommodation, laundry, …) |
+| **Insights** | PackingWiz reasoning about what those facts mean for packing — e.g. why rain gear or fewer shirts were included |
+| **Pack** | The resulting packing lists and item state |
+
+**Insights v1 rules:**
+
+- Trip-level only — one shared snapshot on `Trip.insights`, not per `PackingList` or profile.
+- Created once during generated trip assembly (`assembleTripFromDraft` → `InsightGenerator`); not recomputed when Trip Details later change.
+- Deterministic generator today (`generateDeterministicTripInsights`); OpenAI-backed generator can implement the same `Insight` contract later.
+- Legacy string insights normalize to structured `Insight` records on read (`normalizeInsights`).
+- Legacy ids are **content-derived** (`legacyInsightIdFromBody`) — stable across repeated reads, not index-based or random.
+- Supabase persistence is **content-only** for now: save `body`, reload with DB row `id` plus compatibility `category`/`title` defaults (`insightFromPersistedContent`). Category/title do not survive Supabase reload until schema evolves; mock/session structured insights stay fully structured until saved.
+
+Contract: `src/domain/insight.ts` — `id`, `category`, `title`, `body`.
+
+**Trip Summary vs Trip Details (MP5A IA):**
+
+| Surface | When | Purpose |
+|---------|------|---------|
+| **Trip Summary** | Creation review (`/trip/summary`) | Draft facts before generate/manual create; includes Weather preview + Important |
+| **Trip Details** | Existing trip (`/trip/edit`) | User-provided facts with section-level editing; no Weather (see Insights) |
+| **Insights** | Existing trip (`/(tabs)/pack/overview`) | Packing reasoning + Weather snapshot |
+
+Shared presentation: `TripSummaryDetailsContent` (`src/features/trip-creation/components/trip-summary-details-content.tsx`).
 
 ### Destination (`src/domain/destination.ts`)
 
@@ -113,6 +142,8 @@ Helpers: `createDestinationFromText`, `getDestinationLabel`, `getDestinationCoun
 
 **Draft vs reusable profiles:** Adding a person to a trip draft selects them for that draft only. `rememberForFutureTrips` on the draft profile expresses intent; `rememberPackingProfile()` runs at **trip commit** when Remember is on — not when the person is added to the draft.
 
+**MP5B draft-only Important:** Important for draft-only packing profile ids (`draft-profile-*`) is stored on the draft envelope (`StoredTripDraft.draftImportantByProfileId`), not in the global profile store. Self and remembered/reusable profiles continue to use `importantByProfileId` in ProfileProvider.
+
 **Trip-level progress:** Home and Trip Overview use `packingStatsForTrip` — sum of packed/total item counts across all `PackingList`s (not averaged percentages). Pack and the packing-list picker remain list-scoped via `packingStatsForList`.
 
 ---
@@ -128,7 +159,7 @@ src/app/
     pack/
       _layout.tsx          Pack stack
       index.tsx            Pack screen
-      overview.tsx         Trip overview
+      overview.tsx         Insights (packing reasoning + weather)
     profile.tsx            Profile
   trip/
     create.tsx             6-step wizard
@@ -141,7 +172,7 @@ src/app/
 | Action | Behavior |
 |--------|----------|
 | Open trip from Trips | `setActiveTripId` + navigate to Pack (`use-trip-navigation.ts`) |
-| Commit new trip | `commitDraftTrip()` sets active id + clears draft |
+| Commit new trip | `commitDraftTrip()` sets active id + removes only the committed draft (MP5B) |
 | Pack / Overview | Read `activeTrip` from `TripsProvider` |
 | Profile tab | Does **not** clear `activeTripId` |
 | No active trip | Pack shows explicit empty state |
@@ -168,7 +199,7 @@ State will likely need **`activePackingListId`** (or equivalent) alongside `acti
 AuthProvider
   └─ ServicesProvider (createAppServices — singleton per app)
        └─ ProfileProvider (preferences, Important master, saved travelers)
-            └─ TripsProvider (trips[], activeTripId, draft, packing mutations)
+            └─ TripsProvider (trips[], activeTripId, drafts[], activeDraftId, packing mutations)
 ```
 
 **Target additions (planned):** `PackingProfile` storage (ProfileProvider or dedicated provider/repository), `activePackingListId`, list-scoped packing mutations.
@@ -176,10 +207,53 @@ AuthProvider
 ### TripsProvider (`src/providers/trips-provider.tsx`)
 
 - Loads trips from `TripRepository` when auth ready
+- **MP5B session drafts:** `drafts: StoredTripDraft[]` + `activeDraftId`; each draft has stable `id`, wizard step/resume metadata, and draft-scoped Important for draft-only profiles
 - Optimistic packing mutations with **surgical rollback**
 - Important inject/sync via `updateTripPackingItems()` — not full-trip `save()` from stale snapshots
 - `tripsRef` for latest trip list in async callbacks
 - Mutations today assume **flat `Trip.items`** — will need list-scoped APIs in MP1/MP3
+
+**Draft APIs (MP5B-A):** `createNewDraft`, `resumeDraft(id)`, `deleteDraft(id)`, `getDraftById`, `commitDraftTrip(mode, draftId?)`. No silent fallback to an arbitrary draft. Persistence deferred to a later slice; refresh may reset session drafts.
+
+**Home draft navigation (MP5B-B):** Normal Create Trip entry is via Home **Plan new trip** (`createNewDraft` + navigate) or **Continue planning** card (`resumeDraft(id)` + navigate to wizard or summary). Home shows at most two in-progress drafts; **View all drafts (N)** opens the canonical Trips browser (`/trip/browse?filter=drafts`). Direct `/trip/create` or `/trip/summary` without a valid `activeDraftId` redirects to Trips/Home unless a trip commit is in flight (post-create Pack navigation). Trip Summary **Save and close** preserves the draft without committing.
+
+**Committed trip lifecycle (MP5C):** Drafts (`StoredTripDraft`) are separate from committed `Trip` records. Upcoming vs Previous is date-derived from `endDate` (trips ending today remain Upcoming); `Trip.status` stores `upcoming` | `past` and is normalized from dates on read. There is no manual Archive/Restore in 1.0 — Previous is automatic trip history. Permanent delete removes the trip aggregate via `deleteTripPermanently` / `TripRepository.delete` (no tombstone). Saved Packing Profiles and profile-scoped Important masters survive trip deletion. Deleting the active trip clears `activeTripId` and `activePackingListId` without selecting another trip.
+
+**Trips browser (MP5C):** Home is a compact dashboard (max 2 drafts, max 2 previous trips, full Upcoming list). **Manage all trips** at the bottom of Home always opens `/trip/browse` (All filter). Contextual **View all drafts (N)** and **View all previous trips (N)** deep-link to Drafts/Previous filters only when counts exceed the Home preview limit. The canonical **Trips** screen filters: All | Drafts | Upcoming | Previous. Upcoming and Previous committed trips share compact management cards with overflow **Reuse trip** and **Delete permanently**. Search is deferred but the browser architecture is ready for a future query over the active filter's collection.
+
+**New trip dates:** Creating a new trip requires `startDate >=` the user's local calendar day. Stale drafts with past start dates remain drafts until corrected; commit is blocked before assembly/persistence. Existing Previous trips may retain historical dates when edited.
+
+**Trip reuse (MP5D-A / MP5D-C):** `buildReusedTrip()` (`src/domain/trip-reuse.ts`) copies selected `PackingList` content from a source Trip into a **new** Trip aggregate. `reuseTrip()` orchestration persists via `TripRepository.createTrip()`. Contract:
+
+| Aspect | Copied source lists | Newly added travellers |
+|--------|---------------------|-------------------------|
+| List origin | Source list snapshot copy (MP5D-A) | Fresh list via `assemblePackingListForProfile()` (MP5A semantics) |
+| PackingGenerator | **Zero** calls | One call per `packingMode: 'generated'` traveller |
+| Weather | Not copied; `emptyTripWeather()` on shell | Generator uses new-trip draft context only — **no** source weather fetch/copy |
+| Important | Snapshot copied; `importantItemId` preserved | Current enabled profile Important master injected (MP4) |
+| Progress | Reset `packed: false` on copied items | N/A (new list) |
+
+Mixed reuse assembles the **full** aggregate (copied lists + new lists) before a **single** `createTrip()` — no partial persist. Source trip is never mutated.
+
+Copy-only path (no new travellers): no PackingGenerator, weather fetch, InsightGenerator, or Important reinjection.
+
+| Aspect | Behavior |
+|--------|----------|
+| Source trip | Immutable — ids, packed progress, weather, insights unchanged |
+| New ids | Fresh UUIDs for Trip, each PackingList, each PackingItem, and copied bags |
+| Profile identity | Copied lists preserve `profileSnapshot` / `packingProfileId`; new lists use planned profile |
+| packingMode | Preserved per copied list; chosen per new traveller |
+| Dates | Required new `startDate`/`endDate`; validated with `validateNewTripDateRange` |
+| Travellers | Selected source list ids + optional `newTravellers[]` plan entries |
+| Weather | `emptyTripWeather()` on shell — not copied from source |
+| Insights | `[]` — stale reasoning not carried over |
+| Image | Not copied (`undefined` on new trip) |
+| Active trip | `TripsProvider.reuseTrip()` returns created trip; does **not** set `activeTripId` (unlike `commitDraftTrip`) |
+| Remember profile | Promoted only after successful reuse commit (same atomicity as `commitDraftTrip`) |
+
+Supabase: `createTrip()` rejects multi-list aggregates until MP6 persistence; UI blocks when total resulting lists (selected source + new) > 1.
+
+**Reuse UI (MP5D-B / MP5D-C):** Previous trips in `/trip/browse` expose **Reuse trip** in the overflow menu → `/trip/reuse?tripId=…`. The screen collects new dates, source traveller checkboxes, **Add person** (saved profile or new + generate/manual choice), optional shared-detail edits, and a deterministic **Changes from original** summary. Success calls `reuseTrip()`, then `beginTripPackEntry()` on the created trip and navigates to Pack or list selection. Form state is transient (`ReuseTripSessionProvider`); cancel clears the session without creating a draft or promoting remembered profiles.
 
 ### ProfileProvider
 

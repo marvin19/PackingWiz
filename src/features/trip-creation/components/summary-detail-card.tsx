@@ -35,7 +35,7 @@ export function SummaryDetailCard({
       <View style={[tripDetailCardStyles.header, { borderBottomColor: theme.colors.border }]}>
         <View style={tripDetailCardStyles.headerTitle}>
           {icon}
-          <AppText variant="bodySmall" numberOfLines={1} style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+          <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold, flexShrink: 1 }}>
             {title}
           </AppText>
         </View>

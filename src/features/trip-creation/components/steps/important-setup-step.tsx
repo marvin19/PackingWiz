@@ -12,7 +12,7 @@ import {
   normalizeImportantNameList,
   type ImportantWizardProfileDraftState,
 } from '@/features/trip-creation/utils/important-wizard-draft';
-import { useProfile } from '@/hooks/use-profile';
+import { useDraftImportant } from '@/hooks/use-draft-important';
 
 export type ImportantSetupStepHandle = {
   commitStagedChanges: () => void;
@@ -48,25 +48,17 @@ export const ImportantSetupStep = forwardRef<ImportantSetupStepHandle, Important
     const {
       dismissImportantPromptForProfile,
       getImportantConfigForProfile,
-      getImportantItemsForProfile,
       importantByProfileId,
       resolveImportantProfileId,
       saveImportantItemsForProfile,
-    } = useProfile();
+      getSavedNames,
+    } = useDraftImportant();
 
     const profileIdsKey = profiles.map((profile) => profile.id).join('|');
 
     const orderedProfiles = useMemo(
       () => sortProfilesForImportantWizardStep(profiles, importantByProfileId),
       [importantByProfileId, profiles],
-    );
-
-    const getSavedNames = useCallback(
-      (profile: PackingProfile) => {
-        const canonicalProfileId = resolveImportantProfileId(profile);
-        return getImportantItemsForProfile(canonicalProfileId).map((item) => item.name);
-      },
-      [getImportantItemsForProfile, resolveImportantProfileId],
     );
 
     const [draftsByProfileId, setDraftsByProfileId] = useState<Record<string, ProfileDraftState>>(() =>
@@ -79,6 +71,31 @@ export const ImportantSetupStep = forwardRef<ImportantSetupStepHandle, Important
         return mergeImportantWizardProfileDrafts(current, next);
       });
     }, [getSavedNames, profileIdsKey, profiles]);
+
+    const expandProfile = useCallback(
+      (profileId: string, profile: PackingProfile) => {
+        setDraftsByProfileId((current) => {
+          const next = Object.fromEntries(
+            Object.entries(current).map(([id, draft]) => [
+              id,
+              {
+                ...draft,
+                expanded: id === profileId,
+              },
+            ]),
+          );
+
+          next[profileId] = {
+            ...(next[profileId] ?? { rows: [''], expanded: false }),
+            expanded: true,
+            rows: draftRowsFromImportantNames(getSavedNames(profile)),
+          };
+
+          return next;
+        });
+      },
+      [getSavedNames],
+    );
 
     const updateProfileDraft = useCallback((profileId: string, patch: Partial<ProfileDraftState>) => {
       setDraftsByProfileId((current) => ({
@@ -138,13 +155,7 @@ export const ImportantSetupStep = forwardRef<ImportantSetupStepHandle, Important
                 stagedRows={draft.rows}
                 expanded={draft.expanded}
                 onChangeRows={(rows) => updateProfileDraft(profile.id, { rows })}
-                onExpand={() =>
-                  updateProfileDraft(profile.id, {
-                    expanded: true,
-                    rows: draftRowsFromImportantNames(getSavedNames(profile)),
-                  })
-                }
-                onCollapse={() => updateProfileDraft(profile.id, { expanded: false })}
+                onExpand={() => expandProfile(profile.id, profile)}
                 onConfigureLater={() => {
                   dismissImportantPromptForProfile(canonicalProfileId);
                   updateProfileDraft(profile.id, { expanded: false });

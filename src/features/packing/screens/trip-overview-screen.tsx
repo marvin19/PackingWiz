@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ScreenHeader } from '@/components/navigation/screen-header';
@@ -10,27 +10,16 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
-import { durationDays, formatDisplayDate, formatRange } from '@/domain/dates';
-import { categoryBreakdown, packingListBreakdownForTrip, packingStatsForTrip, shoppingCount } from '@/domain/packing-stats';
-import { OverviewBagRow } from '@/features/packing/components/overview-bag-row';
-import { OverviewCategoryRow } from '@/features/packing/components/overview-category-row';
-import { OverviewInsightCard } from '@/features/packing/components/overview-insight-card';
-import { OverviewTripStat } from '@/features/packing/components/overview-trip-stat';
+import { durationDays, formatRange } from '@/domain/dates';
+import { packingListBreakdownForTrip, packingStatsForTrip, shoppingCount } from '@/domain/packing-stats';
+import { TripInsightCard } from '@/features/packing/components/overview-insight-card';
 import { SummarySection } from '@/features/trip-creation/components/summary-section';
-import { TripFact } from '@/features/trip-creation/components/trip-fact';
 import { WeatherCard } from '@/features/trip-creation/components/weather-card';
-import { getAccommodationIcon } from '@/features/trip-creation/utils/catalog-icons';
-import {
-  getAccommodationLabel,
-  getLaundryLabel,
-  getPackingForLabel,
-  getTripContextLabel,
-} from '@/features/trip-creation/utils/summary-labels';
-import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
+import { buildEditTripHref } from '@/features/trip-edit/utils/edit-trip-navigation';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { goBackOrReplace } from '@/lib/safe-navigation';
-import { screenPaddingHorizontal } from '@/theme/spacing';
+import { spacing, screenPaddingHorizontal } from '@/theme/spacing';
 
 export function TripOverviewScreen() {
   const router = useRouter();
@@ -44,14 +33,14 @@ export function TripOverviewScreen() {
     [activeTrip],
   );
   const buyCount = useMemo(() => shoppingCount(activeTrip), [activeTrip]);
-  const perCategory = useMemo(
-    () => (activeTrip ? categoryBreakdown(activeTrip) : []),
-    [activeTrip],
-  );
 
   const handleBack = useCallback(() => {
     goBackOrReplace('/(tabs)/pack');
   }, []);
+
+  const handleEditTrip = useCallback(() => {
+    router.push(buildEditTripHref('overview'));
+  }, [router]);
 
   if (!activeTrip) {
     const emptyMessage = activeTripId
@@ -60,7 +49,7 @@ export function TripOverviewScreen() {
 
     return (
       <AppScreen style={styles.emptyScreen}>
-        <ScreenHeader title="Trip overview" onBack={handleBack} border />
+        <ScreenHeader title="Insights" onBack={handleBack} border />
         <View style={styles.emptyBody}>
           <Feather name="star" size={32} color={theme.colors.mutedForeground} />
           <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
@@ -72,20 +61,15 @@ export function TripOverviewScreen() {
     );
   }
 
-  const packingForLabel = getPackingForLabel(
-    activeTrip.packingLists.map((list) => list.profileSnapshot),
-  );
-  const peopleCount = activeTrip.packingLists.length;
   const days = durationDays(activeTrip.startDate, activeTrip.endDate);
   const remaining = stats.total - stats.packed;
-  const tripContextIcon = getTripContextIcon(activeTrip.tripContext[0]);
-  const accommodationIcon = getAccommodationIcon(activeTrip.accommodation);
   const destinationLabel = getDestinationLabel(activeTrip.destination);
   const countryLabel = getDestinationCountryLabel(activeTrip.destination);
+  const hasInsights = activeTrip.insights.length > 0;
 
   return (
     <AppScreen style={styles.screen}>
-      <ScreenHeader title="Trip overview" onBack={handleBack} border />
+      <ScreenHeader title="Insights" onBack={handleBack} border />
 
       <ScrollView
         contentContainerStyle={[
@@ -94,14 +78,35 @@ export function TripOverviewScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-            {destinationLabel}
-          </AppText>
-          <AppText variant="bodySmall" color="mutedForeground">
-            {countryLabel ? `${countryLabel} · ` : ''}
-            {formatRange(activeTrip.startDate, activeTrip.endDate)}
-            {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
-          </AppText>
+          <View style={styles.heroHeader}>
+            <View style={styles.heroCopy}>
+              <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
+                {destinationLabel}
+              </AppText>
+              <AppText variant="bodySmall" color="mutedForeground">
+                {countryLabel ? `${countryLabel} · ` : ''}
+                {formatRange(activeTrip.startDate, activeTrip.endDate)}
+                {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
+              </AppText>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Edit trip"
+              onPress={handleEditTrip}
+              style={({ pressed }) => [
+                styles.editTripAction,
+                {
+                  backgroundColor: theme.colors.muted,
+                  borderColor: theme.colors.border,
+                  opacity: pressed ? 0.9 : 1,
+                },
+              ]}>
+              <Feather name="edit-2" size={14} color={theme.colors.primary} />
+              <AppText variant="caption" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+                Edit trip
+              </AppText>
+            </Pressable>
+          </View>
         </View>
 
         <View
@@ -145,106 +150,37 @@ export function TripOverviewScreen() {
           ) : null}
         </View>
 
-        <View style={styles.statRow}>
-          <OverviewTripStat value={String(days)} label={days === 1 ? 'day' : 'days'} />
-          <OverviewTripStat
-            value={String(peopleCount)}
-            label={peopleCount === 1 ? 'person' : 'people'}
-            icon={<Feather name="users" size={14} color={theme.colors.mutedForeground} />}
-          />
-          <OverviewTripStat
-            value={String(buyCount)}
-            label="to buy"
-            icon={<Feather name="shopping-bag" size={14} color={theme.colors.mutedForeground} />}
-          />
-        </View>
-
-        <AppText variant="caption" color="mutedForeground" style={styles.dateLine}>
-          {formatDisplayDate(activeTrip.startDate)} — {formatDisplayDate(activeTrip.endDate)}
-        </AppText>
-
-        <View style={styles.factsGrid}>
-          <View style={styles.factsRow}>
-            <TripFact
-              icon={<Feather name={tripContextIcon} size={16} color={theme.colors.mutedForeground} />}
-              label="Trip context"
-              value={getTripContextLabel(activeTrip.tripContext)}
-            />
-            <TripFact
-              icon={<Feather name={accommodationIcon} size={16} color={theme.colors.mutedForeground} />}
-              label="Staying in"
-              value={getAccommodationLabel(activeTrip.accommodation)}
-            />
-          </View>
-          <View style={styles.factsRow}>
-            <TripFact
-              icon={<Feather name="users" size={16} color={theme.colors.mutedForeground} />}
-              label="Packing for"
-              value={packingForLabel}
-            />
-            <TripFact
-              icon={<Feather name="droplet" size={16} color={theme.colors.mutedForeground} />}
-              label="Laundry"
-              value={getLaundryLabel(activeTrip.laundry)}
-            />
-          </View>
-        </View>
-
-        {activeTrip.tripContext.length > 0 ? (
-          <SummarySection title="Trip context">
-            <View style={styles.chipRow}>
-              {activeTrip.tripContext.map((tag) => (
-                <View
-                  key={tag}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: theme.colors.secondary,
-                      borderColor: theme.colors.border,
-                    },
-                  ]}>
-                  <AppText variant="bodySmall" color="secondaryForeground">
-                    {tag}
-                  </AppText>
-                </View>
+        <SummarySection title="Packing insights">
+          {hasInsights ? (
+            <View style={styles.insightsStack}>
+              {activeTrip.insights.map((insight) => (
+                <TripInsightCard key={insight.id} insight={insight} />
               ))}
             </View>
-          </SummarySection>
-        ) : null}
-
-        {activeTrip.insights.length > 0 ? (
-          <SummarySection title="Why PackingWiz packed this">
-            <View style={styles.stack}>
-              {activeTrip.insights.map((insight, index) => (
-                <OverviewInsightCard key={`${index}-${insight}`} text={insight} />
-              ))}
+          ) : (
+            <View
+              style={[
+                styles.insightsEmpty,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                },
+              ]}>
+              <Feather name="message-circle" size={20} color={theme.colors.mutedForeground} />
+              <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+                No packing insights yet
+              </AppText>
+              <AppText variant="bodySmall" color="mutedForeground" style={styles.insightsEmptyBody}>
+                PackingWiz will show useful observations here when there are packing recommendations to
+                explain.
+              </AppText>
             </View>
-          </SummarySection>
-        ) : null}
+          )}
+        </SummarySection>
 
-        <View style={styles.weatherSection}>
+        <SummarySection title="Weather">
           <WeatherCard weather={activeTrip.weather} />
-        </View>
-
-        {activeTrip.bags.length > 0 ? (
-          <SummarySection title="Bags">
-            <View style={styles.stack}>
-              {activeTrip.bags.map((bag) => (
-                <OverviewBagRow key={bag.id} bag={bag} travelers={activeTrip.travelers} />
-              ))}
-            </View>
-          </SummarySection>
-        ) : null}
-
-        {perCategory.length > 0 ? (
-          <SummarySection title="By category">
-            <View style={styles.stack}>
-              {perCategory.map((entry) => (
-                <OverviewCategoryRow key={entry.category} progress={entry} />
-              ))}
-            </View>
-          </SummarySection>
-        ) : null}
+        </SummarySection>
       </ScrollView>
     </AppScreen>
   );
@@ -276,11 +212,33 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     gap: 4,
   },
+  heroHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  heroCopy: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  editTripAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minHeight: 36,
+    flexShrink: 0,
+  },
   progressCard: {
     borderWidth: StyleSheet.hairlineWidth,
     borderRadius: 16,
     padding: 16,
-    marginBottom: 20,
+    marginBottom: spacing.lg,
     gap: 8,
   },
   progressHeader: {
@@ -304,38 +262,19 @@ const styles = StyleSheet.create({
   listBreakdownName: {
     flex: 1,
   },
-  statRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
+  insightsStack: {
+    gap: spacing.md,
   },
-  dateLine: {
-    marginBottom: 20,
-    lineHeight: 18,
-  },
-  factsGrid: {
-    gap: 12,
-    marginBottom: 20,
-  },
-  factsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  chipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  chip: {
+  insightsEmpty: {
     borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 9999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    borderRadius: 16,
+    paddingHorizontal: spacing.base,
+    paddingVertical: spacing.lg,
+    alignItems: 'center',
+    gap: spacing.sm,
   },
-  weatherSection: {
-    marginBottom: 20,
-  },
-  stack: {
-    gap: 8,
+  insightsEmptyBody: {
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });

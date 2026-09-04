@@ -14,7 +14,6 @@ export interface PackingGenerationInput {
 
 export interface PackingGenerationResult {
   items: PackingItem[];
-  insights: string[];
 }
 
 export interface PackingGenerator {

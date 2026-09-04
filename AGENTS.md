@@ -138,12 +138,36 @@ For Multi-person Packing work: keep MP sub-phases (**MP1**–**MP5**) as separat
 
 ## Validation
 
-Default checks after code changes:
+### Local pre-commit (Husky)
+
+On every `git commit`, Husky runs:
+
+```bash
+npm test
+```
+
+Do not bypass this hook routinely (`--no-verify` is for exceptional cases only).
+
+### Full local / CI validation
+
+Default checks after code changes and in GitHub Actions (authoritative PR quality gate):
 
 ```bash
 npx tsc --noEmit
+npm run test:typecheck
 npx eslint src
+npm run verify:mp1
+npm test
 ```
+
+Keep these green during feature work.
+
+| Layer | Purpose |
+|-------|---------|
+| **Pre-commit** (`npm test` via Husky) | Fast local unit-test feedback before commits |
+| **Unit tests** (`*.test.ts`) | Focused deterministic domain/helper checks; easier failure localization |
+| **Test typecheck** (`npm run test:typecheck`) | TypeScript validation for Jest files via `tsconfig.test.json` (app `tsc` excludes tests) |
+| **Invariant harness** (`npm run verify:mp1`) | Broader MP regression contracts and cross-domain scenarios — not migrated to Jest |
 
 Full web/native smoke tests may be requested separately by the user.
 

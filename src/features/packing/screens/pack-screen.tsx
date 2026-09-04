@@ -1,7 +1,7 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppScreen } from '@/components/ui/app-screen';
@@ -19,19 +19,21 @@ import {
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStatsForList } from '@/domain/packing-stats';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
-import { PackFilterButton, PackFilterSheet } from '@/features/packing/components/pack-filter-sheet';
+import { PackFilterSheet } from '@/features/packing/components/pack-filter-sheet';
+import {
+  PackTripMenuButton,
+  PackTripMenuSheet,
+  type PackTripMenuAction,
+} from '@/features/packing/components/pack-trip-menu-sheet';
 import { ImportantNotConfiguredNotice } from '@/features/packing/components/important-not-configured-notice';
 import { ImportantSnapshotNotice } from '@/features/packing/components/important-snapshot-notice';
 import { PackingListPickerSheet } from '@/features/packing/components/packing-list-picker-sheet';
-import {
-  PackBackToTripsButton,
-  PackInsightsButton,
-} from '@/features/packing/components/pack-header-actions';
+import { buildEditTripHref } from '@/features/trip-edit/utils/edit-trip-navigation';
 import { PackedCelebration } from '@/features/packing/components/packed-celebration';
 import { PackingItemSettingsSheet } from '@/features/packing/components/packing-item-settings-sheet';
 import { PackingCategoryHeader } from '@/features/packing/components/packing-category-section';
+import { PackingCategoryItemList } from '@/features/packing/components/packing-category-item-list';
 import {
-  PackingItemRow,
   type PackingCheckboxIntent,
 } from '@/features/packing/components/packing-item-row';
 import { usePackedCelebration } from '@/features/packing/hooks/use-packed-celebration';
@@ -49,22 +51,19 @@ import { fabShadow } from '@/theme/shadows';
 type PackSection = {
   category: PackingCategory;
   allItems: PackingItem[];
-  data: PackingItem[];
+  data: { id: string; items: PackingItem[] }[];
 };
 
 export function PackScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
-  const compactHeaderActions = windowWidth <= 375;
   const { activeTrip, activeTripId, activePackingList, activePackingListId, selectActivePackingList, togglePacked, markItemPurchased, syncImportantSnapshotForList } =
     useTrips();
   const {
     getImportantConfigForProfile,
     getEnabledImportantItemsForProfile,
     getImportantItemsForProfile,
-    isImportantConfiguredForProfile,
     isImportantFeatureActiveForProfile,
     getImportantMasterVersionForProfile,
     resolveImportantProfileId,
@@ -80,6 +79,7 @@ export function PackScreen() {
   const [settingsItemId, setSettingsItemId] = useState<string | null>(null);
   const [listPickerVisible, setListPickerVisible] = useState(false);
   const [filterVisible, setFilterVisible] = useState(false);
+  const [tripMenuVisible, setTripMenuVisible] = useState(false);
 
   const hasMultipleLists = (activeTrip?.packingLists.length ?? 0) > 1;
 
@@ -98,9 +98,6 @@ export function PackScreen() {
   const activeEnabledImportantItems = activeImportantProfileId
     ? getEnabledImportantItemsForProfile(activeImportantProfileId)
     : [];
-  const activeIsImportantConfigured = activeImportantProfileId
-    ? isImportantConfiguredForProfile(activeImportantProfileId)
-    : false;
   const activeIsImportantFeatureActive = activeImportantProfileId
     ? isImportantFeatureActiveForProfile(activeImportantProfileId)
     : false;
@@ -191,7 +188,7 @@ export function PackScreen() {
       grouped.map(({ category, items }) => ({
         category,
         allItems: items,
-        data: collapsed[category] ? [] : items,
+        data: collapsed[category] ? [] : [{ id: `${category}-items`, items }],
       })),
     [grouped, collapsed],
   );
@@ -223,10 +220,6 @@ export function PackScreen() {
     requestOpenImportantEditor(activeImportantProfileId);
     router.navigate('/(tabs)/profile');
   }, [activeImportantProfileId, requestOpenImportantEditor, router]);
-
-  const handleManageImportant = useCallback(() => {
-    handleOpenProfileImportant();
-  }, [handleOpenProfileImportant]);
 
   const handleUpdateImportantSnapshot = useCallback(() => {
     if (!activeTrip || !activePackingListId) {
@@ -273,13 +266,25 @@ export function PackScreen() {
     [selectActivePackingList],
   );
 
-  const handleViewTripOverview = useCallback(() => {
-    router.push('/(tabs)/pack/overview');
-  }, [router]);
-
-  const handleBackToTrips = useCallback(() => {
-    router.navigate('/(tabs)');
-  }, [router]);
+  const handleTripMenuAction = useCallback(
+    (action: PackTripMenuAction) => {
+      switch (action) {
+        case 'back-to-trips':
+          router.navigate('/(tabs)');
+          return;
+        case 'filter':
+          setFilterVisible(true);
+          return;
+        case 'insights':
+          router.push('/(tabs)/pack/overview');
+          return;
+        case 'edit-trip':
+          router.push(buildEditTripHref('pack'));
+          return;
+      }
+    },
+    [router],
+  );
 
   if (!activeTrip) {
     const isMissingActiveTrip = Boolean(activeTripId);
@@ -358,7 +363,7 @@ export function PackScreen() {
                 hasMultipleLists && pressed && styles.pressed,
               ]}>
               <AppText variant="caption" color="mutedForeground">
-                Packing for
+                Packing for:
               </AppText>
               <AppText
                 variant="bodySemiBold"
@@ -372,16 +377,7 @@ export function PackScreen() {
             </Pressable>
           ) : null}
 
-          <View style={styles.headerActions}>
-            <PackFilterButton
-              activeFilter={filter}
-              onPress={() => setFilterVisible(true)}
-              compact
-              iconOnly={compactHeaderActions}
-            />
-            <PackInsightsButton onPress={handleViewTripOverview} iconOnly={compactHeaderActions} />
-            <PackBackToTripsButton onPress={handleBackToTrips} />
-          </View>
+          <PackTripMenuButton onPress={() => setTripMenuVisible(true)} />
         </View>
       </View>
 
@@ -466,32 +462,18 @@ export function PackScreen() {
               items={section.allItems}
               collapsed={Boolean(collapsed[section.category])}
               onToggleCollapsed={() => toggleCategory(section.category)}
-              trailing={
-                section.category === 'Important' && activeIsImportantConfigured ? (
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Manage important items in Profile"
-                    onPress={handleManageImportant}
-                    style={({ pressed }) => [styles.manageLink, pressed && styles.pressed]}>
-                    <AppText variant="caption" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-                      Manage
-                    </AppText>
-                  </Pressable>
-                ) : null
-              }
             />
           </View>
         )}
-        renderItem={({ item }) => (
-          <View style={styles.itemWrap}>
-            <PackingItemRow
-              item={item}
-              travelers={activeTrip.travelers}
-              checkboxIntent={checkboxIntent}
-              onCheckboxPress={handleCheckboxPress}
-              onOpenSettings={handleOpenItemSettings}
-            />
-          </View>
+        renderItem={({ item, section }) => (
+          <PackingCategoryItemList
+            category={section.category}
+            items={item.items}
+            travelers={activeTrip.travelers}
+            checkboxIntent={checkboxIntent}
+            onCheckboxPress={handleCheckboxPress}
+            onOpenSettings={handleOpenItemSettings}
+          />
         )}
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
       />
@@ -539,6 +521,13 @@ export function PackScreen() {
         buyCount={buyCount}
         onSelect={setFilter}
         onClose={() => setFilterVisible(false)}
+      />
+
+      <PackTripMenuSheet
+        visible={tripMenuVisible}
+        activeFilter={filter}
+        onSelect={handleTripMenuAction}
+        onClose={() => setTripMenuVisible(false)}
       />
     </AppScreen>
   );
@@ -606,15 +595,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     maxWidth: '100%',
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    gap: 6,
-    minHeight: 32,
-    flexShrink: 0,
-    marginLeft: 'auto',
-  },
   pressed: {
     opacity: 0.85,
   },
@@ -662,15 +642,8 @@ const styles = StyleSheet.create({
   emptyTitle: {
     textAlign: 'center',
   },
-  itemWrap: {
-    marginBottom: 8,
-  },
   sectionGap: {
     height: 8,
-  },
-  manageLink: {
-    paddingHorizontal: 4,
-    paddingVertical: 2,
   },
   fab: {
     position: 'absolute',

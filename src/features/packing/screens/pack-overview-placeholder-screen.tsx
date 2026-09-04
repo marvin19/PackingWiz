@@ -13,7 +13,7 @@ export function PackOverviewPlaceholderScreen({
   return (
     <PlaceholderScreen
       embedded={embedded}
-      title="Trip overview"
+      title="Insights"
       description={
         activeTrip
           ? `Overview for ${activeTrip.destination}. Insights and stats UI coming next.`

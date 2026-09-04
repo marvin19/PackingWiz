@@ -1,5 +1,5 @@
 import { getDestinationLabel } from '@/domain/destination';
-import { isEndBeforeStart } from '@/domain/dates';
+import { validateNewTripDateRange } from '@/domain/new-trip-date-validation';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import type { TripDraft } from '@/domain/trip-draft';
 import type { WizardStepId } from '@/features/trip-creation/utils/wizard-steps';
@@ -8,13 +8,16 @@ export function canProceedFromStepId(stepId: WizardStepId, draft: TripDraft): bo
   const normalizedDraft = normalizeTripDraft(draft);
 
   switch (stepId) {
-    case 'destination':
-      return (
-        getDestinationLabel(normalizedDraft.destination).trim() !== '' &&
-        normalizedDraft.startDate !== '' &&
-        normalizedDraft.endDate !== '' &&
-        !isEndBeforeStart(normalizedDraft.startDate, normalizedDraft.endDate)
+    case 'destination': {
+      const dateValidation = validateNewTripDateRange(
+        normalizedDraft.startDate,
+        normalizedDraft.endDate,
       );
+
+      return (
+        getDestinationLabel(normalizedDraft.destination).trim() !== '' && dateValidation.ok
+      );
+    }
     case 'trip-context':
       return normalizedDraft.tripContext.length > 0;
     case 'accommodation':

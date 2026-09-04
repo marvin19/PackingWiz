@@ -1,9 +1,7 @@
 import { PACKING_CATEGORY_ORDER, type PackingCategory } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
-import {
-  findPackingListById,
-} from '@/domain/trip-compatibility';
+import { findPackingListById } from '@/domain/trip-compatibility';
 
 export type PackingProgress = { packed: number; total: number; pct: number };
 
@@ -155,7 +153,9 @@ export function findActiveTrip(trips: Trip[], activeTripId: string | null): Trip
   if (!activeTripId) {
     return null;
   }
-  return trips.find((trip) => trip.id === activeTripId) ?? null;
+
+  const trip = trips.find((entry) => entry.id === activeTripId) ?? null;
+  return trip;
 }
 
 /** Keeps activeTripId only when that trip exists — never falls back to a seed/default trip. */
@@ -167,5 +167,10 @@ export function reconcileActiveTripId(
     return null;
   }
 
-  return trips.some((trip) => trip.id === activeTripId) ? activeTripId : null;
+  const trip = trips.find((entry) => entry.id === activeTripId);
+  if (!trip) {
+    return null;
+  }
+
+  return activeTripId;
 }

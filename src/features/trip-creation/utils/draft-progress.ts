@@ -4,27 +4,40 @@ import { canProceedFromStepId } from '@/features/trip-creation/utils/wizard-vali
 import type { WizardStepId } from '@/features/trip-creation/utils/wizard-steps';
 import { getDestinationLabel } from '@/domain/destination';
 
-export function isDraftInProgress(draft: TripDraft): boolean {
-  const empty = createEmptyTripDraft();
-  const normalizedDraft = normalizeTripDraft(draft);
+function draftContentEquals(left: TripDraft, right: TripDraft): boolean {
+  const normalizedLeft = normalizeTripDraft(left);
+  const normalizedRight = normalizeTripDraft(right);
 
   return (
-    getDestinationLabel(normalizedDraft.destination).trim() !== '' ||
-    normalizedDraft.startDate !== '' ||
-    normalizedDraft.endDate !== '' ||
-    normalizedDraft.tripContext.length > 0 ||
-    normalizedDraft.accommodation !== null ||
-    normalizedDraft.laundry !== null ||
-    normalizedDraft.bags.length > 0 ||
-    normalizedDraft.note.trim() !== '' ||
-    normalizedDraft.packingProfiles.length !== empty.packingProfiles.length ||
-    normalizedDraft.packingProfiles.some(
-      (profile, index) =>
-        profile.id !== empty.packingProfiles[index]?.id ||
-        profile.name !== empty.packingProfiles[index]?.name ||
-        profile.age !== empty.packingProfiles[index]?.age,
-    )
+    getDestinationLabel(normalizedLeft.destination).trim() ===
+      getDestinationLabel(normalizedRight.destination).trim() &&
+    normalizedLeft.startDate === normalizedRight.startDate &&
+    normalizedLeft.endDate === normalizedRight.endDate &&
+    normalizedLeft.tripContext.length === normalizedRight.tripContext.length &&
+    normalizedLeft.tripContext.every((tag, index) => tag === normalizedRight.tripContext[index]) &&
+    normalizedLeft.accommodation === normalizedRight.accommodation &&
+    normalizedLeft.laundry === normalizedRight.laundry &&
+    normalizedLeft.bags.length === normalizedRight.bags.length &&
+    normalizedLeft.note.trim() === normalizedRight.note.trim() &&
+    normalizedLeft.packingProfiles.length === normalizedRight.packingProfiles.length &&
+    normalizedLeft.packingProfiles.every((profile, index) => {
+      const other = normalizedRight.packingProfiles[index];
+      return (
+        profile.id === other?.id &&
+        profile.name === other?.name &&
+        profile.age === other?.age &&
+        profile.rememberForFutureTrips === other?.rememberForFutureTrips
+      );
+    })
   );
+}
+
+export function isEmptyDraftContent(draft: TripDraft): boolean {
+  return draftContentEquals(draft, createEmptyTripDraft());
+}
+
+export function isDraftInProgress(draft: TripDraft): boolean {
+  return !isEmptyDraftContent(draft);
 }
 
 const REVIEW_REQUIRED_STEPS: WizardStepId[] = [

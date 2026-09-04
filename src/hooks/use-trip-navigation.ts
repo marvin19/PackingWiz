@@ -1,11 +1,17 @@
 import { useRouter } from 'expo-router';
 import { useCallback } from 'react';
 
+import { resolveDraftResumeRoute } from '@/features/trips/utils/draft-home-display';
 import { useTrips } from '@/hooks/use-trips';
 
 export function useTripNavigation() {
   const router = useRouter();
-  const { beginTripPackEntry, resetDraft, draftReachedSummary } = useTrips();
+  const {
+    beginTripPackEntry,
+    createNewDraft,
+    getDraftById,
+    resumeDraft,
+  } = useTrips();
 
   const openTrip = useCallback(
     (tripId: string) => {
@@ -29,18 +35,21 @@ export function useTripNavigation() {
   );
 
   const startCreateTrip = useCallback(() => {
-    resetDraft();
+    createNewDraft();
     router.push('/trip/create');
-  }, [resetDraft, router]);
+  }, [createNewDraft, router]);
 
-  const resumeDraftTrip = useCallback(() => {
-    if (draftReachedSummary) {
-      router.push('/trip/summary');
-      return;
-    }
+  const resumeDraftTrip = useCallback(
+    (draftId: string) => {
+      const stored = getDraftById(draftId);
+      if (!stored || !resumeDraft(draftId)) {
+        return;
+      }
 
-    router.push('/trip/create');
-  }, [draftReachedSummary, router]);
+      router.push(resolveDraftResumeRoute(stored));
+    },
+    [getDraftById, resumeDraft, router],
+  );
 
   return { openTrip, selectPackingListAndOpenPack, startCreateTrip, resumeDraftTrip };
 }

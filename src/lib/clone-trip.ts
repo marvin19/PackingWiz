@@ -1,3 +1,4 @@
+import { cloneInsight } from '@/domain/insight';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
 import { normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
@@ -25,7 +26,9 @@ export function cloneTrip(trip: Trip | TripLike): Trip {
     })),
     items: trip.items.map(clonePackingItem),
     weather: { ...trip.weather, days: trip.weather.days?.map((day) => ({ ...day })) },
-    insights: [...trip.insights],
+    insights: (trip.insights ?? []).map((insight) =>
+      typeof insight === 'string' ? insight : cloneInsight(insight),
+    ),
   });
 }
 

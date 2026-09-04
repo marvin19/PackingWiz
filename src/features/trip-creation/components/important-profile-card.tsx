@@ -18,7 +18,6 @@ type ImportantProfileCardProps = {
   expanded: boolean;
   onChangeRows: (rows: string[]) => void;
   onExpand: () => void;
-  onCollapse: () => void;
   onConfigureLater: () => void;
 };
 
@@ -29,7 +28,6 @@ export function ImportantProfileCard({
   expanded,
   onChangeRows,
   onExpand,
-  onCollapse,
   onConfigureLater,
 }: ImportantProfileCardProps) {
   const theme = useTheme();
@@ -37,12 +35,12 @@ export function ImportantProfileCard({
   const isConfigured = config.isConfigured;
   const isDismissed = config.promptDismissed;
   const showCompactReview = isConfigured || isDismissed;
-  const showOnboardingActions = !isConfigured && !isDismissed && !expanded;
-  const showEditInHeader = showCompactReview && !expanded;
   const metadataLabel = importantProfileCardMetadata(config);
   const previewNames = stagedRows.map((row) => row.trim()).filter(Boolean);
   const visiblePreviewNames = previewNames.slice(0, PREVIEW_ITEM_LIMIT);
   const hiddenPreviewCount = Math.max(previewNames.length - visiblePreviewNames.length, 0);
+  const showOnboardingActions = !isConfigured && !isDismissed && !expanded;
+  const showEditInHeader = (showCompactReview || previewNames.length > 0) && !expanded;
 
   const updateRow = (index: number, value: string) => {
     onChangeRows(stagedRows.map((row, rowIndex) => (rowIndex === index ? value : row)));
@@ -90,20 +88,9 @@ export function ImportantProfileCard({
             </AppText>
           </Pressable>
         ) : null}
-        {expanded ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={`Close Important editor for ${profileLabel}`}
-            onPress={onCollapse}
-            style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}>
-            <AppText variant="caption" color="mutedForeground" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-              Done
-            </AppText>
-          </Pressable>
-        ) : null}
       </View>
 
-      {isConfigured && !expanded && visiblePreviewNames.length > 0 ? (
+      {!expanded && visiblePreviewNames.length > 0 ? (
         <View style={styles.itemList}>
           {visiblePreviewNames.map((name, index) => (
             <AppText key={`${profile.id}-preview-${index}`} variant="bodySmall" color="mutedForeground">

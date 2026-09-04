@@ -1,12 +1,13 @@
 import type { PackingMode, Trip } from '@/domain/trip';
+import type { Insight } from '@/domain/insight';
 import type { TripDraft } from '@/domain/trip-draft';
 import { getDestinationCountryLabel } from '@/domain/destination';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import type { PackingList } from '@/domain/packing-list';
+import type { PackingProfile } from '@/domain/packing-profile';
 import { normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
 import {
   buildPackingListForProfile,
-  dedupeInsights,
   importantItemsForProfileList,
   uniquePackingProfilesById,
 } from '@/domain/trip-packing-lists';
@@ -14,6 +15,8 @@ import type { ImportantItemsByProfileId } from '@/domain/profile-important-items
 import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
 import type { PackingGenerator } from '@/services/packing/packing-generator';
+import type { InsightGenerator } from '@/services/insights/insight-generator';
+import { deterministicInsightGenerator } from '@/services/insights/deterministic-insight-generator';
 import type { WeatherService } from '@/services/weather/weather-service';
 
 export type AssembleTripOptions = {
@@ -22,11 +25,51 @@ export type AssembleTripOptions = {
   importantByProfileId?: ImportantItemsByProfileId;
 };
 
+export type AssemblePackingListForProfileOptions = {
+  tripId: string;
+  packingMode: PackingMode;
+  importantByProfileId?: ImportantItemsByProfileId;
+};
+
+export type AssemblePackingListForProfileResult = {
+  list: PackingList;
+};
+
+/**
+ * Create/populate one PackingList for a single profile.
+ * Shared by initial trip assembly and MP5A add-traveller orchestration.
+ */
+export async function assemblePackingListForProfile(
+  draft: TripDraft,
+  profile: PackingProfile,
+  services: { packingGenerator: PackingGenerator },
+  options: AssemblePackingListForProfileOptions,
+): Promise<AssemblePackingListForProfileResult> {
+  const { tripId, packingMode, importantByProfileId = {} } = options;
+  const profileImportant = importantItemsForProfileList(profile, importantByProfileId);
+
+  if (packingMode === 'generated') {
+    const packing = await services.packingGenerator.generate({ draft, profile });
+    const items = mergeImportantItems(packing.items, profileImportant);
+
+    return {
+      list: buildPackingListForProfile(tripId, profile, packingMode, items),
+    };
+  }
+
+  const items = mergeImportantItems([], profileImportant);
+
+  return {
+    list: buildPackingListForProfile(tripId, profile, packingMode, items),
+  };
+}
+
 /**
  * Composes a trip from draft data using injected services.
  *
  * MP2B: one PackingList per selected PackingProfile; weather fetched once per trip.
  * MP4B: each list receives a snapshot of that profile's enabled Important master items.
+ * Insights v1A: trip-level reasoning snapshot generated once after weather fetch.
  *
  * Weather before generation is intentional: target PackingGenerator input includes
  * TripWeather (PRODUCT.md / ARCHITECTURE.md). Fetch once per trip, then generate
@@ -38,6 +81,7 @@ export async function assembleTripFromDraft(
   services: {
     packingGenerator: PackingGenerator;
     weatherService: WeatherService;
+    insightGenerator?: InsightGenerator;
   },
   options: AssembleTripOptions,
 ): Promise<Trip> {
@@ -46,6 +90,7 @@ export async function assembleTripFromDraft(
   const packingMode = options.packingMode;
   const profiles = uniquePackingProfilesById(draft.packingProfiles);
   const importantByProfileId = options.importantByProfileId ?? {};
+  const insightGenerator = services.insightGenerator ?? deterministicInsightGenerator;
 
   if (profiles.length === 0) {
     throw new Error('Trip draft has no packing profiles');
@@ -54,31 +99,32 @@ export async function assembleTripFromDraft(
   const weather = await services.weatherService.getWeatherForTrip({ draft });
 
   let packingLists: PackingList[];
-  let insights: string[] = [];
+  let insights: Insight[] = [];
 
   if (packingMode === 'generated') {
     const generationResults = await Promise.all(
-      profiles.map(async (profile) => {
-        const packing = await services.packingGenerator.generate({ draft, profile });
-        return { profile, packing };
-      }),
+      profiles.map(async (profile) =>
+        assemblePackingListForProfile(draft, profile, services, {
+          tripId,
+          packingMode,
+          importantByProfileId,
+        }),
+      ),
     );
 
-    insights = dedupeInsights(generationResults.flatMap((result) => result.packing.insights));
-
-    packingLists = generationResults.map(({ profile, packing }) => {
-      const profileImportant = importantItemsForProfileList(profile, importantByProfileId);
-      const items = mergeImportantItems(packing.items, profileImportant);
-
-      return buildPackingListForProfile(tripId, profile, packingMode, items);
-    });
+    packingLists = generationResults.map((result) => result.list);
+    insights = await insightGenerator.generate({ draft, weather });
   } else {
-    packingLists = profiles.map((profile) => {
-      const profileImportant = importantItemsForProfileList(profile, importantByProfileId);
-      const items = mergeImportantItems([], profileImportant);
-
-      return buildPackingListForProfile(tripId, profile, packingMode, items);
-    });
+    packingLists = await Promise.all(
+      profiles.map(async (profile) => {
+        const result = await assemblePackingListForProfile(draft, profile, services, {
+          tripId,
+          packingMode,
+          importantByProfileId,
+        });
+        return result.list;
+      }),
+    );
   }
 
   const primaryList = packingLists[0];

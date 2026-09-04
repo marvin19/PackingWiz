@@ -77,12 +77,12 @@ export function PackedCelebration({
         <View style={styles.actions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="View trip overview"
+            accessibilityLabel="View Insights"
             onPress={onViewOverview}
             style={[styles.primaryAction, { backgroundColor: theme.colors.primaryForeground }]}>
             <Feather name="list" size={16} color={theme.colors.primary} />
             <AppText variant="bodySmall" style={{ color: theme.colors.primary, fontFamily: theme.fontFamilies.displayExtraBold }}>
-              View trip overview
+              View Insights
             </AppText>
           </Pressable>
           <Pressable

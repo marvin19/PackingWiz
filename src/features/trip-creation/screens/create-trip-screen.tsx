@@ -48,6 +48,7 @@ import {
   wizardStepTitle,
   type WizardStepId,
 } from '@/features/trip-creation/utils/wizard-steps';
+import { useRequireActiveDraftRoute } from '@/features/trip-creation/hooks/use-require-active-draft-route';
 import { useTrips } from '@/hooks/use-trips';
 import { useProfile } from '@/hooks/use-profile';
 import { blurActiveElement } from '@/lib/blur-active-element';
@@ -57,6 +58,7 @@ import { screenPaddingHorizontal } from '@/theme/spacing';
 export function CreateTripScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ step?: string; returnTo?: string }>();
+  const hasValidActiveDraft = useRequireActiveDraftRoute();
   const { draft, setDraft, draftWizardStep, setDraftWizardStep, markDraftReachedSummary } = useTrips();
   const { savedPackingProfiles } = useProfile();
   const importantSetupRef = useRef<ImportantSetupStepHandle>(null);
@@ -321,6 +323,10 @@ export function CreateTripScreen() {
   const wizardHeaderTitle = isEditingFromSummary
     ? 'Edit trip'
     : getDestinationLabel(normalizedDraft.destination).trim() || 'New trip';
+
+  if (!hasValidActiveDraft) {
+    return null;
+  }
 
   return (
     <AppScreen>

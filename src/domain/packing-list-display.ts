@@ -3,6 +3,15 @@ import type { PackingProfileSnapshot } from '@/domain/packing-profile';
 import type { Trip } from '@/domain/trip';
 import { packingStatsForList } from '@/domain/packing-stats';
 
+/** Canonical person count for a Trip — one per PackingList / Packing Profile. */
+export function getTripPackingPeopleCount(trip: Trip): number {
+  return trip.packingLists.length;
+}
+
+export function formatTripPeopleCount(count: number): string {
+  return count === 1 ? '1 person' : `${count} people`;
+}
+
 /** Display name for a packing list person (Me / Emilie). */
 export function formatPackingListProfileName(snapshot: PackingProfileSnapshot): string {
   if (snapshot.isSelf) {

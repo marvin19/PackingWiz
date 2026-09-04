@@ -1,3 +1,7 @@
+import {
+  insightFromPersistedContent,
+  insightPersistContent,
+} from '@/domain/insight';
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import { createDestinationFromText, getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
@@ -166,7 +170,9 @@ export function mapTripRow(row: DbTripRow): Trip {
   const travelers = sortByOrder(row.trip_travelers ?? []).map(mapTravelerRow);
   const bags = sortByOrder(row.trip_bags ?? []).map(mapBagRow);
   const items = sortByOrder(row.packing_items ?? []).map(mapPackingItemRow);
-  const insights = sortByOrder(row.trip_insights ?? []).map((entry) => entry.content);
+  const insights = sortByOrder(row.trip_insights ?? []).map((entry) =>
+    insightFromPersistedContent(entry.id, entry.content),
+  );
 
   const weatherSource = row.trip_weather;
   const weatherRow = Array.isArray(weatherSource) ? weatherSource[0] : weatherSource;
@@ -248,7 +254,7 @@ export function tripToCreatePayload(trip: Trip): Record<string, unknown> {
       note: item.note ?? null,
     })),
     weather: normalized.weather,
-    insights: normalized.insights,
+    insights: normalized.insights.map((insight) => insightPersistContent(insight)),
   };
 }
 

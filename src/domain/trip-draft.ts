@@ -4,6 +4,7 @@ import type { AccommodationId, LaundryOption } from '@/domain/trip';
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import type { Traveler } from '@/domain/traveler';
+import { createUuid } from '@/lib/id';
 import {
   createDefaultSelfProfile,
   profilesToTravelers,
@@ -12,6 +13,8 @@ import {
 export { emptyDestination } from '@/domain/destination';
 
 export interface TripDraft {
+  /** Stable session identity for unfinished trips (MP5B). */
+  id: string;
   destination: Destination;
   startDate: string;
   endDate: string;
@@ -29,10 +32,11 @@ export interface TripDraft {
   note: string;
 }
 
-export function createEmptyTripDraft(): TripDraft {
+export function createEmptyTripDraft(id: string = createUuid()): TripDraft {
   const selfProfile = createDefaultSelfProfile();
 
   return {
+    id,
     destination: emptyDestination(),
     startDate: '',
     endDate: '',

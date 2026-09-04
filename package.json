@@ -35,10 +35,14 @@
     "react-native-worklets": "0.10.1"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/node": "^26.3.0",
     "@types/react": "~19.2.2",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~57.0.2",
+    "husky": "^9.1.7",
+    "jest": "^29.7.0",
+    "jest-expo": "~57.0.0",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "~6.0.3"
@@ -50,8 +54,12 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
+    "test": "jest --ci",
+    "test:watch": "jest --watch",
+    "test:typecheck": "tsc --noEmit -p tsconfig.test.json",
     "refresh": "expo start --clear",
-    "verify:mp1": "npx ts-node src/dev/run-mp1-invariants.ts"
+    "verify:mp1": "npx ts-node src/dev/run-mp1-invariants.ts",
+    "prepare": "husky"
   },
   "private": true
 }
