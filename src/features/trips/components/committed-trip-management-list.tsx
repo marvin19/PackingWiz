@@ -1,24 +1,27 @@
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import type { Trip } from '@/domain/trip';
+import { CommittedTripManagementCard } from '@/features/trips/components/committed-trip-management-card';
 import { DeleteTripPermanentlyConfirmSheet } from '@/features/trips/components/delete-trip-permanently-confirm-sheet';
-import { PastTripManagementCard } from '@/features/trips/components/past-trip-management-card';
-import { PreviousTripMenuSheet } from '@/features/trips/components/previous-trip-menu-sheet';
+import { TripBrowseMenuSheet } from '@/features/trips/components/trip-browse-menu-sheet';
 import { buildDeleteTripPermanentlyAccessibilityLabel } from '@/features/trips/utils/trip-delete-display';
+import { buildReuseTripHref } from '@/features/trips/utils/reuse-trip-navigation';
 import { performDeleteTripPermanently } from '@/features/trips/utils/trips-browse-navigation';
 
-type PastTripManagementListProps = {
+type CommittedTripManagementListProps = {
   trips: Trip[];
   onOpenTrip: (tripId: string) => void;
   onDeleteTripPermanently: (tripId: string) => Promise<void>;
 };
 
-export function PastTripManagementList({
+export function CommittedTripManagementList({
   trips,
   onOpenTrip,
   onDeleteTripPermanently,
-}: PastTripManagementListProps) {
+}: CommittedTripManagementListProps) {
+  const router = useRouter();
   const [menuTripId, setMenuTripId] = useState<string | null>(null);
   const [pendingDeleteTripId, setPendingDeleteTripId] = useState<string | null>(null);
   const [actionInFlight, setActionInFlight] = useState(false);
@@ -55,7 +58,7 @@ export function PastTripManagementList({
     <>
       <View style={styles.list}>
         {trips.map((trip) => (
-          <PastTripManagementCard
+          <CommittedTripManagementCard
             key={trip.id}
             trip={trip}
             onPress={onOpenTrip}
@@ -64,10 +67,12 @@ export function PastTripManagementList({
         ))}
       </View>
 
-      <PreviousTripMenuSheet
+      <TripBrowseMenuSheet
         visible={menuTripId !== null}
         trip={menuTrip}
+        showDeletePermanently
         onClose={() => setMenuTripId(null)}
+        onReuseTrip={(tripId) => router.push(buildReuseTripHref(tripId))}
         onDeletePermanently={setPendingDeleteTripId}
       />
 
@@ -89,3 +94,6 @@ const styles = StyleSheet.create({
     gap: 10,
   },
 });
+
+/** @deprecated Use CommittedTripManagementList */
+export const PastTripManagementList = CommittedTripManagementList;

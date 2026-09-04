@@ -37,7 +37,7 @@ import {
   createMultiListFixtureTrip,
   multiListFixtureSecondaryListId,
 } from '@/mocks/multi-list-fixture';
-import { mockSeedTrips } from '@/mocks/seed-trips';
+import { mockMallorcaTrip, mockSeedTrips } from '@/mocks/seed-trips';
 import { MockTripRepository } from '@/repositories/trips/mock-trip-repository';
 import { mockPackingGenerator } from '@/services/packing/mock-packing-generator';
 import { assembleTripFromDraft } from '@/services/trip-assembly';
@@ -73,23 +73,22 @@ function verifyTripNameWhitespaceFallback(): void {
 
 function verifySeedTrips(): void {
   for (const trip of mockSeedTrips) {
-    assert(trip.packingLists.length === 1, `${trip.id}: expected one packing list`);
+    assert(trip.packingLists.length >= 1, `${trip.id}: expected at least one packing list`);
+
+    const primaryList = trip.packingLists.find((list) => list.id === primaryPackingListId(trip.id));
+    if (!primaryList) {
+      throw new Error(`${trip.id}: stable primary list id present`);
+    }
     assert(
-      trip.packingLists[0].id === primaryPackingListId(trip.id),
-      `${trip.id}: stable primary list id`,
-    );
-    assert(
-      trip.packingLists[0].packingProfileId === primaryPackingProfileId(trip.id),
+      primaryList.packingProfileId === primaryPackingProfileId(trip.id),
       `${trip.id}: stable profile id`,
     );
-    assert(
-      trip.packingLists[0].profileSnapshot.name === 'Me',
-      `${trip.id}: explicit self profile snapshot`,
-    );
-    assert(
-      trip.packingLists[0].profileSnapshot.isSelf === true,
-      `${trip.id}: self profile flag`,
-    );
+    assert(primaryList.profileSnapshot.name === 'Me', `${trip.id}: explicit self profile snapshot`);
+    assert(primaryList.profileSnapshot.isSelf === true, `${trip.id}: self profile flag`);
+
+    const listIds = new Set(trip.packingLists.map((list) => list.id));
+    assert(listIds.size === trip.packingLists.length, `${trip.id}: unique packing list ids`);
+
     assert(
       getTripPackingItems(trip).length === trip.items.length,
       `${trip.id}: legacy items mirror primary list`,
@@ -389,7 +388,7 @@ async function verifyGenerationFailureAllOrNothing(): Promise<void> {
 }
 
 function verifyActiveListReconciliation(): void {
-  const single = mockSeedTrips[0];
+  const single = mockMallorcaTrip;
   const singleResolved = reconcileActivePackingListId(single.id, null, mockSeedTrips, {
     allowPrimaryCompatibilityFallback: true,
   });
@@ -494,7 +493,7 @@ function verifyStaleActiveListSafeLookup(): void {
 }
 
 function verifyTripPackEntry(): void {
-  const single = mockSeedTrips[0];
+  const single = mockMallorcaTrip;
   const singleEntry = resolveTripPackEntry(single.id, null, null, mockSeedTrips);
   assert(singleEntry.destination === 'pack', 'single-list trip opens Pack directly');
   assert(

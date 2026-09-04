@@ -4,8 +4,14 @@ import { AppText } from '@/components/ui/app-text';
 import { HOME_VIEW_ALL_LINK_SPACING } from '@/features/trips/utils/home-screen-spacing';
 import { useTheme } from '@/hooks/use-theme';
 
-export const VIEW_ALL_TRIPS_LABEL = 'View all trips';
-export const VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL = 'View all trips';
+export const MANAGE_ALL_TRIPS_LABEL = 'Manage all trips';
+export const MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL = 'Manage all trips';
+
+/** @deprecated Use MANAGE_ALL_TRIPS_LABEL */
+export const VIEW_ALL_TRIPS_LABEL = MANAGE_ALL_TRIPS_LABEL;
+
+/** @deprecated Use MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL */
+export const VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL = MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL;
 
 type HomeViewAllLinkProps = {
   label: string;

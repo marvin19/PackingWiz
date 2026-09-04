@@ -6,6 +6,7 @@ import { buildReusedTrip } from '@/domain/trip-reuse';
 import { emptyTripWeather } from '@/domain/weather';
 import { cloneTrip } from '@/lib/clone-trip';
 import { MockTripRepository } from '@/repositories/trips/mock-trip-repository';
+import { mockPackingGenerator } from '@/services/packing/mock-packing-generator';
 import { reuseTrip } from '@/services/trip-reuse-orchestration';
 
 function assert(condition: boolean, message: string): void {
@@ -110,7 +111,7 @@ async function verifyMockRepositoryCoexistence(): Promise<void> {
       sharedDetails: { startDate: '2026-08-01', endDate: '2026-08-04' },
       referenceDate: new Date('2026-06-01'),
     },
-    { tripRepository: repository },
+    { tripRepository: repository, packingGenerator: mockPackingGenerator },
   );
 
   const all = await repository.getAll();

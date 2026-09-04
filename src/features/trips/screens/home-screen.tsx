@@ -12,7 +12,7 @@ import { PlanNewTripCta } from '@/features/trips/components/plan-new-trip-cta';
 import { PreviousTripsSection } from '@/features/trips/components/previous-trips-section';
 import { TripsEmptyState } from '@/features/trips/components/trips-empty-state';
 import { UpcomingTripCard } from '@/features/trips/components/upcoming-trip-card';
-import { HomeViewAllLink, VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL, VIEW_ALL_TRIPS_LABEL } from '@/features/trips/components/home-view-all-link';
+import { HomeViewAllLink, MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL, MANAGE_ALL_TRIPS_LABEL } from '@/features/trips/components/home-view-all-link';
 import {
   HOME_AFTER_DRAFTS_SPACING,
   HOME_FOOTER_SPACING,
@@ -111,8 +111,8 @@ export function HomeScreen() {
 
         <View style={styles.footer}>
           <HomeViewAllLink
-            label={VIEW_ALL_TRIPS_LABEL}
-            accessibilityLabel={VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL}
+            label={MANAGE_ALL_TRIPS_LABEL}
+            accessibilityLabel={MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL}
             onPress={() => router.push(buildTripsBrowseHref('all'))}
           />
         </View>

@@ -2,7 +2,7 @@ import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import type { PackingItem } from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
-import type { PackingProfileSnapshot } from '@/domain/packing-profile';
+import type { PackingProfile, PackingProfileSnapshot } from '@/domain/packing-profile';
 import {
   getNewTripDateValidationMessage,
   validateNewTripDateRange,
@@ -49,15 +49,39 @@ export type TripReuseListSelection =
   | { packingListIds: string[]; packingProfileIds?: undefined }
   | { packingProfileIds: string[]; packingListIds?: undefined };
 
+/** New traveller planned during reuse — no source PackingList; list created at commit. */
+export type TripReuseNewTraveller = {
+  profile: PackingProfile;
+  packingMode: PackingList['packingMode'];
+};
+
 export type BuildReusedTripInput = TripReuseListSelection & {
   sourceTrip: Trip;
   sharedDetails: TripReuseSharedDetails;
   referenceDate?: Date;
+  /** When true, copied-list selection may be empty (new travellers supply lists in orchestration). */
+  allowEmptyCopiedLists?: boolean;
   createTripId?: () => string;
   createListId?: () => string;
   createItemId?: () => string;
   createBagId?: () => string;
 };
+
+export function countReuseTravellerPlan(
+  selectedCopiedListCount: number,
+  newTravellerCount: number,
+): number {
+  return selectedCopiedListCount + newTravellerCount;
+}
+
+export function validateReuseTravellerPlan(
+  selectedCopiedListCount: number,
+  newTravellerCount: number,
+): void {
+  if (countReuseTravellerPlan(selectedCopiedListCount, newTravellerCount) === 0) {
+    throw new TripReuseError('At least one person must be included', 'NO_LISTS_SELECTED');
+  }
+}
 
 function cloneProfileSnapshot(snapshot: PackingProfileSnapshot): PackingProfileSnapshot {
   return { ...snapshot };
@@ -136,7 +160,7 @@ function resolveSelectedLists(
     const ids = selection.packingListIds;
 
     if (ids.length === 0) {
-      throw new TripReuseError('At least one packing list must be selected', 'NO_LISTS_SELECTED');
+      return [];
     }
 
     const unknown = ids.filter(
@@ -156,7 +180,7 @@ function resolveSelectedLists(
   const profileIds = selection.packingProfileIds ?? [];
 
   if (profileIds.length === 0) {
-    throw new TripReuseError('At least one packing profile must be selected', 'NO_LISTS_SELECTED');
+    return [];
   }
 
   const resolved: PackingList[] = [];
@@ -232,6 +256,10 @@ export function buildReusedTrip(input: BuildReusedTripInput): Trip {
 
   const selectedSourceLists = resolveSelectedLists(sourceTrip, input);
 
+  if (selectedSourceLists.length === 0 && !input.allowEmptyCopiedLists) {
+    throw new TripReuseError('At least one packing list must be selected', 'NO_LISTS_SELECTED');
+  }
+
   const dateValidation = validateNewTripDateRange(
     sharedDetails.startDate,
     sharedDetails.endDate,
@@ -287,6 +315,17 @@ export function buildReusedTrip(input: BuildReusedTripInput): Trip {
     packingMode: packingLists[0]?.packingMode ?? sourceTrip.packingMode,
     generated: (packingLists[0]?.packingMode ?? sourceTrip.packingMode) === 'generated',
   });
+
+  if (selectedSourceLists.length === 0 && input.allowEmptyCopiedLists) {
+    return {
+      ...reusedTrip,
+      packingLists: [],
+      travelers: [],
+      items: [],
+      packingMode: 'manual',
+      generated: false,
+    };
+  }
 
   return reusedTrip;
 }

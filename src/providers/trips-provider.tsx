@@ -695,7 +695,18 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const created = await orchestrateReuseTrip(source, input, { tripRepository });
+        const created = await orchestrateReuseTrip(source, input, {
+          tripRepository,
+          packingGenerator,
+          importantByProfileId,
+        });
+
+        for (const entry of input.newTravellers ?? []) {
+          if (!entry.profile.isSelf && entry.profile.rememberForFutureTrips) {
+            rememberPackingProfile(entry.profile);
+          }
+        }
+
         setTrips((current) => [created, ...current.filter((entry) => entry.id !== created.id)]);
         setRepositoryError(null);
         return created;
@@ -704,7 +715,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [tripRepository],
+    [importantByProfileId, packingGenerator, rememberPackingProfile, tripRepository],
   );
 
   const updateTripSharedDetails = useCallback(

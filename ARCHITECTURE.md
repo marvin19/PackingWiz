@@ -219,28 +219,41 @@ AuthProvider
 
 **Committed trip lifecycle (MP5C):** Drafts (`StoredTripDraft`) are separate from committed `Trip` records. Upcoming vs Previous is date-derived from `endDate` (trips ending today remain Upcoming); `Trip.status` stores `upcoming` | `past` and is normalized from dates on read. There is no manual Archive/Restore in 1.0 — Previous is automatic trip history. Permanent delete removes the trip aggregate via `deleteTripPermanently` / `TripRepository.delete` (no tombstone). Saved Packing Profiles and profile-scoped Important masters survive trip deletion. Deleting the active trip clears `activeTripId` and `activePackingListId` without selecting another trip.
 
-**Trips browser (MP5C):** Home is a compact dashboard (max 2 drafts, max 2 previous trips, full Upcoming list). **View all trips** at the bottom of Home always opens `/trip/browse` (All filter). Contextual **View all drafts (N)** and **View all previous trips (N)** deep-link to Drafts/Previous filters only when counts exceed the Home preview limit. The canonical **Trips** screen filters: All | Drafts | Upcoming | Previous. Permanent delete is exposed on Previous trips in the full Trips browser. Search is deferred but the browser architecture is ready for a future query over the active filter's collection.
+**Trips browser (MP5C):** Home is a compact dashboard (max 2 drafts, max 2 previous trips, full Upcoming list). **Manage all trips** at the bottom of Home always opens `/trip/browse` (All filter). Contextual **View all drafts (N)** and **View all previous trips (N)** deep-link to Drafts/Previous filters only when counts exceed the Home preview limit. The canonical **Trips** screen filters: All | Drafts | Upcoming | Previous. Upcoming and Previous committed trips share compact management cards with overflow **Reuse trip** and **Delete permanently**. Search is deferred but the browser architecture is ready for a future query over the active filter's collection.
 
 **New trip dates:** Creating a new trip requires `startDate >=` the user's local calendar day. Stale drafts with past start dates remain drafts until corrected; commit is blocked before assembly/persistence. Existing Previous trips may retain historical dates when edited.
 
-**Trip reuse (MP5D-A):** `buildReusedTrip()` (`src/domain/trip-reuse.ts`) copies selected `PackingList` content from a source Trip into a **new** Trip aggregate. `reuseTrip()` orchestration persists via `TripRepository.createTrip()` without PackingGenerator, weather fetch, InsightGenerator, or Important injection. Contract:
+**Trip reuse (MP5D-A / MP5D-C):** `buildReusedTrip()` (`src/domain/trip-reuse.ts`) copies selected `PackingList` content from a source Trip into a **new** Trip aggregate. `reuseTrip()` orchestration persists via `TripRepository.createTrip()`. Contract:
+
+| Aspect | Copied source lists | Newly added travellers |
+|--------|---------------------|-------------------------|
+| List origin | Source list snapshot copy (MP5D-A) | Fresh list via `assemblePackingListForProfile()` (MP5A semantics) |
+| PackingGenerator | **Zero** calls | One call per `packingMode: 'generated'` traveller |
+| Weather | Not copied; `emptyTripWeather()` on shell | Generator uses new-trip draft context only — **no** source weather fetch/copy |
+| Important | Snapshot copied; `importantItemId` preserved | Current enabled profile Important master injected (MP4) |
+| Progress | Reset `packed: false` on copied items | N/A (new list) |
+
+Mixed reuse assembles the **full** aggregate (copied lists + new lists) before a **single** `createTrip()` — no partial persist. Source trip is never mutated.
+
+Copy-only path (no new travellers): no PackingGenerator, weather fetch, InsightGenerator, or Important reinjection.
 
 | Aspect | Behavior |
 |--------|----------|
 | Source trip | Immutable — ids, packed progress, weather, insights unchanged |
 | New ids | Fresh UUIDs for Trip, each PackingList, each PackingItem, and copied bags |
-| Profile identity | `profileSnapshot` copied from source list; `packingProfileId` preserved |
-| Important | Snapshot rows copied; fresh item id; `importantItemId` master link preserved |
-| Progress | All copied items start `packed: false` |
-| packingMode | Preserved per copied list (describes origin, not permission to regenerate) |
+| Profile identity | Copied lists preserve `profileSnapshot` / `packingProfileId`; new lists use planned profile |
+| packingMode | Preserved per copied list; chosen per new traveller |
 | Dates | Required new `startDate`/`endDate`; validated with `validateNewTripDateRange` |
-| Travellers | Caller selects source list/profile ids; only selected lists copied |
-| Weather | `emptyTripWeather()` — not copied from source |
+| Travellers | Selected source list ids + optional `newTravellers[]` plan entries |
+| Weather | `emptyTripWeather()` on shell — not copied from source |
 | Insights | `[]` — stale reasoning not carried over |
 | Image | Not copied (`undefined` on new trip) |
 | Active trip | `TripsProvider.reuseTrip()` returns created trip; does **not** set `activeTripId` (unlike `commitDraftTrip`) |
+| Remember profile | Promoted only after successful reuse commit (same atomicity as `commitDraftTrip`) |
 
-Supabase: `createTrip()` rejects multi-list aggregates until MP6 persistence; mock repository supports multi-list reuse.
+Supabase: `createTrip()` rejects multi-list aggregates until MP6 persistence; UI blocks when total resulting lists (selected source + new) > 1.
+
+**Reuse UI (MP5D-B / MP5D-C):** Previous trips in `/trip/browse` expose **Reuse trip** in the overflow menu → `/trip/reuse?tripId=…`. The screen collects new dates, source traveller checkboxes, **Add person** (saved profile or new + generate/manual choice), optional shared-detail edits, and a deterministic **Changes from original** summary. Success calls `reuseTrip()`, then `beginTripPackEntry()` on the created trip and navigates to Pack or list selection. Form state is transient (`ReuseTripSessionProvider`); cancel clears the session without creating a draft or promoting remembered profiles.
 
 ### ProfileProvider
 

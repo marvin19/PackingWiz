@@ -2,24 +2,33 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
-import { durationDays, formatRange } from '@/domain/dates';
+import { formatRange } from '@/domain/dates';
 import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
+import { packingStats } from '@/domain/packing-stats';
 import type { Trip } from '@/domain/trip';
+import { isUpcomingTrip } from '@/domain/trip-lifecycle';
 import { getTripName } from '@/domain/trip-name';
-import { buildPreviousTripMenuAccessibilityLabel } from '@/features/trips/utils/trip-delete-display';
+import { buildTripBrowseMenuAccessibilityLabel } from '@/features/trips/components/trip-browse-menu-sheet';
 import { TripHeroImage } from '@/features/trips/components/trip-hero-image';
 import { useTheme } from '@/hooks/use-theme';
 
-type PastTripManagementCardProps = {
+type CommittedTripManagementCardProps = {
   trip: Trip;
   onPress: (tripId: string) => void;
   onOpenMenu: (tripId: string) => void;
+  referenceDate?: Date;
 };
 
-export function PastTripManagementCard({ trip, onPress, onOpenMenu }: PastTripManagementCardProps) {
+export function CommittedTripManagementCard({
+  trip,
+  onPress,
+  onOpenMenu,
+  referenceDate = new Date(),
+}: CommittedTripManagementCardProps) {
   const theme = useTheme();
-  const days = durationDays(trip.startDate, trip.endDate);
   const tripName = getTripName(trip);
+  const showProgress = isUpcomingTrip(trip, referenceDate);
+  const stats = packingStats(trip);
 
   return (
     <View
@@ -43,18 +52,20 @@ export function PastTripManagementCard({ trip, onPress, onOpenMenu }: PastTripMa
             {tripName}
           </AppText>
           <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
-            {formatRange(trip.startDate, trip.endDate)} · {days} {days === 1 ? 'day' : 'days'}
+            {formatRange(trip.startDate, trip.endDate)} · {formatTripPeopleCount(getTripPackingPeopleCount(trip))}
           </AppText>
-          <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
-            {formatTripPeopleCount(getTripPackingPeopleCount(trip))}
-          </AppText>
+          {showProgress ? (
+            <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
+              {stats.packed} / {stats.total} packed
+            </AppText>
+          ) : null}
         </View>
         <Feather name="chevron-right" size={16} color={theme.colors.mutedForeground} />
       </Pressable>
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={buildPreviousTripMenuAccessibilityLabel(trip)}
+        accessibilityLabel={buildTripBrowseMenuAccessibilityLabel(trip)}
         onPress={() => onOpenMenu(trip.id)}
         style={({ pressed }) => [
           styles.menuButton,

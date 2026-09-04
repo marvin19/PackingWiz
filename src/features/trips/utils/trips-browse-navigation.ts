@@ -12,7 +12,12 @@ export function buildTripsBrowseHref(filter: TripsBrowseFilter = 'all'): Href {
   return `/trip/browse?filter=${filter}` as Href;
 }
 
-export { VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL, VIEW_ALL_TRIPS_LABEL } from '@/features/trips/components/home-view-all-link';
+export {
+  MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL,
+  MANAGE_ALL_TRIPS_LABEL,
+  VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL,
+  VIEW_ALL_TRIPS_LABEL,
+} from '@/features/trips/components/home-view-all-link';
 
 export async function performDeleteTripPermanently(
   tripId: string,

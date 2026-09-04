@@ -8,8 +8,8 @@ import {
 import { parseTripsBrowseFilter } from '@/features/trips/utils/trips-browse-filter';
 import { buildTripsBrowseHref } from '@/features/trips/utils/trips-browse-navigation';
 import {
-  VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL,
-  VIEW_ALL_TRIPS_LABEL,
+  MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL,
+  MANAGE_ALL_TRIPS_LABEL,
 } from '@/features/trips/components/home-view-all-link';
 
 function createPreviousTrip(id: string, endDate: string): Trip {
@@ -104,9 +104,9 @@ describe('trips browse navigation', () => {
     expect(String(buildTripsBrowseHref('previous'))).toBe('/trip/browse?filter=previous');
   });
 
-  it('exposes permanent View all trips home entry copy', () => {
-    expect(VIEW_ALL_TRIPS_LABEL).toBe('View all trips');
-    expect(VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL).toBe('View all trips');
+  it('exposes permanent Manage all trips home entry copy', () => {
+    expect(MANAGE_ALL_TRIPS_LABEL).toBe('Manage all trips');
+    expect(MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL).toBe('Manage all trips');
     expect(String(buildTripsBrowseHref('all'))).toBe('/trip/browse');
   });
 });

@@ -6,17 +6,17 @@ import {
   HOME_VIEW_ALL_LINK_SPACING,
 } from '@/features/trips/utils/home-screen-spacing';
 import {
-  VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL,
-  VIEW_ALL_TRIPS_LABEL,
+  MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL,
+  MANAGE_ALL_TRIPS_LABEL,
 } from '@/features/trips/components/home-view-all-link';
 import { buildTripsBrowseHref } from '@/features/trips/utils/trips-browse-navigation';
 import { buildViewAllDraftsLabel } from '@/features/trips/utils/draft-home-preview';
 import { buildViewAllPreviousTripsLabel } from '@/features/trips/utils/previous-home-preview';
 
 describe('home navigation contract', () => {
-  it('exposes permanent View all trips entry to the All filter', () => {
-    expect(VIEW_ALL_TRIPS_LABEL).toBe('View all trips');
-    expect(VIEW_ALL_TRIPS_ACCESSIBILITY_LABEL).toBe('View all trips');
+  it('exposes permanent Manage all trips entry to the All filter', () => {
+    expect(MANAGE_ALL_TRIPS_LABEL).toBe('Manage all trips');
+    expect(MANAGE_ALL_TRIPS_ACCESSIBILITY_LABEL).toBe('Manage all trips');
     expect(String(buildTripsBrowseHref('all'))).toBe('/trip/browse');
   });
 

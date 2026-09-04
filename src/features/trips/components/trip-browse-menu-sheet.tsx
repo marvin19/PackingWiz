@@ -4,23 +4,32 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import type { Trip } from '@/domain/trip';
+import {
+  buildReuseTripActionAccessibilityLabel,
+  buildReuseTripMenuAccessibilityLabel,
+  REUSE_TRIP_ACTION_LABEL,
+} from '@/features/trips/utils/reuse-trip-display';
 import { buildDeleteTripPermanentlyAccessibilityLabel } from '@/features/trips/utils/trip-delete-display';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
-type PreviousTripMenuSheetProps = {
+type TripBrowseMenuSheetProps = {
   visible: boolean;
   trip: Trip | null;
+  showDeletePermanently: boolean;
   onClose: () => void;
-  onDeletePermanently: (tripId: string) => void;
+  onReuseTrip: (tripId: string) => void;
+  onDeletePermanently?: (tripId: string) => void;
 };
 
-export function PreviousTripMenuSheet({
+export function TripBrowseMenuSheet({
   visible,
   trip,
+  showDeletePermanently,
   onClose,
+  onReuseTrip,
   onDeletePermanently,
-}: PreviousTripMenuSheetProps) {
+}: TripBrowseMenuSheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -28,6 +37,7 @@ export function PreviousTripMenuSheet({
     return null;
   }
 
+  const reuseLabel = buildReuseTripActionAccessibilityLabel(trip);
   const deleteLabel = buildDeleteTripPermanentlyAccessibilityLabel(trip);
 
   return (
@@ -57,10 +67,10 @@ export function PreviousTripMenuSheet({
 
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel={deleteLabel}
+            accessibilityLabel={reuseLabel}
             onPress={() => {
               onClose();
-              onDeletePermanently(trip.id);
+              onReuseTrip(trip.id);
             }}
             style={({ pressed }) => [
               styles.optionRow,
@@ -70,16 +80,45 @@ export function PreviousTripMenuSheet({
                 opacity: pressed ? 0.92 : 1,
               },
             ]}>
-            <View style={[styles.iconWrap, { backgroundColor: `${theme.colors.destructive}14` }]}>
-              <Feather name="trash-2" size={18} color={theme.colors.destructive} />
+            <View style={[styles.iconWrap, { backgroundColor: theme.colors.accent }]}>
+              <Feather name="copy" size={18} color={theme.colors.primary} />
             </View>
             <AppText
               variant="bodySmall"
-              style={{ flex: 1, fontFamily: theme.fontFamilies.sansSemiBold, color: theme.colors.destructive }}>
-              Delete permanently
+              style={{ flex: 1, fontFamily: theme.fontFamilies.sansSemiBold, color: theme.colors.foreground }}>
+              {REUSE_TRIP_ACTION_LABEL}
             </AppText>
             <Feather name="chevron-right" size={16} color={theme.colors.mutedForeground} accessibilityElementsHidden />
           </Pressable>
+
+          {showDeletePermanently && onDeletePermanently ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={deleteLabel}
+              onPress={() => {
+                onClose();
+                onDeletePermanently(trip.id);
+              }}
+              style={({ pressed }) => [
+                styles.optionRow,
+                styles.destructiveRow,
+                {
+                  backgroundColor: theme.colors.card,
+                  borderColor: theme.colors.border,
+                  opacity: pressed ? 0.92 : 1,
+                },
+              ]}>
+              <View style={[styles.iconWrap, { backgroundColor: `${theme.colors.destructive}14` }]}>
+                <Feather name="trash-2" size={18} color={theme.colors.destructive} />
+              </View>
+              <AppText
+                variant="bodySmall"
+                style={{ flex: 1, fontFamily: theme.fontFamilies.sansSemiBold, color: theme.colors.destructive }}>
+                Delete permanently
+              </AppText>
+              <Feather name="chevron-right" size={16} color={theme.colors.mutedForeground} accessibilityElementsHidden />
+            </Pressable>
+          ) : null}
 
           <Pressable
             accessibilityRole="button"
@@ -94,6 +133,10 @@ export function PreviousTripMenuSheet({
       </View>
     </Modal>
   );
+}
+
+export function buildTripBrowseMenuAccessibilityLabel(trip: Trip): string {
+  return buildReuseTripMenuAccessibilityLabel(trip);
 }
 
 const styles = StyleSheet.create({
@@ -132,6 +175,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     minHeight: 48,
     marginBottom: 8,
+  },
+  destructiveRow: {
+    marginTop: 4,
   },
   iconWrap: {
     width: 32,

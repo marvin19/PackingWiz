@@ -8,10 +8,9 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { SectionTitle } from '@/components/ui/section-title';
 import { buildTripsBrowseAllView, listPreviousTrips, listUpcomingTrips } from '@/domain/trip-selectors';
+import { CommittedTripManagementList } from '@/features/trips/components/committed-trip-management-list';
 import { DraftPlanningList } from '@/features/trips/components/draft-planning-list';
-import { PastTripManagementList } from '@/features/trips/components/past-trip-management-list';
 import { TripsBrowseFilterBar } from '@/features/trips/components/trips-browse-filter-bar';
-import { UpcomingTripCard } from '@/features/trips/components/upcoming-trip-card';
 import {
   parseTripsBrowseFilter,
   type TripsBrowseFilter,
@@ -121,18 +120,18 @@ export function TripsBrowseScreen() {
             {allView.upcoming.length > 0 ? (
               <View style={styles.section}>
                 <SectionTitle>Upcoming</SectionTitle>
-                <View style={styles.cardList}>
-                  {allView.upcoming.map((trip) => (
-                    <UpcomingTripCard key={trip.id} trip={trip} onPress={openTrip} />
-                  ))}
-                </View>
+                <CommittedTripManagementList
+                  trips={allView.upcoming}
+                  onOpenTrip={openTrip}
+                  onDeleteTripPermanently={deleteTripPermanently}
+                />
               </View>
             ) : null}
 
             {allView.previous.length > 0 ? (
               <View style={styles.section}>
                 <SectionTitle>Previous</SectionTitle>
-                <PastTripManagementList
+                <CommittedTripManagementList
                   trips={allView.previous}
                   onOpenTrip={openTrip}
                   onDeleteTripPermanently={deleteTripPermanently}
@@ -151,15 +150,15 @@ export function TripsBrowseScreen() {
         ) : null}
 
         {activeFilter === 'upcoming' && upcomingTrips.length > 0 ? (
-          <View style={styles.cardList}>
-            {upcomingTrips.map((trip) => (
-              <UpcomingTripCard key={trip.id} trip={trip} onPress={openTrip} />
-            ))}
-          </View>
+          <CommittedTripManagementList
+            trips={upcomingTrips}
+            onOpenTrip={openTrip}
+            onDeleteTripPermanently={deleteTripPermanently}
+          />
         ) : null}
 
         {activeFilter === 'previous' && previousTrips.length > 0 ? (
-          <PastTripManagementList
+          <CommittedTripManagementList
             trips={previousTrips}
             onOpenTrip={openTrip}
             onDeleteTripPermanently={deleteTripPermanently}
@@ -186,8 +185,5 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: 10,
-  },
-  cardList: {
-    gap: 16,
   },
 });

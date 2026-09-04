@@ -6,7 +6,7 @@ export const HOME_SECTION_SPACING = spacing.xl;
 /** Compact gap after draft cards before Plan a new trip. */
 export const HOME_AFTER_DRAFTS_SPACING = spacing.md;
 
-/** Separation before the permanent View all trips footer. */
+/** Separation before the permanent Manage all trips footer. */
 export const HOME_FOOTER_SPACING = spacing['2xl'];
 
 /** Compact gap after cards before a contextual View all link. */

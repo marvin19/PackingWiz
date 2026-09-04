@@ -486,7 +486,7 @@ Date-derived Previous lifecycle, canonical Trips browser, and permanent deletion
 ### MP5C-B — Canonical Trips browser — COMPLETE
 
 - One **Trips** screen (`/trip/browse`): All | Drafts | Upcoming | Previous view filters
-- Home compact previews: max 2 drafts, max 2 previous trips; **View all trips** footer always reachable from Home
+- Home compact previews: max 2 drafts, max 2 previous trips; **Manage all trips** footer always reachable from Home
 - Contextual View all drafts/previous deep-links when counts exceed preview limits
 - Previous trips: overflow **Delete permanently** (with ownership-aware confirmation)
 - No manual Archive/Restore in 1.0; `/trip/drafts` and `/trip/archive` redirect to browse filters
@@ -550,9 +550,28 @@ Pure builder + service/provider API (no UI):
 - `TripsProvider.reuseTrip(sourceTripId, input)` — returns created trip; does not change `activeTripId`
 - Supabase: multi-list reuse rejected by existing `createTrip()` guard until MP6 persistence
 
-### MP5D-B — Reuse trip UI — NOT STARTED
+### MP5D-B — Reuse trip UI — implementation complete (manual verification pending)
 
-User-facing **Reuse trip** flow (dates, traveller selection, shared detail edits) on top of MP5D-A.
+- **Reuse trip** action on Previous trip overflow menu in Trips browser
+- `/trip/reuse` screen: source summary, required new dates, traveller selection, editable trip details sections
+- Success: activates new trip and navigates to Pack (or MP3 list selection when multiple lists)
+- Transient reuse form session — no StoredTripDraft
+- Supabase: proactive block when multi-person reuse selected; repository guard remains authoritative
+- Upcoming reuse deferred (hero cards lack overflow menu without new card architecture)
+
+### MP5D-C — Add travellers during reuse + changes summary — implementation complete (manual verification pending)
+
+- Reuse plan distinguishes **source list selections** (copy) vs **`newTravellers[]`** (generate/manual at commit)
+- **Add person** UX: saved profile or new person + generate/manual choice; removable before submit
+- Mixed orchestration: copy selected lists (zero generator calls) + `assemblePackingListForProfile()` per new generated traveller; one final `createTrip()`
+- Important: copied snapshot only for source people; current enabled Important for new people
+- Remember profile promoted only after successful reuse commit
+- Deterministic **Changes from original** summary (duration, travellers, destination/context/accommodation/bags)
+- Adapted copy when duration differs or mix of copied/new lists
+- Supabase guard uses total resulting list count (selected source + new)
+- Tests: generator invocation counts, mixed source+new, changes summary, validation edge cases
+
+Do not mark MP5 complete until MP5D manual verification passes.
 
 ### Duplicate Trip (product)
 
