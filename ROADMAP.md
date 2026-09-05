@@ -559,7 +559,7 @@ Pure builder + service/provider API (no UI):
 - Supabase: proactive block when multi-person reuse selected; repository guard remains authoritative
 - Upcoming reuse deferred (hero cards lack overflow menu without new card architecture)
 
-### MP5D-C — Add travellers during reuse + changes summary — implementation complete (manual verification pending)
+### MP5D-C — Add travellers during reuse + changes summary — COMPLETE (session/mock)
 
 - Reuse plan distinguishes **source list selections** (copy) vs **`newTravellers[]`** (generate/manual at commit)
 - **Add person** UX: saved profile or new person + generate/manual choice; removable before submit
@@ -571,87 +571,37 @@ Pure builder + service/provider API (no UI):
 - Supabase guard uses total resulting list count (selected source + new)
 - Tests: generator invocation counts, mixed source+new, changes summary, validation edge cases
 
-Do not mark MP5 complete until MP5D manual verification passes.
-
-### Duplicate Trip (product)
-
-Allow a user to create a new Trip from an existing Trip.
-
-Potential framing:
-
-**Plan another trip like Mallorca Beach**
-
-Minimal flow:
-
-- Destination
-- Dates
-- Packing for
-- Start with the same packing items
-- Create trip
-
-The user should not be forced through the full creation wizard unless they choose
-**Edit trip details**.
-
-### Copy semantics
-
-A duplicated Trip receives:
-
-- fresh Trip id
-- fresh PackingList ids
-- fresh PackingItem ids
-- selected Packing Profiles
-- copied list content when requested
-- reset packed/unpacked progress
-
-Preserve useful content such as:
-
-- item names
-- quantities
-- manual additions
-- relevant notes where appropriate
-
-Do not automatically AI-regenerate copied Packing Lists.
-
-New dates/weather must not silently modify copied list content.
-
-### Recommendation refresh
-
-A future explicit action such as **Refresh recommendations** may compare the copied
-list with current:
-
-- destination
-- dates
-- weather
-- trip context
-
-and suggest additions/removals for approval.
-
-### Automatic similar-trip reuse
-
-Defer automatic semantic matching until explicit duplicate/reuse behavior is proven
-useful.
-
-Examples of later behavior:
-
-- Lærdal for 3 days resembles a previous Lærdal trip
-- Vik for 3 days has similar weather/context to a previous Bergen trip
-
-Potential future prompt:
-
-> This trip looks similar to Bergen · Aug 2026.
-> Start with that packing list?
-
-Do not make this a 1.0.0 blocker unless user testing demonstrates strong value.
+**MP5 — status: COMPLETE** (MP5A–MP5D; mock/session persistence)
 
 ---
 
 # MP6 — Multi-person cleanup / migration / persistence contract
 
-Formerly MP5.
+Formerly MP5 umbrella cleanup.
 
-Stabilize the final multi-person and Trip lifecycle domain before real persistence.
+## MP6-A — Canonical model + compatibility cleanup — COMPLETE (session/mock)
 
-## Remove / reduce compatibility debt
+Domain/contract slice — no Supabase schema changes, no new user-facing features:
+
+- **`src/domain/trip-canonical.ts`** — canonical contract helpers (list resolution, legacy ingress detection, cross-list reads)
+- **`normalizeTrip` split** — `migrateLegacyTripIngress` | `normalizeCanonicalTrip` | `syncLegacyTripMirrors`
+- Canonical normalization is **idempotent** for multi-list trips (preserves list ids, mixed packing modes, snapshots)
+- Deprecated mirrors documented on `Trip` (`items`, `packingMode`, `travelers[]`, …)
+- **`resolveExplicitPackingListId`** — 1 list auto-resolve; 2+ lists require explicit id
+- Profile stats count packed items across **all** lists
+- Multi-list trips hide legacy **Assign to / Shared** item UI (list ownership is canonical)
+- **`mp6a-invariants.ts`** wired into `verify:mp1`
+- ARCHITECTURE.md separates **Canonical model** from **Legacy compatibility boundary**
+
+Remaining compatibility until MP6-B: flat Supabase mapper, `primaryPackingListId` migration ingress, deprecated Trip mirrors on save/load.
+
+## MP6-B — Production persistence contract — PENDING
+
+Nested Supabase schema + repository round-trip for canonical multi-list Trips, profile-scoped Important, and optional draft persistence. See **Persistence contract** below and ARCHITECTURE.md Supabase gap inventory.
+
+---
+
+# MP6 (continued) — Persistence & cleanup backlog
 
 Review and remove or repurpose where safe:
 

@@ -133,8 +133,6 @@ interface TripsContextValue {
   setDraft: (patch: Partial<TripDraft>) => void;
   setDraftWizardStep: (step: number) => void;
   markDraftReachedSummary: () => void;
-  /** @deprecated Use createNewDraft — creates a new draft without removing existing drafts. */
-  resetDraft: () => void;
   saveDraftImportantItemsForProfile: (profileId: string, names: string[]) => ImportantItem[];
   dismissDraftImportantPromptForProfile: (profileId: string) => void;
   getActiveDraftImportantByProfileId: () => Record<string, ImportantItemsConfig>;
@@ -484,10 +482,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }),
     );
   }, []);
-
-  const resetDraft = useCallback(() => {
-    createNewDraft();
-  }, [createNewDraft]);
 
   const markDraftReachedSummary = useCallback(() => {
     setDraftsState(
@@ -1403,7 +1397,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       setDraft,
       setDraftWizardStep,
       markDraftReachedSummary,
-      resetDraft,
       saveDraftImportantItemsForProfile,
       dismissDraftImportantPromptForProfile,
       getActiveDraftImportantByProfileId,
@@ -1457,7 +1450,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       setDraft,
       setDraftWizardStep,
       markDraftReachedSummary,
-      resetDraft,
       saveDraftImportantItemsForProfile,
       dismissDraftImportantPromptForProfile,
       getActiveDraftImportantByProfileId,

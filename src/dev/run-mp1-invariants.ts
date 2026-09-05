@@ -1,3 +1,4 @@
+import { runMp6aInvariantChecks } from '@/dev/mp6a-invariants';
 import { runMp4InvariantChecks } from '@/dev/mp4-invariants';
 import { runMp1InvariantChecks } from '@/dev/mp1-invariants';
 import { runMp5bInvariantChecks } from '@/dev/mp5b-invariants';
@@ -10,6 +11,7 @@ async function main(): Promise<void> {
   await runMp5bInvariantChecks();
   await runMp5cInvariantChecks();
   await runMp5dInvariantChecks();
+  await runMp6aInvariantChecks();
 }
 
 main()

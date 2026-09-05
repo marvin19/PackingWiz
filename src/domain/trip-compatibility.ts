@@ -6,6 +6,7 @@ import type { PackingProfileSnapshot } from '@/domain/packing-profile';
 import type { Traveler } from '@/domain/traveler';
 import type { Trip, PackingMode, TripStatus } from '@/domain/trip';
 import { deriveTripDateBucket } from '@/domain/trip-lifecycle';
+import { isLegacyTripIngress } from '@/domain/trip-canonical';
 import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
 
 function cloneItem(item: PackingItem): PackingItem {
@@ -108,31 +109,76 @@ function resolveTripName(trip: TripLike): string {
 }
 
 /**
- * True when the trip is still on the temporary MP1 single-list compatibility path.
- * Used to fill deterministic ids on the primary list during normalization.
+ * Resolve the PackingList that supplies deprecated Trip-level mirrors.
+ *
+ * Rules (MP6-A):
+ * - 0 lists → undefined
+ * - 1 list → that list (safe auto-resolution)
+ * - 2+ lists → list whose id matches `primaryPackingListId(trip.id)` when present
+ * - 2+ lists with no compatibility-primary → undefined (never fall back to array index 0)
  */
-function isLegacyCompatibilityShape(trip: TripLike): boolean {
-  if (!trip.packingLists || trip.packingLists.length === 0) {
-    return true;
+export function resolveCompatibilityPrimaryPackingList(trip: Trip): PackingList | undefined {
+  if (trip.packingLists.length === 0) {
+    return undefined;
   }
 
-  if (trip.packingLists.length > 1) {
-    return false;
+  if (trip.packingLists.length === 1) {
+    return trip.packingLists[0];
   }
 
-  return isCompatibilityPrimaryList(trip.id, trip.packingLists[0]);
+  return trip.packingLists.find((list) => isCompatibilityPrimaryList(trip.id, list));
 }
 
 /**
- * Normalize a trip to the target nested shape while keeping legacy mirrors in sync.
+ * Sync deprecated Trip-level mirrors from the compatibility-primary list when resolved.
+ * Does not migrate legacy ingress or rewrite list ids.
  *
- * Precedence:
- * - no packingLists → build deterministic primary list from legacy ingress fields
- * - compatibility or real nested lists present → primary PackingList is authoritative (MP1C+)
- * - legacy Trip.items / Trip.packingMode are mirrored on output only
+ * When multiple lists exist and no compatibility-primary list is found, flat mirrors are
+ * left unchanged — canonical multi-list runtime must not assume packingLists[0] is primary.
  */
-export function normalizeTrip(trip: TripLike): Trip {
+export function syncLegacyTripMirrors(trip: Trip): Trip {
   const name = resolveTripName(trip);
+  const mirrorList = resolveCompatibilityPrimaryPackingList(trip);
+
+  if (!mirrorList) {
+    return {
+      ...trip,
+      name,
+      title: name,
+      insights: normalizeInsights(trip.insights),
+      status: normalizeTripStatus(trip),
+    };
+  }
+
+  return {
+    ...trip,
+    name,
+    title: name,
+    items: mirrorList.items.map(cloneItem),
+    packingMode: mirrorList.packingMode,
+    generated: mirrorList.packingMode === 'generated',
+    insights: normalizeInsights(trip.insights),
+    status: normalizeTripStatus(trip),
+  };
+}
+
+/**
+ * Normalize an already-nested trip without legacy ingress migration.
+ * Idempotent for canonical multi-list trips (preserves list ids, order, snapshots, modes).
+ */
+export function normalizeCanonicalTrip(trip: Trip): Trip {
+  const packingLists = trip.packingLists.map(clonePackingList);
+
+  return syncLegacyTripMirrors({
+    ...trip,
+    packingLists,
+  });
+}
+
+/**
+ * Migrate flat/single-list compatibility ingress into nested packingLists.
+ */
+function migrateLegacyTripIngress(trip: TripLike): Trip {
   const legacyItems = trip.items.map(cloneItem);
   const legacyPackingMode = trip.packingMode;
 
@@ -142,7 +188,7 @@ export function normalizeTrip(trip: TripLike): Trip {
     packingLists = [
       buildPrimaryPackingList(trip.id, trip.travelers, legacyPackingMode, legacyItems),
     ];
-  } else if (isLegacyCompatibilityShape(trip)) {
+  } else {
     const profileSnapshot = buildPrimaryProfileSnapshot(trip.id, trip.travelers);
     const existing = clonePackingList(trip.packingLists[0]);
 
@@ -154,24 +200,41 @@ export function normalizeTrip(trip: TripLike): Trip {
         profileSnapshot: existing.profileSnapshot ?? profileSnapshot,
       },
     ];
-  } else {
-    packingLists = trip.packingLists.map(clonePackingList);
   }
 
-  const primaryList = packingLists[0];
-  const normalizedTrip: Trip = {
-    ...trip,
+  const name = resolveTripName(trip);
+
+  return {
+    ...(trip as Trip),
     name,
     title: name,
     packingLists,
-    items: primaryList.items.map(cloneItem),
-    packingMode: primaryList.packingMode,
-    generated: primaryList.packingMode === 'generated',
-    insights: normalizeInsights(trip.insights),
-    status: normalizeTripStatus(trip),
+    travelers: trip.travelers.map((traveler) => ({ ...traveler })),
   };
+}
 
-  return normalizedTrip;
+/**
+ * Normalize a trip to the target nested shape while keeping legacy mirrors in sync.
+ *
+ * Precedence:
+ * - legacy ingress (no lists / compatibility primary list) → migrateLegacyTripIngress
+ * - canonical nested lists → normalizeCanonicalTrip (idempotent)
+ * - deprecated Trip.items / Trip.packingMode mirror the compatibility-primary list when resolved
+ */
+export function normalizeTrip(trip: TripLike): Trip {
+  if (isLegacyTripIngress(trip)) {
+    return syncLegacyTripMirrors(migrateLegacyTripIngress(trip));
+  }
+
+  const name = resolveTripName(trip);
+
+  return normalizeCanonicalTrip({
+    ...(trip as Trip),
+    name,
+    title: name,
+    packingLists: (trip.packingLists ?? []).map(clonePackingList),
+    travelers: trip.travelers.map((traveler) => ({ ...traveler })),
+  });
 }
 
 /** Maps legacy archived/missing status to date-derived buckets; preserves stored upcoming/past. */
@@ -193,21 +256,22 @@ function normalizeTripStatus(trip: TripLike, referenceDate: Date = new Date()): 
   return deriveTripDateBucket(withDates, referenceDate);
 }
 
-/** Primary/default packing list — call on a normalized trip. */
+/** Legacy mirror source list — compatibility-primary id lookup, not packingLists[0]. */
 export function getPrimaryPackingList(trip: Trip): PackingList {
-  if (trip.packingLists.length === 0) {
-    throw new Error('Trip has no packing lists');
+  const list = resolveCompatibilityPrimaryPackingList(trip);
+  if (!list) {
+    throw new Error('Trip has no legacy mirror packing list');
   }
 
-  return trip.packingLists[0];
+  return list;
 }
 
-/** Items for the compatibility single-list runtime (mirrors primary list). */
+/** @deprecated Read list items via packingLists or allTripPackingItems — mirrors compatibility-primary list only. */
 export function getTripPackingItems(trip: Trip): PackingItem[] {
   return getPrimaryPackingList(trip).items;
 }
 
-/** Packing mode for the compatibility single-list runtime (mirrors primary list). */
+/** @deprecated Read list packingMode on the target PackingList — mirrors compatibility-primary list only. */
 export function getTripPackingMode(trip: Trip): PackingMode {
   return getPrimaryPackingList(trip).packingMode;
 }
@@ -222,12 +286,13 @@ export function updatePrimaryPackingList(
   updater: (list: PackingList) => PackingList,
 ): Trip {
   const updatedPrimary = updater(clonePackingList(getPrimaryPackingList(trip)));
+  const primaryId = getPrimaryPackingList(trip).id;
 
-  return normalizeTrip({
+  return syncLegacyTripMirrors({
     ...trip,
-    packingLists: [updatedPrimary, ...trip.packingLists.slice(1).map(clonePackingList)],
-    items: updatedPrimary.items,
-    packingMode: updatedPrimary.packingMode,
+    packingLists: trip.packingLists.map((list) =>
+      list.id === primaryId ? updatedPrimary : clonePackingList(list),
+    ),
   });
 }
 
@@ -323,8 +388,10 @@ export function updatePackingListById(
     listIndex === index ? updatedList : clonePackingList(list),
   );
 
-  if (listId === getPrimaryPackingList(trip).id) {
-    return normalizeTrip({ ...trip, packingLists: nextLists });
+  const mirrorList = resolveCompatibilityPrimaryPackingList(trip);
+
+  if (mirrorList && listId === mirrorList.id) {
+    return syncLegacyTripMirrors({ ...trip, packingLists: nextLists });
   }
 
   return { ...trip, packingLists: nextLists };

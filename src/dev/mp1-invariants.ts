@@ -713,7 +713,18 @@ async function verifyCustomPrimaryListRepositoryResolution(): Promise<void> {
   assert(before !== null, 'fixture trip loads');
   const secondaryBefore = cloneTrip(before as Trip);
 
-  await repo.updatePackingItem(trip.id, primaryItemId, { packed: true });
+  let implicitMutationRejected = false;
+  try {
+    await repo.updatePackingItem(trip.id, primaryItemId, { packed: true });
+  } catch {
+    implicitMutationRejected = true;
+  }
+  assert(
+    implicitMutationRejected,
+    'multi-list trip without compatibility-primary rejects implicit list resolution',
+  );
+
+  await repo.updatePackingItem(trip.id, primaryItemId, { packed: true }, customPrimaryId);
 
   const saved = await repo.getById(trip.id);
   assert(saved !== null, 'custom primary mutation succeeds');

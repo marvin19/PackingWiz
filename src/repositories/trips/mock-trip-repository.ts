@@ -4,11 +4,11 @@ import {
   appendPackingListItem,
   appendPrimaryPackingItem,
   findPackingItemInList,
-  getPrimaryPackingList,
   patchPackingListItem,
   removePackingListItem,
   removePrimaryPackingItem,
   replacePackingListItems,
+  resolveCompatibilityPrimaryPackingList,
   type TripLike,
 } from '@/domain/trip-compatibility';
 import { clonePackingItem, cloneTrip } from '@/lib/clone-trip';
@@ -26,7 +26,12 @@ function resolvePackingListId(trip: Trip, packingListId?: string): string {
     return packingListId;
   }
 
-  return getPrimaryPackingList(trip).id;
+  const resolved = resolveCompatibilityPrimaryPackingList(trip);
+  if (resolved) {
+    return resolved.id;
+  }
+
+  throw new Error('Explicit packingListId required for multi-list trips without a compatibility-primary list');
 }
 
 /** Persists all nested packing lists in memory — list-scoped item APIs supported (MP3A). */
@@ -143,8 +148,9 @@ export class MockTripRepository implements TripRepository {
       note: input.note,
     };
 
+    const mirrorList = resolveCompatibilityPrimaryPackingList(trip);
     this.trips[index] =
-      listId === getPrimaryPackingList(trip).id
+      mirrorList && listId === mirrorList.id
         ? appendPrimaryPackingItem(trip, newItem)
         : appendPackingListItem(trip, listId, newItem);
     return clonePackingItem(newItem);
@@ -162,8 +168,9 @@ export class MockTripRepository implements TripRepository {
 
     const trip = this.trips[index];
     const listId = resolvePackingListId(trip, packingListId);
+    const mirrorList = resolveCompatibilityPrimaryPackingList(trip);
     this.trips[index] =
-      listId === getPrimaryPackingList(trip).id
+      mirrorList && listId === mirrorList.id
         ? removePrimaryPackingItem(trip, itemId)
         : removePackingListItem(trip, listId, itemId);
   }

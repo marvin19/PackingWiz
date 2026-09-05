@@ -15,6 +15,7 @@ import { AppTextInput } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { PACKING_CATEGORY_ORDER, type PackingCategory } from '@/domain/packing-item';
+import { supportsLegacyItemAssignment } from '@/domain/trip-canonical';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
@@ -36,7 +37,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
   const [focused, setFocused] = useState(false);
 
   const travelers = activeTrip?.travelers ?? [];
-  const showAssign = travelers.length > 1;
+  const showAssign = supportsLegacyItemAssignment(activeTrip!) && travelers.length > 1;
 
   const reset = () => {
     setName('');

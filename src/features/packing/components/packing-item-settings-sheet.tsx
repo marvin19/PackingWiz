@@ -23,6 +23,7 @@ import {
   normalizePackingItemSettingsInput,
 } from '@/domain/packing-item-settings';
 import type { Traveler } from '@/domain/traveler';
+import { supportsLegacyItemAssignment } from '@/domain/trip-canonical';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
@@ -61,7 +62,7 @@ function PackingItemSettingsSheetBody({
 }: Omit<PackingItemSettingsSheetProps, 'visible'>) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { updatePackingItemSettings, deletePackingItem } = useTrips();
+  const { updatePackingItemSettings, deletePackingItem, activeTrip } = useTrips();
 
   const [name, setName] = useState(item.name);
   const [quantity, setQuantity] = useState(item.quantity);
@@ -72,7 +73,8 @@ function PackingItemSettingsSheetBody({
   const [noteFocused, setNoteFocused] = useState(false);
 
   const isImportant = isImportantPackingItem(item);
-  const showAssign = travelers.length > 1;
+  const showAssign =
+    activeTrip != null && supportsLegacyItemAssignment(activeTrip) && travelers.length > 1;
 
   const stagedSettings = useMemo(
     () =>
