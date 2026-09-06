@@ -593,11 +593,47 @@ Domain/contract slice — no Supabase schema changes, no new user-facing feature
 - **`mp6a-invariants.ts`** wired into `verify:mp1`
 - ARCHITECTURE.md separates **Canonical model** from **Legacy compatibility boundary**
 
-Remaining compatibility until MP6-B: flat Supabase mapper, `primaryPackingListId` migration ingress, deprecated Trip mirrors on save/load.
+Remaining compatibility until MP6-B2 repository: flat Supabase load mapper, multi-list save guards, deprecated Trip mirrors on save/load.
 
-## MP6-B — Production persistence contract — PENDING
+## MP6-B1 — Supabase canonical schema + repository contract — COMPLETE
 
-Nested Supabase schema + repository round-trip for canonical multi-list Trips, profile-scoped Important, and optional draft persistence. See **Persistence contract** below and ARCHITECTURE.md Supabase gap inventory.
+Schema migration + application-side contract/mappers (no full repository round-trip yet):
+
+- **`supabase/migrations/20260905100000_mp6b1_canonical_packing_schema.sql`**
+  - `packing_lists` (first-class; 1..N per trip; profile snapshot JSON; per-list `packing_mode`)
+  - `packing_items.packing_list_id` + `source` + `important_item_id` (list-scoped; CASCADE)
+  - `packing_profiles` (reusable; user-scoped composite PK)
+  - `important_profile_configs` + `important_profile_items` (profile-scoped master)
+  - One-time flat-trip forward migration → exactly one compatibility list per legacy trip
+  - Updated `create_trip_with_details` RPC for compatibility single-list creates
+  - RLS on all new tables
+- **`src/repositories/trips/mappers/supabase-canonical-mapper.ts`** — domain ↔ DB mapping for B2
+- **`src/repositories/trips/supabase-trip-persistence-contract.ts`** — B2 implementation contract
+- Minimal **`trip-mapper.ts`** write compat (`packing_list_id` on item upserts)
+- Multi-list **save guards retained** until B2 proven
+- **SQL migrations not integration-tested locally** (no Supabase CLI in CI); mapper unit tests cover assumptions
+
+## MP6-B2 — Supabase repository round-trip — PENDING
+
+Implement full canonical Trip aggregate load/save/create/delete in `SupabaseTripRepository`; ProfileProvider backing store for profiles + Important master; remove multi-list guards; drop flat write path. See ARCHITECTURE.md and `supabase-trip-persistence-contract.ts`.
+
+**Explicitly deferred (B1/B2 unless promoted):**
+
+- Structured Insight `category` / `title` persistence
+- `StoredTripDraft` persistence
+
+---
+
+## Future — Weather override / expected conditions (outside MP6)
+
+Not part of MP6 scope. Implement during a later weather/backend product pass:
+
+- Automatic forecast/climate remains default
+- User may override expected **temperature** and **conditions** independently
+- Initial candidate temperature bands: Hot 30°C+, Warm 20–30°C, Mild 10–20°C, Cold 0–10°C, Freezing below 0°C
+- Conditions may be multi-select (e.g. Sunny, Cloudy, Rain, Snow, Windy)
+- Generator consumes normalized weather context regardless of source
+- Exact bands/copy must be validated before implementation
 
 ---
 

@@ -1,7 +1,7 @@
 import type { Trip } from '@/domain/trip';
 
 export const SUPABASE_MULTI_LIST_SAVE_ERROR =
-  'Multi-person trip edits are not supported in Supabase mode until MP5 persistence. Use mock persistence.';
+  'Multi-person trip edits are not supported in Supabase mode until MP6-B2 persistence. Use mock persistence.';
 
 /**
  * Guard for SupabaseTripRepository.save() updates (MP5A).
