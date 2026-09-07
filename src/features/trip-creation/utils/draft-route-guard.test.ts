@@ -30,4 +30,40 @@ describe('shouldRedirectFromDraftRoute', () => {
       }),
     ).toBe(false);
   });
+
+  it('does not redirect while a valid active draft remains on the creation flow', () => {
+    expect(
+      shouldRedirectFromDraftRoute({
+        isFocused: true,
+        hasValidActiveDraft: true,
+        isCommitDraftInFlight: false,
+      }),
+    ).toBe(false);
+  });
+
+  it('redirects focused Summary after destination acknowledge clears in-flight guard', () => {
+    expect(
+      shouldRedirectFromDraftRoute({
+        isFocused: true,
+        hasValidActiveDraft: false,
+        isCommitDraftInFlight: false,
+      }),
+    ).toBe(true);
+  });
+
+  it('combines consumed draft with in-flight guard to block Home redirect during transition', () => {
+    const consumedDraftWithoutInFlight = {
+      isFocused: true,
+      hasValidActiveDraft: false,
+      isCommitDraftInFlight: false,
+    };
+    const consumedDraftWithInFlight = {
+      isFocused: true,
+      hasValidActiveDraft: false,
+      isCommitDraftInFlight: true,
+    };
+
+    expect(shouldRedirectFromDraftRoute(consumedDraftWithoutInFlight)).toBe(true);
+    expect(shouldRedirectFromDraftRoute(consumedDraftWithInFlight)).toBe(false);
+  });
 });
