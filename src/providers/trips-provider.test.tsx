@@ -262,9 +262,10 @@ function TripsProbe() {
   return null;
 }
 
-async function flushAsync(): Promise<void> {
+async function runProviderMutation(invoke: () => void): Promise<void> {
   await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    invoke();
+    await Promise.resolve();
   });
 }
 
@@ -278,15 +279,15 @@ async function mountTripsProvider(initialTrips: Trip[]): Promise<void> {
         <TripsProbe />
       </TripsProvider>,
     );
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
 
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    if (!currentTripsContext()?.isLoading) {
-      break;
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      await Promise.resolve();
+      const context = currentTripsContext();
+      if (context && !context.isLoading) {
+        break;
+      }
     }
-    await flushAsync();
-  }
+  });
 
   const loadedContext = currentTripsContext();
   if (!loadedContext || loadedContext.isLoading) {
@@ -303,10 +304,9 @@ function getTrip(tripId: string = TRIP_ID): Trip {
 }
 
 async function activateEmilieList(): Promise<void> {
-  await act(async () => {
+  await runProviderMutation(() => {
     tripsContext!.beginTripPackEntry(TRIP_ID, EMILIE_LIST_ID);
   });
-  await flushAsync();
   expect(tripsContext!.activeTripId).toBe(TRIP_ID);
   expect(tripsContext!.activePackingListId).toBe(EMILIE_LIST_ID);
 }
@@ -335,10 +335,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
         assignedTo: null,
       });
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.togglePacked('item-emilie');
       });
-      await flushAsync();
 
       const after = tripListsSnapshot(getTrip());
       expect(after[0]).toEqual(before[0]);
@@ -360,10 +359,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
       mockTripRepository.updatePackingItem.mockRejectedValueOnce(new Error('update failed'));
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.togglePacked('item-emilie');
       });
-      await flushAsync();
 
       expect(tripListsSnapshot(getTrip())).toEqual(before);
       expect(tripsContext!.activeTripId).toBe(beforeActiveTripId);
@@ -396,10 +394,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
         assignedTo: null,
       }));
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.addPackingItem({ name: 'Sun hat', category: 'Clothing' });
       });
-      await flushAsync();
 
       const emilieItems = getTrip().packingLists.find((list) => list.id === EMILIE_LIST_ID)!.items;
       expect(emilieItems.some((item) => item.name === 'Sun hat')).toBe(true);
@@ -416,10 +413,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
       mockTripRepository.addPackingItem.mockRejectedValueOnce(new Error('insert failed'));
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.addPackingItem({ name: 'Phantom hat', category: 'Clothing' });
       });
-      await flushAsync();
 
       expect(tripListsSnapshot(getTrip())).toEqual(before);
       expect(tripsContext!.activePackingListId).toBe(EMILIE_LIST_ID);
@@ -444,7 +440,7 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
         note: 'Updated note',
       });
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.updatePackingItemSettings('item-emilie', {
           name: 'Emilie toy',
           quantity: 4,
@@ -453,7 +449,6 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
           note: 'Updated note',
         });
       });
-      await flushAsync();
 
       const emilieItem = getTrip().packingLists.find((list) => list.id === EMILIE_LIST_ID)!
         .items[0]!;
@@ -474,7 +469,7 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
       mockTripRepository.updatePackingItem.mockRejectedValueOnce(new Error('settings failed'));
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.updatePackingItemSettings('item-emilie', {
           name: 'Emilie toy',
           quantity: 9,
@@ -483,7 +478,6 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
           note: 'Broken note',
         });
       });
-      await flushAsync();
 
       expect(tripListsSnapshot(getTrip())).toEqual(before);
     });
@@ -498,10 +492,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
     it('removes only the active-list item on success', async () => {
       mockTripRepository.deletePackingItem.mockResolvedValueOnce(undefined);
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.deletePackingItem('item-emilie');
       });
-      await flushAsync();
 
       const emilieList = getTrip().packingLists.find((list) => list.id === EMILIE_LIST_ID)!;
       expect(emilieList.items).toHaveLength(0);
@@ -518,10 +511,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
       mockTripRepository.deletePackingItem.mockRejectedValueOnce(new Error('delete failed'));
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.deletePackingItem('item-emilie');
       });
-      await flushAsync();
 
       expect(tripListsSnapshot(getTrip())).toEqual(before);
       expect(getTrip().packingLists.find((list) => list.id === EMILIE_LIST_ID)!.items[0]?.id).toBe(
@@ -539,14 +531,16 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
       mockTripRepository.save.mockRejectedValueOnce(new Error('save failed'));
 
-      await expect(
-        tripsContext!.addTravellerToTrip(TRIP_ID, {
-          id: 'profile-jonas',
-          name: 'Jonas',
-          age: 10,
-          isSelf: false,
-        }, 'manual'),
-      ).rejects.toThrow('save failed');
+      await act(async () => {
+        await expect(
+          tripsContext!.addTravellerToTrip(TRIP_ID, {
+            id: 'profile-jonas',
+            name: 'Jonas',
+            age: 10,
+            isSelf: false,
+          }, 'manual'),
+        ).rejects.toThrow('save failed');
+      });
 
       expect(tripListsSnapshot(getTrip())).toEqual(before);
       expect(tripsContext!.activeTripId).toBe(beforeActiveTripId);
@@ -557,10 +551,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
   describe('removeTravellerFromTrip', () => {
     it('removes Emilie list on success and reconciles active list when it was active', async () => {
       await mountTripsProvider([createThreeListFixture()]);
-      await act(async () => {
+      await runProviderMutation(() => {
         tripsContext!.beginTripPackEntry(TRIP_ID, EMILIE_LIST_ID);
       });
-      await flushAsync();
 
       mockTripRepository.save.mockImplementationOnce(async (trip) => cloneTrip(trip));
 
@@ -579,10 +572,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
     it('restores Emilie list and active ids when repository save fails', async () => {
       await mountTripsProvider([createThreeListFixture()]);
-      await act(async () => {
+      await runProviderMutation(() => {
         tripsContext!.beginTripPackEntry(TRIP_ID, EMILIE_LIST_ID);
       });
-      await flushAsync();
 
       const before = tripListsSnapshot(getTrip());
       const beforeActiveTripId = tripsContext!.activeTripId;
@@ -590,9 +582,11 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
       mockTripRepository.save.mockRejectedValueOnce(new Error('remove save failed'));
 
-      await expect(
-        tripsContext!.removeTravellerFromTrip(TRIP_ID, { packingProfileId: 'profile-emilie' }),
-      ).rejects.toThrow('remove save failed');
+      await act(async () => {
+        await expect(
+          tripsContext!.removeTravellerFromTrip(TRIP_ID, { packingProfileId: 'profile-emilie' }),
+        ).rejects.toThrow('remove save failed');
+      });
 
       expect(tripListsSnapshot(getTrip())).toEqual(before);
       expect(tripsContext!.activeTripId).toBe(beforeActiveTripId);
@@ -603,10 +597,9 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
   describe('deleteTripPermanently', () => {
     it('clears active state when deleting the active trip', async () => {
       await mountTripsProvider([createMultiListFixture(), createOtherTrip()]);
-      await act(async () => {
+      await runProviderMutation(() => {
         tripsContext!.beginTripPackEntry(TRIP_ID, EMILIE_LIST_ID);
       });
-      await flushAsync();
 
       mockTripRepository.delete.mockResolvedValueOnce(undefined);
 
@@ -623,15 +616,16 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
     it('restores trip and active ids when repository delete fails', async () => {
       await mountTripsProvider([createMultiListFixture(), createOtherTrip()]);
-      await act(async () => {
+      await runProviderMutation(() => {
         tripsContext!.beginTripPackEntry(TRIP_ID, EMILIE_LIST_ID);
       });
-      await flushAsync();
 
       const beforeTrips = tripsContext!.trips.map((trip) => trip.id);
       mockTripRepository.delete.mockRejectedValueOnce(new Error('delete failed'));
 
-      await expect(tripsContext!.deleteTripPermanently(TRIP_ID)).rejects.toThrow('delete failed');
+      await act(async () => {
+        await expect(tripsContext!.deleteTripPermanently(TRIP_ID)).rejects.toThrow('delete failed');
+      });
 
       expect(tripsContext!.trips.map((trip) => trip.id)).toEqual(beforeTrips);
       expect(tripsContext!.activeTripId).toBe(TRIP_ID);
@@ -649,12 +643,14 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
 
       mockTripRepository.save.mockRejectedValueOnce(new Error('shared save failed'));
 
-      await expect(
-        tripsContext!.updateTripSharedDetails(TRIP_ID, {
-          note: 'Changed note',
-          tripContext: ['Marathon'],
-        }),
-      ).rejects.toThrow('shared save failed');
+      await act(async () => {
+        await expect(
+          tripsContext!.updateTripSharedDetails(TRIP_ID, {
+            note: 'Changed note',
+            tripContext: ['Marathon'],
+          }),
+        ).rejects.toThrow('shared save failed');
+      });
 
       expect(getTrip().note).toBe(beforeNote);
       expect(getTrip().insights).toEqual(beforeInsights);
@@ -667,13 +663,12 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
       await mountTripsProvider([createMultiListFixture()]);
       const before = tripListsSnapshot(getTrip());
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.setActiveTripId(TRIP_ID);
         tripsContext!.setActivePackingListId('stale-list-id');
         tripsContext!.togglePacked('item-emilie');
         tripsContext!.addPackingItem({ name: 'Should not appear', category: 'Clothing' });
       });
-      await flushAsync();
 
       expect(tripListsSnapshot(getTrip())).toEqual(before);
       expect(mockTripRepository.updatePackingItem).not.toHaveBeenCalled();
@@ -684,12 +679,11 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
       await mountTripsProvider([createMultiListFixture()]);
       const mePackedBefore = getTrip().packingLists[0]!.items[0]?.packed;
 
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.setActiveTripId(TRIP_ID);
         tripsContext!.setActivePackingListId('stale-list-id');
         tripsContext!.togglePacked('item-me');
       });
-      await flushAsync();
 
       expect(getTrip().packingLists[0]!.items[0]?.packed).toBe(mePackedBefore);
       expect(mockTripRepository.updatePackingItem).not.toHaveBeenCalled();
@@ -708,16 +702,14 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
       await act(async () => {
         await tripsContext!.refreshTrips();
       });
-      await flushAsync();
 
       expect(tripsContext!.activePackingListId).toBeNull();
 
       const afterRefresh = tripListsSnapshot(getTrip());
-      act(() => {
+      await runProviderMutation(() => {
         tripsContext!.togglePacked('item-me');
         tripsContext!.addPackingItem({ name: 'Should not appear', category: 'Clothing' });
       });
-      await flushAsync();
 
       expect(tripListsSnapshot(getTrip())).toEqual(afterRefresh);
       expect(mockTripRepository.updatePackingItem).not.toHaveBeenCalled();
