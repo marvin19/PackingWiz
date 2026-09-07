@@ -105,7 +105,7 @@ function applyDraftsStateUpdate(
 
 export type AppTab = 'trips' | 'pack' | 'profile';
 
-interface TripsContextValue {
+export interface TripsContextValue {
   trips: Trip[];
   activeTripId: string | null;
   activeTrip: Trip | null;
