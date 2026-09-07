@@ -23,7 +23,7 @@ import {
   normalizePackingItemSettingsInput,
 } from '@/domain/packing-item-settings';
 import type { Traveler } from '@/domain/traveler';
-import { supportsLegacyItemAssignment } from '@/domain/trip-canonical';
+import { shouldShowLegacyItemAssignmentControls } from '@/domain/trip-canonical';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
@@ -73,8 +73,7 @@ function PackingItemSettingsSheetBody({
   const [noteFocused, setNoteFocused] = useState(false);
 
   const isImportant = isImportantPackingItem(item);
-  const showAssign =
-    activeTrip != null && supportsLegacyItemAssignment(activeTrip) && travelers.length > 1;
+  const showAssign = shouldShowLegacyItemAssignmentControls(activeTrip, travelers.length);
 
   const stagedSettings = useMemo(
     () =>

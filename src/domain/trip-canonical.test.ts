@@ -7,6 +7,7 @@ import {
   isLegacyTripIngress,
   resolveExplicitPackingListId,
   supportsLegacyItemAssignment,
+  shouldShowLegacyItemAssignmentControls,
   tripHasMixedPackingModes,
 } from '@/domain/trip-canonical';
 import {
@@ -268,6 +269,27 @@ describe('trip canonical contract', () => {
   it('disables legacy item assignment on multi-list trips', () => {
     const trip = createMixedMultiListTrip();
     expect(supportsLegacyItemAssignment(trip)).toBe(false);
+  });
+
+  it('hides legacy assign controls when active trip is absent', () => {
+    expect(shouldShowLegacyItemAssignmentControls(undefined, 2)).toBe(false);
+    expect(shouldShowLegacyItemAssignmentControls(null, 2)).toBe(false);
+  });
+
+  it('hides legacy assign controls on canonical multi-list trips even with multiple travelers', () => {
+    const trip = createMixedMultiListTrip();
+    expect(shouldShowLegacyItemAssignmentControls(trip, trip.travelers.length)).toBe(false);
+  });
+
+  it('shows legacy assign controls only for single-list trips with multiple travelers', () => {
+    const trip = createMixedMultiListTrip();
+    const singleListTrip = {
+      ...trip,
+      packingLists: [trip.packingLists[0]],
+    };
+
+    expect(shouldShowLegacyItemAssignmentControls(singleListTrip, 1)).toBe(false);
+    expect(shouldShowLegacyItemAssignmentControls(singleListTrip, 2)).toBe(true);
   });
 
   it('migrates legacy flat ingress into a nested primary list', () => {

@@ -118,3 +118,11 @@ export { SELF_IMPORTANT_PROFILE_ID } from '@/domain/profile-important-items';
 export function supportsLegacyItemAssignment(trip: Trip): boolean {
   return trip.packingLists.length <= 1;
 }
+
+/** Whether Add/Settings sheets may show legacy Assign-to controls. */
+export function shouldShowLegacyItemAssignmentControls(
+  trip: Trip | null | undefined,
+  travelerCount: number,
+): boolean {
+  return trip != null && supportsLegacyItemAssignment(trip) && travelerCount > 1;
+}

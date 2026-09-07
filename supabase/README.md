@@ -15,27 +15,33 @@
 
 Without this, the app cannot create a session on first launch.
 
-### 2. Apply the database migration
+### 2. Apply database migrations
 
 **Option A — Supabase CLI (recommended)**
 
+The CLI applies the full migration history in order. From the repo root:
+
 ```bash
-# From the repo root, link your project once:
+# Link your project once:
 supabase link --project-ref YOUR_PROJECT_REF
 
-# Push migrations:
+# Push all pending migrations:
 supabase db push
 ```
 
-Apply both migrations in order:
+Use this for normal setup. Do not manually rerun migrations that are already recorded in your project's migration history.
+
+**Option B — SQL Editor (manual)**
+
+Use this only when you cannot use the CLI. Run **every** migration file below **in order**, skipping any your project has already applied (check **Database → Migrations** in the dashboard before re-running):
 
 1. `supabase/migrations/20260817100000_initial_schema.sql`
 2. `supabase/migrations/20260905100000_mp6b1_canonical_packing_schema.sql`
 3. `supabase/migrations/20260906100000_mp6b2_canonical_trip_rpcs.sql`
+4. `supabase/migrations/20260906110000_mp6b2_data_api_grants.sql`
+5. `supabase/migrations/20260906120000_mp6b2_trip_table_data_api_grants.sql`
 
-**Option B — SQL Editor**
-
-Run each migration file in order in the Supabase SQL Editor.
+Do not blindly re-apply migrations that are already present — especially the initial schema and B1 forward migration, which are not idempotent for existing data.
 
 ### 3. Environment variables
 
@@ -89,7 +95,7 @@ auth.users → packing_profiles → important_profile_configs / important_profil
 
 - **Trip delete** cascades lists and list-scoped items (not reusable profiles).
 - **Legacy flat trips** are migrated to one compatibility list (`{tripId}-list-primary`) automatically by the B1 migration.
-- **Full multi-list repository round-trip** lands in MP6-B2 via `create_canonical_trip` / `save_canonical_trip` RPCs.
+- **Full multi-list repository round-trip** is implemented in MP6-B2 via `create_canonical_trip` / `save_canonical_trip` RPCs.
 
 See `ARCHITECTURE.md` and `src/repositories/trips/supabase-trip-persistence-contract.ts`.
 
@@ -106,7 +112,7 @@ See the validation checklist in the project task description. Quick smoke test:
 3. Force-quit and reopen → trip reloads from Supabase.
 4. Toggle packed / change quantity → restart → changes persist.
 
-Multi-person trips require mock persistence until MP6-B2.
+Multi-person trips require Supabase mode (`EXPO_PUBLIC_USE_SUPABASE=true`) and all five migrations above (including B2 RPCs and Data API grants).
 
 ## Switching back to mock persistence
 
