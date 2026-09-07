@@ -5,7 +5,6 @@ import {
   getNewTripDateValidationMessage,
   validateNewTripDateRange,
 } from '@/domain/new-trip-date-validation';
-import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile } from '@/domain/packing-profile';
 import {
   formatPackingListProfileName,
@@ -18,18 +17,19 @@ import {
   buildReuseTripChangesSummary,
   type ReuseTripChangesSummary,
 } from '@/domain/reuse-trip-changes';
+import {
+  countReuseResultingLists,
+  listsForSelectedIds,
+  type ReuseTripFormSelection,
+} from '@/features/trips/utils/reuse-plan';
 import { REUSE_SELECT_PERSON_ERROR } from '@/features/trips/utils/reuse-trip-display';
-import { countReuseResultingLists } from '@/features/trips/utils/reuse-plan-profiles';
 import type { ReuseTripInput } from '@/services/trip-reuse-orchestration';
 import { createUuid } from '@/lib/id';
 
-export type ReuseNewTravellerEntry = {
-  id: string;
-  profile: PackingProfile;
-  packingMode: 'generated' | 'manual';
-};
+export type { ReuseNewTravellerEntry } from '@/features/trips/utils/reuse-plan';
+export { listsForSelectedIds } from '@/features/trips/utils/reuse-plan';
 
-export type ReuseTripFormState = {
+export type ReuseTripFormState = ReuseTripFormSelection & {
   name: string;
   destination: Destination;
   startDate: string;
@@ -39,8 +39,6 @@ export type ReuseTripFormState = {
   laundry: LaundryOption;
   bags: Bag[];
   note: string;
-  selectedPackingListIds: string[];
-  newTravellers: ReuseNewTravellerEntry[];
 };
 
 export type ReuseTripTravellerRow = {
@@ -205,14 +203,6 @@ export function buildReuseTripInput(
     })),
     referenceDate,
   };
-}
-
-export function listsForSelectedIds(
-  sourceTrip: Trip,
-  selectedPackingListIds: string[],
-): PackingList[] {
-  const idSet = new Set(selectedPackingListIds);
-  return sourceTrip.packingLists.filter((list) => idSet.has(list.id));
 }
 
 export function getReuseTripChangesSummary(

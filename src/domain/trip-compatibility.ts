@@ -6,8 +6,19 @@ import type { PackingProfileSnapshot } from '@/domain/packing-profile';
 import type { Traveler } from '@/domain/traveler';
 import type { Trip, PackingMode, TripStatus } from '@/domain/trip';
 import { deriveTripDateBucket } from '@/domain/trip-lifecycle';
-import { isLegacyTripIngress } from '@/domain/trip-canonical';
+import {
+  isCompatibilityPrimaryList,
+  primaryPackingListId,
+  primaryPackingProfileId,
+} from '@/domain/trip-compatibility-primary';
+import { isLegacyTripIngress } from '@/domain/trip-ingress';
 import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
+
+export {
+  isCompatibilityPrimaryList,
+  primaryPackingListId,
+  primaryPackingProfileId,
+} from '@/domain/trip-compatibility-primary';
 
 function cloneItem(item: PackingItem): PackingItem {
   return { ...item };
@@ -22,21 +33,6 @@ export type TripLike = Omit<Trip, 'name' | 'packingLists' | 'insights'> & {
   packingLists?: PackingList[];
   insights?: readonly InsightLike[];
 };
-
-/** Deterministic primary list id for the single-list compatibility migration. */
-export function primaryPackingListId(tripId: string): string {
-  return `${tripId}-list-primary`;
-}
-
-/** Deterministic synthetic self profile id for the single-list compatibility migration. */
-export function primaryPackingProfileId(tripId: string): string {
-  return `${tripId}-profile-self`;
-}
-
-/** True when a list is the temporary MP1 deterministic compatibility primary list. */
-export function isCompatibilityPrimaryList(tripId: string, list: Pick<PackingList, 'id'>): boolean {
-  return list.id === primaryPackingListId(tripId);
-}
 
 function findExplicitSelfTraveler(travelers: Traveler[]): Traveler | undefined {
   return travelers.find((traveler) => traveler.id === 't-you' || traveler.name === 'You');
