@@ -12,7 +12,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { getPersistenceMode } from '@/config/persistence';
 import { ScreenHeader } from '@/components/navigation/screen-header';
+import { shouldPersistRememberedTripProfile } from '@/domain/remembered-packing-profile';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { AppTextInput, Field } from '@/components/ui/field';
@@ -57,6 +59,8 @@ import { NoteStep } from '@/features/trip-creation/components/steps/note-step';
 import { TripContextStep } from '@/features/trip-creation/components/steps/trip-context-step';
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
+import { useServices } from '@/providers/services-provider';
+import { persistCommittedTripProfiles } from '@/services/persist-committed-trip-profiles';
 import { useTheme } from '@/hooks/use-theme';
 import { blurActiveElement } from '@/lib/blur-active-element';
 import { screenPaddingHorizontal } from '@/theme/spacing';
@@ -77,7 +81,8 @@ export function TripSectionEditScreen() {
     removeTravellerFromTrip,
     repositoryError,
   } = useTrips();
-  const { savedPackingProfiles, rememberPackingProfile } = useProfile();
+  const { savedPackingProfiles, rememberPackingProfile, importantByProfileId } = useProfile();
+  const { profileRepository } = useServices();
 
   const [stagedForm, setStagedForm] = useState<{ tripId: string; form: TripEditFormState } | null>(
     null,
@@ -312,8 +317,27 @@ export function TripSectionEditScreen() {
       try {
         await addTravellerToTrip(activeTrip.id, profile, packingMode);
 
-        if (!profile.isSelf && profile.rememberForFutureTrips) {
-          rememberPackingProfile(profile);
+        if (!profile.isSelf && shouldPersistRememberedTripProfile(profile)) {
+          if (getPersistenceMode() === 'supabase') {
+            const profilePersistResult = await persistCommittedTripProfiles({
+              tripProfiles: [profile],
+              savedProfiles: savedPackingProfiles,
+              draftImportantByProfileId: {},
+              globalImportantByProfileId: importantByProfileId,
+              profileRepository,
+              rememberPackingProfile,
+            });
+
+            if (profilePersistResult.errors.length > 0) {
+              setFeedbackNotice(
+                `${buildTravellerAddedNotice(profile.name)} ${profilePersistResult.errors.join('; ')}`,
+              );
+              setAddTravellerVisible(false);
+              return;
+            }
+          } else if (profile.rememberForFutureTrips) {
+            rememberPackingProfile(profile);
+          }
         }
 
         setFeedbackNotice(buildTravellerAddedNotice(profile.name));
@@ -324,7 +348,15 @@ export function TripSectionEditScreen() {
         setAddTravellerLoading(false);
       }
     },
-    [activeTrip, addTravellerLoading, addTravellerToTrip, rememberPackingProfile],
+    [
+      activeTrip,
+      addTravellerLoading,
+      addTravellerToTrip,
+      importantByProfileId,
+      profileRepository,
+      rememberPackingProfile,
+      savedPackingProfiles,
+    ],
   );
 
   const handleRemoveConfirm = useCallback(async () => {

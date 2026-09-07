@@ -31,6 +31,7 @@ Apply both migrations in order:
 
 1. `supabase/migrations/20260817100000_initial_schema.sql`
 2. `supabase/migrations/20260905100000_mp6b1_canonical_packing_schema.sql`
+3. `supabase/migrations/20260906100000_mp6b2_canonical_trip_rpcs.sql`
 
 **Option B — SQL Editor**
 
@@ -88,7 +89,7 @@ auth.users → packing_profiles → important_profile_configs / important_profil
 
 - **Trip delete** cascades lists and list-scoped items (not reusable profiles).
 - **Legacy flat trips** are migrated to one compatibility list (`{tripId}-list-primary`) automatically by the B1 migration.
-- **Full multi-list repository round-trip** lands in MP6-B2; multi-list save guards remain in the app until then.
+- **Full multi-list repository round-trip** lands in MP6-B2 via `create_canonical_trip` / `save_canonical_trip` RPCs.
 
 See `ARCHITECTURE.md` and `src/repositories/trips/supabase-trip-persistence-contract.ts`.
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import type { Trip } from '@/domain/trip';
 import {
   GENERATION_FINISH_DELAY_MS,
   GENERATION_STEP_DELAY_MS,
@@ -14,6 +15,7 @@ export function useTripGeneration() {
   const [activeStep, setActiveStep] = useState(0);
   const [status, setStatus] = useState<TripGenerationStatus>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [createdTrip, setCreatedTrip] = useState<Trip | null>(null);
 
   const hasStartedRef = useRef(false);
   const generationPromiseRef = useRef<Promise<void> | null>(null);
@@ -44,7 +46,8 @@ export function useTripGeneration() {
 
     const promise = (async () => {
       try {
-        await commitDraftTrip();
+        const saved = await commitDraftTrip();
+        setCreatedTrip(saved);
         setStatus('success');
       } catch (error) {
         clearStepTimers();
@@ -79,6 +82,7 @@ export function useTripGeneration() {
     clearStepTimers();
     setStatus('idle');
     setErrorMessage(null);
+    setCreatedTrip(null);
     setActiveStep(0);
     start();
   }, [clearStepTimers, start]);
@@ -89,6 +93,7 @@ export function useTripGeneration() {
     activeStep,
     status,
     errorMessage,
+    createdTrip,
     steps: GENERATION_STEPS,
     start,
     retry,

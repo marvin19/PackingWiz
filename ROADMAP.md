@@ -593,7 +593,7 @@ Domain/contract slice — no Supabase schema changes, no new user-facing feature
 - **`mp6a-invariants.ts`** wired into `verify:mp1`
 - ARCHITECTURE.md separates **Canonical model** from **Legacy compatibility boundary**
 
-Remaining compatibility until MP6-B2 repository: flat Supabase load mapper, multi-list save guards, deprecated Trip mirrors on save/load.
+Remaining compatibility: pre-B1 flat read ingress via `mapTripRow`; deprecated Trip mirrors on read; physical `trips.generated` write mirror only.
 
 ## MP6-B1 — Supabase canonical schema + repository contract — COMPLETE
 
@@ -613,14 +613,17 @@ Schema migration + application-side contract/mappers (no full repository round-t
 - Multi-list **save guards retained** until B2 proven
 - **SQL migrations not integration-tested locally** (no Supabase CLI in CI); mapper unit tests cover assumptions
 
-## MP6-B2 — Supabase repository round-trip — PENDING
+## MP6-B2 — Supabase repository round-trip — COMPLETE
 
-Implement full canonical Trip aggregate load/save/create/delete in `SupabaseTripRepository`; ProfileProvider backing store for profiles + Important master; remove multi-list guards; drop flat write path. See ARCHITECTURE.md and `supabase-trip-persistence-contract.ts`.
+- **`SupabaseTripRepository`** — canonical read/create/save via `create_canonical_trip` / `save_canonical_trip`
+- List-scoped item mutations with explicit `packingListId` for 2+ lists
+- **`SupabasePackingProfileRepository`** + ProfileProvider/TripsProvider promotion wiring
+- Multi-list guards lifted; Supabase reuse unblocked
+- Migrations: `20260906100000_mp6b2_canonical_trip_rpcs.sql`, `20260906110000_mp6b2_data_api_grants.sql`, `20260906120000_mp6b2_trip_table_data_api_grants.sql`
+- Local tests: `supabase-canonical-roundtrip.test.ts`, `mp6b2-invariants.ts`, `data-api-grants.contract.test.ts`
+- **Live Supabase smoke passed** (single/multi-person create, list isolation, profile reuse, Important master/snapshot, reuse, permanent delete)
 
-**Explicitly deferred (B1/B2 unless promoted):**
-
-- Structured Insight `category` / `title` persistence
-- `StoredTripDraft` persistence
+**Still deferred:** drafts, structured Insight metadata, weather override.
 
 ---
 
@@ -800,6 +803,30 @@ Resolve small launch-facing UX issues that do not require new domain architectur
 - Verify Good morning / afternoon / evening behavior
 - Final copy consistency pass
 - Final empty/loading/error-state review
+
+### Trip identity on Manage all trips cards — deferred
+
+Product decision (do not implement until post-MP6 frontend polish):
+
+- **Trip name** and **Destination** are distinct concepts
+  - Trip name = human-readable purpose/identity (e.g. "Jordeplerock", "Emilie's baptism")
+  - Destination = geographic location (e.g. "Lærdal, Norway"); may later use Google Places / structured geo data
+- Trip name must remain independently editable
+- **Manage all trips** cards should prioritize trip identity/context at a glance
+- Evaluate replacing packed-count prominence on browse cards with compact trip/context tags
+- Packing progress remains important on Home and Pack surfaces
+
+### Reuse people-state clarity — deferred
+
+Reuse trip UI should later distinguish visually between:
+
+- retained from original
+- removed/unselected from original
+- newly added to reused trip
+
+A newly added person should have an explicit **Added** state/icon rather than appearing ambiguous beneath **Add person**.
+
+Do not implement until post-MP6 frontend polish.
 
 ### Explicitly not required for initial launch unless validated
 

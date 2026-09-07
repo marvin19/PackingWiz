@@ -8,9 +8,12 @@ import type { Trip, PackingMode } from '@/domain/trip';
 import { insightFromPersistedContent } from '@/domain/insight';
 import {
   buildPrimaryPackingList,
-  normalizeTrip,
+  normalizeCanonicalTrip,
   primaryPackingListId,
 } from '@/domain/trip-compatibility';
+
+import type { Bag } from '@/domain/bag';
+import { createDestinationFromText } from '@/domain/destination';
 
 import type {
   DbCanonicalPackingItemRow,
@@ -21,6 +24,7 @@ import type {
   DbPackingProfileRow,
   DbProfileSnapshotJson,
 } from '@/repositories/trips/mappers/supabase-canonical-types';
+import { mapTripRow, type DbTripRow } from '@/repositories/trips/mappers/trip-mapper';
 
 const DRAFT_PROFILE_PREFIX = 'draft-profile-';
 
@@ -164,7 +168,7 @@ export function mapCanonicalTripToDbWrites(trip: Trip): {
   packingLists: ReturnType<typeof mapPackingListToDbInsert>[];
   packingItems: DbCanonicalPackingItemRow[];
 } {
-  const normalized = normalizeTrip(trip);
+  const normalized = normalizeCanonicalTrip(trip);
   const packingLists = normalized.packingLists.map((list, index) =>
     mapPackingListToDbInsert(normalized.id, list, index),
   );
@@ -179,21 +183,34 @@ export function mapCanonicalTripToDbWrites(trip: Trip): {
   return { packingLists, packingItems };
 }
 
+function mapDbBagRow(row: DbCanonicalTripAggregate['trip_bags'][number]): Bag {
+  return {
+    id: row.id,
+    name: row.name,
+    type: row.type as Bag['type'],
+    ownerId: row.owner_id,
+  };
+}
+
+function sortByOrder<T extends { sort_order: number }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => a.sort_order - b.sort_order);
+}
+
 /** Map loaded DB aggregate to canonical Trip (MP6-B2 load path). */
 export function mapDbAggregateToCanonicalTrip(aggregate: DbCanonicalTripAggregate): Trip {
   const itemsByList = groupPackingItemsByListId(aggregate.packing_items);
-  const packingLists = [...aggregate.packing_lists]
-    .sort((a, b) => a.sort_order - b.sort_order)
-    .map((row) => mapDbPackingListRow(row, itemsByList.get(row.id) ?? []));
+  const packingLists = sortByOrder(aggregate.packing_lists).map((row) =>
+    mapDbPackingListRow(row, itemsByList.get(row.id) ?? []),
+  );
 
-  const legacyTrip: Trip = {
+  const canonicalTrip: Trip = {
     id: aggregate.trip.id,
     name: aggregate.trip.title,
     title: aggregate.trip.title,
-    destination: {
-      displayName: aggregate.trip.destination,
-      countryName: aggregate.trip.country || undefined,
-    },
+    destination: createDestinationFromText(
+      aggregate.trip.destination,
+      aggregate.trip.country || undefined,
+    ),
     startDate: aggregate.trip.start_date,
     endDate: aggregate.trip.end_date,
     tripContext: aggregate.trip.activities?.length
@@ -202,7 +219,7 @@ export function mapDbAggregateToCanonicalTrip(aggregate: DbCanonicalTripAggregat
     accommodation: aggregate.trip.accommodation as Trip['accommodation'],
     laundry: aggregate.trip.laundry as Trip['laundry'],
     note: aggregate.trip.note,
-    bags: [],
+    bags: sortByOrder(aggregate.trip_bags).map(mapDbBagRow),
     travelers: [],
     weather: aggregate.trip_weather
       ? {
@@ -222,9 +239,9 @@ export function mapDbAggregateToCanonicalTrip(aggregate: DbCanonicalTripAggregat
           high: 0,
           low: 0,
         },
-    insights: aggregate.trip_insights
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((row) => insightFromPersistedContent(row.id, row.content)),
+    insights: sortByOrder(aggregate.trip_insights).map((row) =>
+      insightFromPersistedContent(row.id, row.content),
+    ),
     packingLists,
     items: [],
     packingMode: 'manual',
@@ -233,7 +250,50 @@ export function mapDbAggregateToCanonicalTrip(aggregate: DbCanonicalTripAggregat
     image: aggregate.trip.image ?? undefined,
   };
 
-  return normalizeTrip(legacyTrip);
+  return normalizeCanonicalTrip(canonicalTrip);
+}
+
+/** Supabase nested select row — canonical lists when present; legacy flat ingress otherwise. */
+export function mapSupabaseSelectRowToTrip(row: Record<string, unknown>): Trip {
+  const packingLists = (row.packing_lists as DbPackingListRow[] | null) ?? [];
+
+  if (packingLists.length === 0) {
+    return mapTripRow(row as unknown as DbTripRow);
+  }
+
+  const aggregate: DbCanonicalTripAggregate = {
+    trip: {
+      id: row.id as string,
+      user_id: row.user_id as string,
+      title: row.title as string,
+      destination: row.destination as string,
+      country: row.country as string,
+      start_date: row.start_date as string,
+      end_date: row.end_date as string,
+      accommodation: row.accommodation as string,
+      laundry: row.laundry as string,
+      note: row.note as string,
+      types: (row.types as string[] | null) ?? null,
+      activities: (row.activities as string[] | null) ?? null,
+      generated: row.generated as boolean,
+      status: row.status as string,
+      image: (row.image as string | null) ?? null,
+    },
+    packing_lists: packingLists,
+    packing_items: ((row.packing_items as DbCanonicalPackingItemRow[] | null) ?? []).map(
+      (item) => ({
+        ...item,
+        packing_list_id: item.packing_list_id,
+      }),
+    ),
+    trip_bags: (row.trip_bags as DbCanonicalTripAggregate['trip_bags']) ?? [],
+    trip_weather: Array.isArray(row.trip_weather)
+      ? ((row.trip_weather[0] as DbCanonicalTripAggregate['trip_weather']) ?? null)
+      : ((row.trip_weather as DbCanonicalTripAggregate['trip_weather']) ?? null),
+    trip_insights: (row.trip_insights as DbCanonicalTripAggregate['trip_insights']) ?? [],
+  };
+
+  return mapDbAggregateToCanonicalTrip(aggregate);
 }
 
 export function mapDbPackingProfileRow(row: DbPackingProfileRow): PackingProfile {

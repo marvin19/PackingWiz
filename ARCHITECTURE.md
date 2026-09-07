@@ -328,72 +328,47 @@ Supabase: `createTrip()` rejects multi-list aggregates until MP6 persistence; UI
 - **Session-only:** full reload re-seeds
 - `save()` merges with existing trip metadata
 
-### SupabaseTripRepository (opt-in)
+### SupabaseTripRepository (opt-in) — MP6-B2 canonical
 
-- Implements same interface; uses Supabase client + `trip-mapper.ts` (compatibility read/write path)
+- Implements `TripRepository` via `create_canonical_trip` / `save_canonical_trip` RPCs (atomic aggregate)
+- Loads nested `packing_lists` + list-scoped `packing_items` through `mapSupabaseSelectRowToTrip`
+- Canonical nested rows hydrate with `normalizeCanonicalTrip` — **not** legacy flat remigration
+- Pre-B1 flat rows (no `packing_lists`) still ingress once via `mapTripRow` → `normalizeTrip`
+- List-scoped mutations require explicit `packingListId` when trip has 2+ lists (`resolveExplicitPackingListId`)
 - Migrations:
-  - `supabase/migrations/20260817100000_initial_schema.sql` — initial flat schema
-  - `supabase/migrations/20260905100000_mp6b1_canonical_packing_schema.sql` — **MP6-B1** nested lists, profiles, Important master
-- **Repository round-trip:** canonical multi-list model **not** fully wired until **MP6-B2** (guards retained)
-- Contract + mappers: `supabase-trip-persistence-contract.ts`, `supabase-canonical-mapper.ts`
+  - `20260817100000_initial_schema.sql`
+  - `20260905100000_mp6b1_canonical_packing_schema.sql`
+  - `20260906100000_mp6b2_canonical_trip_rpcs.sql`
+- Profile + Important: `SupabasePackingProfileRepository` wired through `ProfileProvider` / `TripsProvider`
 
-#### Canonical Supabase relationship model (MP6-B1 schema)
+#### Canonical vs compatibility persistence fields
 
-```
-auth.users
-  └── packing_profiles (reusable people — survive trip delete)
-        ├── important_profile_configs
-        └── important_profile_items (ordered master)
+| Write source | DB target | Authoritative? |
+|--------------|-----------|----------------|
+| `PackingList.packingMode` | `packing_lists.packing_mode` | **Yes** |
+| `PackingList.profileSnapshot` | `packing_lists.profile_snapshot` | **Yes** (list-owned) |
+| `PackingItem.*` | `packing_items.*` scoped by `packing_list_id` | **Yes** |
+| `trips.generated` | Derived mirror at RPC boundary only | **No** |
+| `trip_travelers` | Derived from list snapshots for bag FK compat | **No** |
+| `Trip.items` / `Trip.packingMode` | Not written by Supabase repo | **No** |
 
-trips (shared journey container)
-  ├── trip_weather (1:1 snapshot)
-  ├── trip_insights (content-only; structured category/title deferred)
-  ├── trip_bags (trip-level; owner_id → trip_travelers legacy compat)
-  ├── trip_travelers (legacy compat — not authoritative people)
-  └── packing_lists (1..N — first-class)
-        └── packing_items (list-scoped; FK + CASCADE)
-              ├── source: generated | important
-              ├── important_item_id → master link (snapshot; no auto-sync)
-              └── assigned_to (legacy metadata — NOT list ownership)
-```
+**Delete:** `trips` delete cascades lists/items/weather/insights/bags/travelers — **not** `packing_profiles`.
 
-| Entity | Ownership / lifecycle |
-|--------|------------------------|
-| `packing_lists.profile_snapshot` | JSON copy at list creation — list-owned; master profile edits do not mutate |
-| `packing_items.packing_list_id` | Authoritative list ownership |
-| `packing_profiles` | User-scoped reusable identity (`user_id`, `id`) — **not** deleted when a trip references the profile |
-| Important master | Profile-scoped tables — separate from list item snapshots |
-| Trip delete | Cascades lists → items, weather, insights, bags, travelers |
-| List delete | Cascades that list's items only |
+**Promotion:** Remember ON profiles persist **after** successful trip create/reuse; trip success is not rolled back on profile persist failure.
 
-**Legacy flat migration (one-time SQL):** each existing trip without `packing_lists` rows receives exactly one compatibility list (`{tripId}-list-primary`) with profile snapshot from explicit self traveler (`t-you` / "You") or synthetic "Me"; existing item ids/content preserved; `packing_mode` from `trips.generated`. Does not invent multiple people from ambiguous metadata.
+**Deferred:** draft persistence, structured Insight metadata, weather override.
 
-**Compatibility-only (retained until B2 write path migrates):**
-
-- `trips.generated` — mirrors compatibility-primary list mode for old mapper
-- `trip-mapper.ts` flat load via legacy ingress (`normalizeTrip`)
-- `create_trip_with_details` RPC — single compatibility list on create (updated in B1 migration)
-- Multi-list save guards — `supabase-trip-save-guard.ts`
-
-#### Supabase gap inventory (post MP6-B1)
+#### Supabase gap inventory (post MP6-B2 — local implementation)
 
 | Gap | Status |
 |-----|--------|
-| Nested `packing_lists` + list-scoped items schema | **B1 DONE** — migration + mappers |
-| `PackingProfile` + Important master schema | **B1 DONE** |
-| Flat → nested data migration | **B1 DONE** (SQL, one-time) |
-| Multi-list `createTrip` / `save` repository round-trip | **B2 PENDING** — guarded |
-| List-scoped item mutations via nested repo | **B2 PENDING** |
-| ProfileProvider → Supabase profile/Important sync | **B2 PENDING** |
-| Multi-list reuse create in Supabase | **B2 PENDING** |
-| Structured Insight `category` / `title` on reload | DEFERRED (content-only `trip_insights`) |
-| `StoredTripDraft` persistence | DEFERRED unless launch requires |
-| Trip-level deprecated mirror removal from write path | **B2 PENDING** |
-| Remove multi-list save guards | **B2 PENDING** (after round-trip proven) |
-
-**MP6-B2 responsibilities:** implement `SupabaseCanonicalTripPersistenceContract` — load/save/create/delete full Trip aggregate; profile + Important master CRUD; replace flat `trip-mapper` write path; extend selects to join `packing_lists`; remove guards after tests pass.
-
-**Target repository contract:** see `src/repositories/trips/supabase-trip-persistence-contract.ts`.
+| Multi-list create/save/read round-trip | **B2 DONE** (local tests; live Supabase unverified) |
+| List-scoped item mutations | **B2 DONE** |
+| Profile + Important Supabase persistence | **B2 DONE** (local) |
+| Multi-list reuse in Supabase mode | **B2 DONE** (guard lifted) |
+| Structured Insight category/title | DEFERRED |
+| StoredTripDraft persistence | DEFERRED |
+| Live Supabase integration smoke | **PENDING** (project paused) |
 
 ---
 

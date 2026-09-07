@@ -9,6 +9,7 @@ import { AppText } from '@/components/ui/app-text';
 import { getDestinationLabel } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
 import { PackingListOptionRow } from '@/features/packing/components/packing-list-option-row';
+import { useAcknowledgePostCreateNavigation } from '@/features/trip-creation/hooks/use-acknowledge-post-create-navigation';
 import { useTripNavigation } from '@/hooks/use-trip-navigation';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
@@ -16,6 +17,7 @@ import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function PackingListPickerScreen() {
   const router = useRouter();
+  useAcknowledgePostCreateNavigation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { activeTrip, activeTripId, beginTripPackEntry } = useTrips();

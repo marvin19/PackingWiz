@@ -2,8 +2,8 @@
  * MP6-B1 — Supabase canonical persistence contract (implementation in MP6-B2).
  *
  * This module documents the repository/schema boundary established by B1.
- * SupabaseTripRepository still uses the flat compatibility read/write path until B2.
- * Multi-list save guards remain active until B2 round-trip is proven.
+ * MP6-B2 — Supabase canonical repository implementation complete (local).
+ * Multi-list save guards removed from SupabaseTripRepository.
  */
 
 import type { ImportantItemsConfig } from '@/domain/important-items-config';

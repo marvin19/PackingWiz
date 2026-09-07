@@ -8,6 +8,7 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { getDestinationLabel } from '@/domain/destination';
+import { resolvePostCreatePackHref } from '@/domain/post-create-pack-navigation';
 import { GeneratingStep } from '@/features/trip-creation/components/generating-step';
 import { getGenerationStepStatus } from '@/features/trip-creation/constants/generation';
 import { useTripGeneration } from '@/features/trip-creation/hooks/use-trip-generation';
@@ -20,28 +21,36 @@ export function TripGeneratingScreen() {
   const router = useRouter();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { draft, acknowledgeCommitDraftNavigation } = useTrips();
+  const { draft } = useTrips();
   const [destinationLabel] = useState(() => getDestinationLabel(draft.destination));
-  const { activeStep, status, errorMessage, steps, start, retry, isReadyToFinish, finishDelayMs } =
-    useTripGeneration();
+  const {
+    activeStep,
+    status,
+    errorMessage,
+    createdTrip,
+    steps,
+    start,
+    retry,
+    isReadyToFinish,
+    finishDelayMs,
+  } = useTripGeneration();
 
   useEffect(() => {
     start();
   }, [start]);
 
   useEffect(() => {
-    if (!isReadyToFinish) {
+    if (!isReadyToFinish || !createdTrip) {
       return;
     }
 
     const timer = setTimeout(() => {
       blurActiveElement();
-      router.replace('/(tabs)/pack');
-      acknowledgeCommitDraftNavigation();
+      router.replace(resolvePostCreatePackHref(createdTrip));
     }, finishDelayMs);
 
     return () => clearTimeout(timer);
-  }, [acknowledgeCommitDraftNavigation, finishDelayMs, isReadyToFinish, router]);
+  }, [createdTrip, finishDelayMs, isReadyToFinish, router]);
 
   const handleBackToSummary = () => {
     blurActiveElement();
