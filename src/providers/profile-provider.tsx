@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from 'react';
@@ -56,7 +57,7 @@ import { mockSavedTravelers } from '@/mocks/saved-travelers';
 
 type PreferenceKey = keyof UserPreferences;
 
-interface ProfileContextValue {
+export interface ProfileContextValue {
   preferences: UserPreferences;
   savedTravelers: SavedTravelerProfile[];
   /** Session/mock reusable packing profiles (non-self) for trip creation. */
@@ -73,6 +74,7 @@ interface ProfileContextValue {
   importantPromptDismissed: boolean;
   importantMasterVersion: string;
   importantUpdatedAt?: string;
+  repositoryError: string | null;
   getImportantConfigForProfile: (profileId: string) => ImportantItemsConfig;
   getImportantItemsForProfile: (profileId: string) => ImportantItem[];
   getEnabledImportantItemsForProfile: (profileId: string) => ImportantItem[];
@@ -133,6 +135,17 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   );
   const [dismissedImportantMasterVersionByList, setDismissedImportantMasterVersionByList] =
     useState<Record<string, string>>({});
+  const [repositoryError, setRepositoryError] = useState<string | null>(null);
+  const savedPackingProfilesRef = useRef(savedPackingProfiles);
+  const importantByProfileIdRef = useRef(importantByProfileId);
+
+  useEffect(() => {
+    savedPackingProfilesRef.current = savedPackingProfiles;
+  }, [savedPackingProfiles]);
+
+  useEffect(() => {
+    importantByProfileIdRef.current = importantByProfileId;
+  }, [importantByProfileId]);
 
   const commitImportantStore = useCallback(
     (updater: (current: ImportantItemsByProfileId) => ImportantItemsByProfileId) => {
@@ -145,9 +158,16 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
             const previous = current[profileId];
             const updated = next[profileId];
             if (updated && updated !== previous) {
-              void profileRepository.saveImportantMaster(profileId, updated).catch(() => {
-                // Trip/profile UI keeps local state; persistence errors surface via TripsProvider when relevant.
-              });
+              void profileRepository
+                .saveImportantMaster(profileId, updated)
+                .then(() => {
+                  setRepositoryError(null);
+                })
+                .catch((error) => {
+                  setRepositoryError(
+                    error instanceof Error ? error.message : 'Failed to save Important items',
+                  );
+                });
             }
           }
         }
@@ -339,44 +359,33 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      setImportantByProfileId((current) => {
-        let nextStore = current;
+      const savedProfiles = savedPackingProfilesRef.current;
+      const resolved = resolveRememberedPackingProfileForPersistence(profile, savedProfiles);
+      const sourceProfileId = profile.id;
 
-        setSavedPackingProfiles((savedProfiles) => {
-          const resolved = resolveRememberedPackingProfileForPersistence(profile, savedProfiles);
-          const sourceProfileId = profile.id;
+      let nextStore = importantByProfileIdRef.current;
 
-          if (draftImportantConfig?.isConfigured) {
-            nextStore = setImportantConfigForProfile(nextStore, resolved.id, draftImportantConfig);
-          }
-          if (sourceProfileId !== resolved.id) {
-            nextStore = migrateImportantProfileStoreKey(nextStore, sourceProfileId, resolved.id);
-          }
-          nextStore = bootstrapImportantConfigFromProfiles(nextStore, [resolved]);
+      if (draftImportantConfig?.isConfigured) {
+        nextStore = setImportantConfigForProfile(nextStore, resolved.id, draftImportantConfig);
+      }
+      if (sourceProfileId !== resolved.id) {
+        nextStore = migrateImportantProfileStoreKey(nextStore, sourceProfileId, resolved.id);
+      }
+      nextStore = bootstrapImportantConfigFromProfiles(nextStore, [resolved]);
 
-          const byId = savedProfiles.findIndex((entry) => entry.id === resolved.id);
-          if (byId >= 0) {
-            return savedProfiles.map((entry, index) =>
-              index === byId
-                ? attachImportantBootstrapToRememberedProfile(
-                    { ...resolved, rememberForFutureTrips: undefined },
-                    nextStore,
-                  )
-                : entry,
-            );
-          }
+      const rememberedProfile = attachImportantBootstrapToRememberedProfile(
+        { ...resolved, rememberForFutureTrips: undefined },
+        nextStore,
+      );
 
-          return [
-            ...savedProfiles,
-            attachImportantBootstrapToRememberedProfile(
-              { ...resolved, rememberForFutureTrips: undefined },
-              nextStore,
-            ),
-          ];
-        });
+      const byId = savedProfiles.findIndex((entry) => entry.id === resolved.id);
+      const nextProfiles =
+        byId >= 0
+          ? savedProfiles.map((entry, index) => (index === byId ? rememberedProfile : entry))
+          : [...savedProfiles, rememberedProfile];
 
-        return nextStore;
-      });
+      setImportantByProfileId(nextStore);
+      setSavedPackingProfiles(nextProfiles);
     },
     [],
   );
@@ -504,6 +513,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       importantPromptDismissed: selfImportantConfig.promptDismissed,
       importantMasterVersion,
       importantUpdatedAt: selfImportantConfig.updatedAt,
+      repositoryError,
       getImportantConfigForProfile: readImportantConfigForProfile,
       getImportantItemsForProfile,
       getEnabledImportantItemsForProfile,
@@ -556,6 +566,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       preferences,
       readImportantConfigForProfile,
       rememberPackingProfile,
+      repositoryError,
       purgeImportantProfileIds,
       importImportantConfigForProfile,
       removeImportantItemForProfile,
