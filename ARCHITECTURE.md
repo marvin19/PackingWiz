@@ -59,23 +59,62 @@ PackingProfile (reusable across trips)
 
 ---
 
-## Current domain model (runtime)
+## Canonical domain model (MP6-A runtime)
 
-The codebase still reflects an earlier single-list model. Agents must treat this as **legacy** until MP migration lands.
+Multi-person packing is the application contract. New code reads and mutates **`Trip.packingLists[]`** — not flat `Trip.items`, trip-level `packingMode`, or `travelers[]`.
 
-### Trip (`src/domain/trip.ts`)
+```
+Trip                          PackingList (one per person)
+├── name, destination         ├── packingProfileId + profileSnapshot
+├── dates, tripContext        ├── packingMode: generated | manual
+├── accommodation, laundry      └── items: PackingItem[]
+├── bags, note
+├── weather (snapshot)
+├── insights (snapshot)
+└── packingLists[]
+```
 
-- `title` — used as trip display name today; target separates **trip name** from **destination**
-- `destination: Destination` — structured, not a string
-- `tripContext: string[]` — single tag array (suggested + custom)
-- `travelers`, `bags`, `accommodation`, `laundry`, `note`
-- `weather: TripWeather` — snapshot at creation (trip-level — unchanged in target)
-- `items: PackingItem[]` — **legacy flat list** (target: nested under `PackingList`)
-- `packingMode: 'generated' | 'manual'` — **legacy trip-level** (target: per `PackingList`)
-- `insights: Insight[]` — trip-level packing **reasoning** snapshot (Insights v1A); not user-provided trip facts
-- `status: 'upcoming' | 'past'`
-- `generated: boolean` — mirrors packing mode for Supabase schema
-- `image?: string` — reserved for future assets
+| Concept | Canonical owner |
+|---------|-----------------|
+| Who is on the trip | `packingLists[].profileSnapshot` |
+| Packing content / progress | `packingLists[].items` |
+| Generated vs manual | `packingLists[].packingMode` (per list) |
+| Important master | `importantByProfileId[profileId]` (ProfileProvider) |
+| Important on a list | Item snapshot rows on that `PackingList` |
+| Unfinished wizard | `StoredTripDraft` (separate aggregate) |
+
+Helpers: `src/domain/trip-canonical.ts` — list resolution, legacy ingress detection, cross-list item reads.
+
+### Legacy compatibility boundary (until MP6-B2 repository)
+
+These fields remain on `Trip` **only** for Supabase compatibility read/write and one-way legacy ingress migration:
+
+| Field | Role | Authoritative? |
+|-------|------|----------------|
+| `items` | Mirrors `packingLists[0].items` on save/load | **No** — use list items |
+| `packingMode` / `generated` | Mirrors first list mode for DB column | **No** — use per-list mode |
+| `travelers[]` | Populated during assembly/migration | **No** — use profile snapshots |
+| `title` | Mirrors `name` | **No** |
+
+**Normalization** (`normalizeTrip`):
+
+1. **Legacy ingress** (no lists / single compatibility-primary list) → `migrateLegacyTripIngress`
+2. **Canonical nested lists** → `normalizeCanonicalTrip` (idempotent; preserves list ids, mixed modes, snapshots)
+3. **Mirror sync** → `syncLegacyTripMirrors` updates deprecated fields from the **compatibility-primary** list (`primaryPackingListId(trip.id)` when present; sole list when count is 1). Multi-list trips without a compatibility-primary list do **not** fall back to `packingLists[0]`.
+
+**List targeting:** 1 list → auto-resolve; 2+ lists → explicit `packingListId` required (`resolveExplicitPackingListId`). No hidden primary fallback in Pack mutations (MP3B list picker).
+
+**Clone vs reuse:** `cloneTrip` preserves identity; reuse/build paths generate fresh trip/list/item ids.
+
+**Item `assignedTo`:** transitional single-list metadata only; hidden on multi-list trips (list ownership is canonical).
+
+See `src/domain/trip-compatibility.ts` for migration helpers (`primaryPackingListId`, `buildPrimaryPackingList`, …) retained until Supabase nested repository round-trip (MP6-B2).
+
+---
+
+## Historical note (pre-MP6)
+
+The codebase previously documented a single-list runtime here. That path is now compatibility-only; seeds and mock persistence use canonical multi-list fixtures.
 
 ### Insights vs Trip Details vs Pack (v1A)
 
@@ -289,11 +328,47 @@ Supabase: `createTrip()` rejects multi-list aggregates until MP6 persistence; UI
 - **Session-only:** full reload re-seeds
 - `save()` merges with existing trip metadata
 
-### SupabaseTripRepository (opt-in)
+### SupabaseTripRepository (opt-in) — MP6-B2 canonical
 
-- Implements same interface; uses Supabase client + `trip-mapper.ts`
-- Migration: `supabase/migrations/20260817100000_initial_schema.sql`
-- **Not ready** for `PackingList`, `PackingProfile`, or per-list Important — **no Supabase migration during mock refactor unless explicitly planned**
+- Implements `TripRepository` via `create_canonical_trip` / `save_canonical_trip` RPCs (atomic aggregate)
+- Loads nested `packing_lists` + list-scoped `packing_items` through `mapSupabaseSelectRowToTrip`
+- Canonical nested rows hydrate with `normalizeCanonicalTrip` — **not** legacy flat remigration
+- Pre-B1 flat rows (no `packing_lists`) still ingress once via `mapTripRow` → `normalizeTrip`
+- List-scoped mutations require explicit `packingListId` when trip has 2+ lists (`resolveExplicitPackingListId`)
+- Migrations:
+  - `20260817100000_initial_schema.sql`
+  - `20260905100000_mp6b1_canonical_packing_schema.sql`
+  - `20260906100000_mp6b2_canonical_trip_rpcs.sql`
+- Profile + Important: `SupabasePackingProfileRepository` wired through `ProfileProvider` / `TripsProvider`
+
+#### Canonical vs compatibility persistence fields
+
+| Write source | DB target | Authoritative? |
+|--------------|-----------|----------------|
+| `PackingList.packingMode` | `packing_lists.packing_mode` | **Yes** |
+| `PackingList.profileSnapshot` | `packing_lists.profile_snapshot` | **Yes** (list-owned) |
+| `PackingItem.*` | `packing_items.*` scoped by `packing_list_id` | **Yes** |
+| `trips.generated` | Derived mirror at RPC boundary only | **No** |
+| `trip_travelers` | Derived from list snapshots for bag FK compat | **No** |
+| `Trip.items` / `Trip.packingMode` | Not written by Supabase repo | **No** |
+
+**Delete:** `trips` delete cascades lists/items/weather/insights/bags/travelers — **not** `packing_profiles`.
+
+**Promotion:** Remember ON profiles persist **after** successful trip create/reuse; trip success is not rolled back on profile persist failure.
+
+**Deferred:** draft persistence, structured Insight metadata, weather override.
+
+#### Supabase gap inventory (post MP6-B2 — local implementation)
+
+| Gap | Status |
+|-----|--------|
+| Multi-list create/save/read round-trip | **B2 DONE** (local tests; live Supabase unverified) |
+| List-scoped item mutations | **B2 DONE** |
+| Profile + Important Supabase persistence | **B2 DONE** (local) |
+| Multi-list reuse in Supabase mode | **B2 DONE** (guard lifted) |
+| Structured Insight category/title | DEFERRED |
+| StoredTripDraft persistence | DEFERRED |
+| Live Supabase integration smoke | **PENDING** (project paused) |
 
 ---
 
@@ -334,6 +409,7 @@ Otherwise → **mock**.
 - Interface: `getWeatherForTrip({ draft }) → TripWeather`
 - Trip-level in both current and target models
 - **Current:** mock only; `mode: 'forecast' | 'climate'`
+- **Future (outside MP6):** user override of expected temperature bands and multi-select conditions — see ROADMAP.md
 
 ---
 

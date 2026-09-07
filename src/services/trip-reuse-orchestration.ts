@@ -16,7 +16,6 @@ import {
 import { tripToTripDraft } from '@/domain/trip-to-draft';
 import { normalizeTrip } from '@/domain/trip-compatibility';
 import type { TripRepository } from '@/repositories/trips/trip-repository';
-import { SUPABASE_MULTI_LIST_SAVE_ERROR } from '@/repositories/trips/supabase-trip-save-guard';
 import { assemblePackingListForProfile } from '@/services/trip-assembly';
 import type { PackingGenerator } from '@/services/packing/packing-generator';
 
@@ -107,11 +106,4 @@ export async function reuseTrip(
   }
 
   return dependencies.tripRepository.createTrip(trip);
-}
-
-/** Mirrors SupabaseTripRepository.createTrip multi-list guard for clearer reuse failures. */
-export function assertMultiListReusePersistenceSupported(trip: Trip): void {
-  if (trip.packingLists.length > 1) {
-    throw new Error(SUPABASE_MULTI_LIST_SAVE_ERROR);
-  }
 }

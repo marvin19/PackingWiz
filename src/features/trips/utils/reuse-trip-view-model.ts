@@ -1,4 +1,3 @@
-import { getPersistenceMode } from '@/config/persistence';
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
@@ -22,7 +21,6 @@ import {
 import { REUSE_SELECT_PERSON_ERROR } from '@/features/trips/utils/reuse-trip-display';
 import { countReuseResultingLists } from '@/features/trips/utils/reuse-plan-profiles';
 import type { ReuseTripInput } from '@/services/trip-reuse-orchestration';
-import { SUPABASE_MULTI_LIST_SAVE_ERROR } from '@/repositories/trips/supabase-trip-save-guard';
 import { createUuid } from '@/lib/id';
 
 export type ReuseNewTravellerEntry = {
@@ -172,10 +170,7 @@ export function validateReuseTripForm(
   const totalTravellers = countReuseResultingLists(form);
   const travellerError = totalTravellers === 0 ? REUSE_SELECT_PERSON_ERROR : null;
 
-  const persistenceError =
-    getPersistenceMode() === 'supabase' && totalTravellers > 1
-      ? SUPABASE_MULTI_LIST_SAVE_ERROR
-      : null;
+  const persistenceError = null;
 
   const canSubmit = dateValidation.ok && !travellerError && !persistenceError;
 

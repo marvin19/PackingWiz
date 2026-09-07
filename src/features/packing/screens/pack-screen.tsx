@@ -18,6 +18,7 @@ import {
 } from '@/domain/important-snapshot';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStatsForList } from '@/domain/packing-stats';
+import { useAcknowledgePostCreateNavigation } from '@/features/trip-creation/hooks/use-acknowledge-post-create-navigation';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
 import { PackFilterSheet } from '@/features/packing/components/pack-filter-sheet';
 import {
@@ -56,6 +57,7 @@ type PackSection = {
 
 export function PackScreen() {
   const router = useRouter();
+  useAcknowledgePostCreateNavigation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { activeTrip, activeTripId, activePackingList, activePackingListId, selectActivePackingList, togglePacked, markItemPurchased, syncImportantSnapshotForList } =

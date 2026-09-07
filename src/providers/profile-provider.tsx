@@ -2,10 +2,20 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from 'react';
+
+import {
+  getPersistenceMode,
+  logSavedProfilesDiagnosticsDev,
+} from '@/config/persistence';
+import {
+  mergeSavedPackingProfiles,
+  resolveRememberedPackingProfileForPersistence,
+} from '@/domain/remembered-packing-profile';
 
 import type { ImportantItem } from '@/domain/important-item';
 import {
@@ -40,6 +50,8 @@ import {
 } from '@/domain/user-settings';
 import { createUuid } from '@/lib/id';
 import { mockSavedPackingProfiles } from '@/mocks/saved-packing-profiles';
+import { useAuth } from '@/providers/auth-provider';
+import { useServices } from '@/providers/services-provider';
 import { mockSavedTravelers } from '@/mocks/saved-travelers';
 
 type PreferenceKey = keyof UserPreferences;
@@ -101,13 +113,20 @@ interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
+  const { profileRepository } = useServices();
+  const { isAuthReady } = useAuth();
+  const persistenceMode = getPersistenceMode();
   const [preferences, setPreferences] = useState<UserPreferences>(defaultUserPreferences);
   const [savedTravelers, setSavedTravelers] = useState<SavedTravelerProfile[]>(mockSavedTravelers);
   const [savedPackingProfiles, setSavedPackingProfiles] = useState<PackingProfile[]>(() =>
-    mockSavedPackingProfiles.map((profile) => ({ ...profile })),
+    persistenceMode === 'supabase'
+      ? []
+      : mockSavedPackingProfiles.map((profile) => ({ ...profile })),
   );
   const [importantByProfileId, setImportantByProfileId] = useState<ImportantItemsByProfileId>(() =>
-    bootstrapImportantConfigFromProfiles({}, mockSavedPackingProfiles),
+    persistenceMode === 'supabase'
+      ? bootstrapImportantConfigFromProfiles({}, [])
+      : bootstrapImportantConfigFromProfiles({}, mockSavedPackingProfiles),
   );
   const [importantEditorRequestProfileId, setImportantEditorRequestProfileId] = useState<string | null>(
     null,
@@ -120,11 +139,68 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setImportantByProfileId((current) => {
         const next = updater(current);
         setSavedPackingProfiles((profiles) => refreshRememberedProfileBootstraps(profiles, next));
+
+        if (persistenceMode === 'supabase') {
+          for (const profileId of Object.keys(next)) {
+            const previous = current[profileId];
+            const updated = next[profileId];
+            if (updated && updated !== previous) {
+              void profileRepository.saveImportantMaster(profileId, updated).catch(() => {
+                // Trip/profile UI keeps local state; persistence errors surface via TripsProvider when relevant.
+              });
+            }
+          }
+        }
+
         return next;
       });
     },
-    [],
+    [persistenceMode, profileRepository],
   );
+
+  useEffect(() => {
+    if (persistenceMode !== 'supabase' || !isAuthReady) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void profileRepository
+      .loadAll()
+      .then(({ profiles, importantByProfileId: loadedImportant }) => {
+        if (cancelled) {
+          return;
+        }
+
+        setSavedPackingProfiles((current) => mergeSavedPackingProfiles(current, profiles));
+        setImportantByProfileId((current) => {
+          const merged = { ...loadedImportant };
+          for (const [profileId, config] of Object.entries(current)) {
+            if (!merged[profileId]) {
+              merged[profileId] = config;
+            }
+          }
+          return merged;
+        });
+        logSavedProfilesDiagnosticsDev(profiles);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        if (typeof __DEV__ !== 'undefined' && __DEV__) {
+          console.warn(
+            '[PackingWiz] Failed to load saved packing profiles:',
+            error instanceof Error ? error.message : error,
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthReady, persistenceMode, profileRepository]);
 
   const selfImportantConfig = useMemo(
     () => getImportantConfigForProfile(importantByProfileId, SELF_IMPORTANT_PROFILE_ID),
@@ -259,68 +335,51 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const rememberPackingProfile = useCallback(
     (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => {
-    if (profile.isSelf) {
-      return;
-    }
-
-    const { importantItemsBootstrap: _ignored, ...profileFields } = profile;
-    const normalized: PackingProfile = {
-      ...profileFields,
-      isSelf: false,
-      name: profile.name.trim(),
-    };
-
-    setImportantByProfileId((current) => {
-      let nextStore = current;
-      if (draftImportantConfig?.isConfigured) {
-        nextStore = setImportantConfigForProfile(nextStore, normalized.id, draftImportantConfig);
+      if (profile.isSelf) {
+        return;
       }
-      nextStore = bootstrapImportantConfigFromProfiles(nextStore, [profile]);
 
-      setSavedPackingProfiles((savedProfiles) => {
-        const byId = savedProfiles.findIndex((entry) => entry.id === normalized.id);
-        if (byId >= 0) {
-          return savedProfiles.map((entry, index) =>
-            index === byId
-              ? attachImportantBootstrapToRememberedProfile({ ...normalized, id: entry.id }, nextStore)
-              : entry,
-          );
-        }
+      setImportantByProfileId((current) => {
+        let nextStore = current;
 
-        const nameKey = normalized.name.toLowerCase();
-        const byName = savedProfiles.findIndex(
-          (entry) => entry.name.trim().toLowerCase() === nameKey,
-        );
-        if (byName >= 0) {
-          const targetId = savedProfiles[byName].id;
-          if (targetId !== normalized.id) {
-            nextStore = migrateImportantProfileStoreKey(nextStore, normalized.id, targetId);
+        setSavedPackingProfiles((savedProfiles) => {
+          const resolved = resolveRememberedPackingProfileForPersistence(profile, savedProfiles);
+          const sourceProfileId = profile.id;
+
+          if (draftImportantConfig?.isConfigured) {
+            nextStore = setImportantConfigForProfile(nextStore, resolved.id, draftImportantConfig);
+          }
+          if (sourceProfileId !== resolved.id) {
+            nextStore = migrateImportantProfileStoreKey(nextStore, sourceProfileId, resolved.id);
+          }
+          nextStore = bootstrapImportantConfigFromProfiles(nextStore, [resolved]);
+
+          const byId = savedProfiles.findIndex((entry) => entry.id === resolved.id);
+          if (byId >= 0) {
+            return savedProfiles.map((entry, index) =>
+              index === byId
+                ? attachImportantBootstrapToRememberedProfile(
+                    { ...resolved, rememberForFutureTrips: undefined },
+                    nextStore,
+                  )
+                : entry,
+            );
           }
 
-          return savedProfiles.map((entry, index) =>
-            index === byName
-              ? attachImportantBootstrapToRememberedProfile(
-                  { ...normalized, id: entry.id, rememberForFutureTrips: undefined },
-                  nextStore,
-                )
-              : entry,
-          );
-        }
+          return [
+            ...savedProfiles,
+            attachImportantBootstrapToRememberedProfile(
+              { ...resolved, rememberForFutureTrips: undefined },
+              nextStore,
+            ),
+          ];
+        });
 
-        return [
-          ...savedProfiles,
-          attachImportantBootstrapToRememberedProfile(
-            { ...normalized, rememberForFutureTrips: undefined },
-            nextStore,
-          ),
-        ];
+        return nextStore;
       });
-
-      return nextStore;
-    });
-  },
-  [],
-);
+    },
+    [],
+  );
 
   const purgeImportantProfileIds = useCallback((profileIds: string[]) => {
     if (profileIds.length === 0) {

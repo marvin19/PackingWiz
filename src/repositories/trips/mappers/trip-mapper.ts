@@ -7,7 +7,13 @@ import type { Destination } from '@/domain/destination';
 import { createDestinationFromText, getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
-import { getTripPackingItems, getTripPackingMode, normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
+import {
+  getTripPackingItems,
+  getTripPackingMode,
+  normalizeTrip,
+  primaryPackingListId,
+  type TripLike,
+} from '@/domain/trip-compatibility';
 import { getTripName } from '@/domain/trip-name';
 import type {
   AccommodationId,
@@ -65,6 +71,7 @@ export interface DbBagRow {
 export interface DbPackingItemRow {
   id: string;
   trip_id: string;
+  packing_list_id?: string;
   name: string;
   quantity: number;
   category: string;
@@ -72,6 +79,8 @@ export interface DbPackingItemRow {
   need_to_buy: boolean;
   assigned_to: string | null;
   note: string | null;
+  source?: 'generated' | 'important' | null;
+  important_item_id?: string | null;
   sort_order: number;
 }
 
@@ -128,7 +137,7 @@ export function mapBagRow(row: DbBagRow): Bag {
 }
 
 export function mapPackingItemRow(row: DbPackingItemRow): PackingItem {
-  return {
+  const item: PackingItem = {
     id: row.id,
     name: row.name,
     quantity: row.quantity,
@@ -137,8 +146,14 @@ export function mapPackingItemRow(row: DbPackingItemRow): PackingItem {
     needToBuy: row.need_to_buy,
     assignedTo: row.assigned_to,
     note: row.note ?? undefined,
-    source: 'generated',
+    source: row.source ?? 'generated',
   };
+
+  if (row.important_item_id) {
+    item.importantItemId = row.important_item_id;
+  }
+
+  return item;
 }
 
 function mapWeatherRow(row: DbWeatherRow): TripWeather {
@@ -302,11 +317,15 @@ export function newPackingItemToDbInsert(
     assignedTo: string | null;
     note?: string;
     sortOrder: number;
+    packingListId?: string;
+    source?: PackingItem['source'];
+    importantItemId?: string;
   },
 ): Record<string, unknown> {
   return {
     id: input.id,
     trip_id: tripId,
+    packing_list_id: input.packingListId ?? primaryPackingListId(tripId),
     name: input.name,
     quantity: input.quantity,
     category: input.category,
@@ -314,15 +333,18 @@ export function newPackingItemToDbInsert(
     need_to_buy: input.needToBuy,
     assigned_to: input.assignedTo,
     note: input.note ?? null,
+    source: input.source ?? null,
+    important_item_id: input.importantItemId ?? null,
     sort_order: input.sortOrder,
   };
 }
 
-/** Full flat packing_items row for primary-list snapshot sync. */
+/** Full flat packing_items row for primary-list snapshot sync (compatibility path until MP6-B2). */
 export function packingItemToDbRow(
   tripId: string,
   item: PackingItem,
   sortOrder: number,
+  packingListId?: string,
 ): Record<string, unknown> {
   return newPackingItemToDbInsert(tripId, {
     id: item.id,
@@ -334,5 +356,8 @@ export function packingItemToDbRow(
     assignedTo: item.assignedTo,
     note: item.note,
     sortOrder,
+    packingListId,
+    source: item.source,
+    importantItemId: item.importantItemId,
   });
 }

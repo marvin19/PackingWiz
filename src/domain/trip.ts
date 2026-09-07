@@ -32,30 +32,34 @@ export interface Trip {
   tripContext: string[];
   accommodation: AccommodationId;
   laundry: LaundryOption;
+  /**
+   * @deprecated Legacy mirror populated during assembly/migration. People on committed trips
+   * come from `packingLists[].profileSnapshot` — do not treat as authoritative.
+   */
   travelers: Traveler[];
   bags: Bag[];
   note: string;
   weather: TripWeather;
-  /** One or more packing lists; primary list is packingLists[0] during single-list compatibility. */
+  /** Canonical packing ownership — one list per person on the trip. */
   packingLists: PackingList[];
   /** Trip-level packing reasoning snapshot — not user-provided trip facts. */
   insights: Insight[];
   status: TripStatus;
   image?: string;
   /**
-   * @deprecated Migration mirror of `name`. Kept in sync by normalizeTrip — do not write independently.
+   * @deprecated Legacy mirror of `name`. Synced from canonical normalization only.
    */
   title: string;
   /**
-   * @deprecated Migration mirror of primary PackingList.items. Kept in sync by normalizeTrip.
+   * @deprecated Legacy mirror of `packingLists[0].items`. Supabase flat schema only — not authoritative.
    */
   items: PackingItem[];
   /**
-   * @deprecated Migration mirror of primary PackingList.packingMode. Kept in sync by normalizeTrip.
+   * @deprecated Legacy mirror of `packingLists[0].packingMode`. Per-list mode is canonical.
    */
   packingMode: PackingMode;
   /**
-   * @deprecated Mirrors primary list packingMode for Supabase schema — kept in sync by normalizeTrip.
+   * @deprecated Legacy mirror for Supabase `generated` column — synced from primary list mode.
    */
   generated: boolean;
 }

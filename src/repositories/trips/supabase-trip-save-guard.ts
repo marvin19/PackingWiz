@@ -1,7 +1,7 @@
 import type { Trip } from '@/domain/trip';
 
 export const SUPABASE_MULTI_LIST_SAVE_ERROR =
-  'Multi-person trip edits are not supported in Supabase mode until MP5 persistence. Use mock persistence.';
+  'Multi-person trip edits are not supported in Supabase mode until MP6-B2 persistence. Use mock persistence.';
 
 /**
  * Guard for SupabaseTripRepository.save() updates (MP5A).
@@ -18,6 +18,10 @@ export const SUPABASE_MULTI_LIST_SAVE_ERROR =
  *    side has more than one list, even if counts match
  *
  * New trips with multiple lists remain blocked by createTrip().
+ */
+/**
+ * @deprecated MP6-B2 — SupabaseTripRepository no longer calls this guard.
+ * Retained temporarily for historical reference; safe to remove after live Supabase validation.
  */
 export function assertSupabaseTripSaveSupported(existing: Trip, trip: Trip): void {
   const listCountChanged = existing.packingLists.length !== trip.packingLists.length;

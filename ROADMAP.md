@@ -559,7 +559,7 @@ Pure builder + service/provider API (no UI):
 - Supabase: proactive block when multi-person reuse selected; repository guard remains authoritative
 - Upcoming reuse deferred (hero cards lack overflow menu without new card architecture)
 
-### MP5D-C — Add travellers during reuse + changes summary — implementation complete (manual verification pending)
+### MP5D-C — Add travellers during reuse + changes summary — COMPLETE (session/mock)
 
 - Reuse plan distinguishes **source list selections** (copy) vs **`newTravellers[]`** (generate/manual at commit)
 - **Add person** UX: saved profile or new person + generate/manual choice; removable before submit
@@ -571,87 +571,76 @@ Pure builder + service/provider API (no UI):
 - Supabase guard uses total resulting list count (selected source + new)
 - Tests: generator invocation counts, mixed source+new, changes summary, validation edge cases
 
-Do not mark MP5 complete until MP5D manual verification passes.
-
-### Duplicate Trip (product)
-
-Allow a user to create a new Trip from an existing Trip.
-
-Potential framing:
-
-**Plan another trip like Mallorca Beach**
-
-Minimal flow:
-
-- Destination
-- Dates
-- Packing for
-- Start with the same packing items
-- Create trip
-
-The user should not be forced through the full creation wizard unless they choose
-**Edit trip details**.
-
-### Copy semantics
-
-A duplicated Trip receives:
-
-- fresh Trip id
-- fresh PackingList ids
-- fresh PackingItem ids
-- selected Packing Profiles
-- copied list content when requested
-- reset packed/unpacked progress
-
-Preserve useful content such as:
-
-- item names
-- quantities
-- manual additions
-- relevant notes where appropriate
-
-Do not automatically AI-regenerate copied Packing Lists.
-
-New dates/weather must not silently modify copied list content.
-
-### Recommendation refresh
-
-A future explicit action such as **Refresh recommendations** may compare the copied
-list with current:
-
-- destination
-- dates
-- weather
-- trip context
-
-and suggest additions/removals for approval.
-
-### Automatic similar-trip reuse
-
-Defer automatic semantic matching until explicit duplicate/reuse behavior is proven
-useful.
-
-Examples of later behavior:
-
-- Lærdal for 3 days resembles a previous Lærdal trip
-- Vik for 3 days has similar weather/context to a previous Bergen trip
-
-Potential future prompt:
-
-> This trip looks similar to Bergen · Aug 2026.
-> Start with that packing list?
-
-Do not make this a 1.0.0 blocker unless user testing demonstrates strong value.
+**MP5 — status: COMPLETE** (MP5A–MP5D; mock/session persistence)
 
 ---
 
 # MP6 — Multi-person cleanup / migration / persistence contract
 
-Formerly MP5.
+Formerly MP5 umbrella cleanup.
 
-Stabilize the final multi-person and Trip lifecycle domain before real persistence.
+## MP6-A — Canonical model + compatibility cleanup — COMPLETE (session/mock)
 
-## Remove / reduce compatibility debt
+Domain/contract slice — no Supabase schema changes, no new user-facing features:
+
+- **`src/domain/trip-canonical.ts`** — canonical contract helpers (list resolution, legacy ingress detection, cross-list reads)
+- **`normalizeTrip` split** — `migrateLegacyTripIngress` | `normalizeCanonicalTrip` | `syncLegacyTripMirrors`
+- Canonical normalization is **idempotent** for multi-list trips (preserves list ids, mixed packing modes, snapshots)
+- Deprecated mirrors documented on `Trip` (`items`, `packingMode`, `travelers[]`, …)
+- **`resolveExplicitPackingListId`** — 1 list auto-resolve; 2+ lists require explicit id
+- Profile stats count packed items across **all** lists
+- Multi-list trips hide legacy **Assign to / Shared** item UI (list ownership is canonical)
+- **`mp6a-invariants.ts`** wired into `verify:mp1`
+- ARCHITECTURE.md separates **Canonical model** from **Legacy compatibility boundary**
+
+Remaining compatibility: pre-B1 flat read ingress via `mapTripRow`; deprecated Trip mirrors on read; physical `trips.generated` write mirror only.
+
+## MP6-B1 — Supabase canonical schema + repository contract — COMPLETE
+
+Schema migration + application-side contract/mappers (no full repository round-trip yet):
+
+- **`supabase/migrations/20260905100000_mp6b1_canonical_packing_schema.sql`**
+  - `packing_lists` (first-class; 1..N per trip; profile snapshot JSON; per-list `packing_mode`)
+  - `packing_items.packing_list_id` + `source` + `important_item_id` (list-scoped; CASCADE)
+  - `packing_profiles` (reusable; user-scoped composite PK)
+  - `important_profile_configs` + `important_profile_items` (profile-scoped master)
+  - One-time flat-trip forward migration → exactly one compatibility list per legacy trip
+  - Updated `create_trip_with_details` RPC for compatibility single-list creates
+  - RLS on all new tables
+- **`src/repositories/trips/mappers/supabase-canonical-mapper.ts`** — domain ↔ DB mapping for B2
+- **`src/repositories/trips/supabase-trip-persistence-contract.ts`** — B2 implementation contract
+- Minimal **`trip-mapper.ts`** write compat (`packing_list_id` on item upserts)
+- Multi-list **save guards retained** until B2 proven
+- **SQL migrations not integration-tested locally** (no Supabase CLI in CI); mapper unit tests cover assumptions
+
+## MP6-B2 — Supabase repository round-trip — COMPLETE
+
+- **`SupabaseTripRepository`** — canonical read/create/save via `create_canonical_trip` / `save_canonical_trip`
+- List-scoped item mutations with explicit `packingListId` for 2+ lists
+- **`SupabasePackingProfileRepository`** + ProfileProvider/TripsProvider promotion wiring
+- Multi-list guards lifted; Supabase reuse unblocked
+- Migrations: `20260906100000_mp6b2_canonical_trip_rpcs.sql`, `20260906110000_mp6b2_data_api_grants.sql`, `20260906120000_mp6b2_trip_table_data_api_grants.sql`
+- Local tests: `supabase-canonical-roundtrip.test.ts`, `mp6b2-invariants.ts`, `data-api-grants.contract.test.ts`
+- **Live Supabase smoke passed** (single/multi-person create, list isolation, profile reuse, Important master/snapshot, reuse, permanent delete)
+
+**Still deferred:** drafts, structured Insight metadata, weather override.
+
+---
+
+## Future — Weather override / expected conditions (outside MP6)
+
+Not part of MP6 scope. Implement during a later weather/backend product pass:
+
+- Automatic forecast/climate remains default
+- User may override expected **temperature** and **conditions** independently
+- Initial candidate temperature bands: Hot 30°C+, Warm 20–30°C, Mild 10–20°C, Cold 0–10°C, Freezing below 0°C
+- Conditions may be multi-select (e.g. Sunny, Cloudy, Rain, Snow, Windy)
+- Generator consumes normalized weather context regardless of source
+- Exact bands/copy must be validated before implementation
+
+---
+
+# MP6 (continued) — Persistence & cleanup backlog
 
 Review and remove or repurpose where safe:
 
@@ -814,6 +803,30 @@ Resolve small launch-facing UX issues that do not require new domain architectur
 - Verify Good morning / afternoon / evening behavior
 - Final copy consistency pass
 - Final empty/loading/error-state review
+
+### Trip identity on Manage all trips cards — deferred
+
+Product decision (do not implement until post-MP6 frontend polish):
+
+- **Trip name** and **Destination** are distinct concepts
+  - Trip name = human-readable purpose/identity (e.g. "Jordeplerock", "Emilie's baptism")
+  - Destination = geographic location (e.g. "Lærdal, Norway"); may later use Google Places / structured geo data
+- Trip name must remain independently editable
+- **Manage all trips** cards should prioritize trip identity/context at a glance
+- Evaluate replacing packed-count prominence on browse cards with compact trip/context tags
+- Packing progress remains important on Home and Pack surfaces
+
+### Reuse people-state clarity — deferred
+
+Reuse trip UI should later distinguish visually between:
+
+- retained from original
+- removed/unselected from original
+- newly added to reused trip
+
+A newly added person should have an explicit **Added** state/icon rather than appearing ambiguous beneath **Add person**.
+
+Do not implement until post-MP6 frontend polish.
 
 ### Explicitly not required for initial launch unless validated
 

@@ -17,6 +17,7 @@ import {
 import { getPackingForLabel } from '@/features/trip-creation/utils/summary-labels';
 import { resolveLastWizardStepIndex } from '@/features/trip-creation/utils/wizard-steps';
 import { getTripSummaryDetailsScreenTitle } from '@/features/trip-edit/utils/trip-details-navigation';
+import { resolvePostCreatePackHref } from '@/domain/post-create-pack-navigation';
 import { useRequireActiveDraftRoute } from '@/features/trip-creation/hooks/use-require-active-draft-route';
 import { resolveDraftSaveAndCloseRoute } from '@/features/trips/utils/draft-home-display';
 import { useDraftImportant } from '@/hooks/use-draft-important';
@@ -27,7 +28,7 @@ import { spacing, screenPaddingHorizontal } from '@/theme/spacing';
 export function TripSummaryScreen() {
   const router = useRouter();
   const hasValidActiveDraft = useRequireActiveDraftRoute();
-  const { draft, commitDraftTrip, setDraftWizardStep, acknowledgeCommitDraftNavigation } = useTrips();
+  const { draft, commitDraftTrip, setDraftWizardStep } = useTrips();
   const { importantByProfileId } = useDraftImportant();
   const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
   const [manualCreateLoading, setManualCreateLoading] = useState(false);
@@ -69,9 +70,8 @@ export function TripSummaryScreen() {
     setManualCreateLoading(true);
 
     try {
-      await commitDraftTrip('manual');
-      router.replace('/(tabs)/pack');
-      acknowledgeCommitDraftNavigation();
+      const saved = await commitDraftTrip('manual');
+      router.replace(resolvePostCreatePackHref(saved));
     } catch {
       // Draft is preserved; repositoryError is set in TripsProvider.
     } finally {

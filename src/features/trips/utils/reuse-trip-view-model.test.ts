@@ -19,7 +19,6 @@ import {
   buildReuseTripHref,
   buildReuseTripSectionHref,
 } from '@/features/trips/utils/reuse-trip-navigation';
-import { SUPABASE_MULTI_LIST_SAVE_ERROR } from '@/repositories/trips/supabase-trip-save-guard';
 
 const TRIP_ID = 'trip-reuse-ui';
 
@@ -186,7 +185,7 @@ describe('reuse trip view model', () => {
     expect(toggled).toEqual([meListId, emilieListId]);
   });
 
-  it('blocks supabase multi-list reuse ahead of submission', () => {
+  it('allows supabase multi-list reuse after MP6-B2 persistence', () => {
     const spy = jest.spyOn(persistence, 'getPersistenceMode').mockReturnValue('supabase');
 
     const trip = createFixtureTrip();
@@ -196,10 +195,8 @@ describe('reuse trip view model', () => {
       endDate: '2026-08-08',
     };
 
-    expect(validateReuseTripForm(form, referenceDate).persistenceError).toBe(
-      SUPABASE_MULTI_LIST_SAVE_ERROR,
-    );
-    expect(validateReuseTripForm(form, referenceDate).canSubmit).toBe(false);
+    expect(validateReuseTripForm(form, referenceDate).persistenceError).toBeNull();
+    expect(validateReuseTripForm(form, referenceDate).canSubmit).toBe(true);
 
     spy.mockRestore();
   });

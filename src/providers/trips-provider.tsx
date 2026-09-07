@@ -75,7 +75,13 @@ import {
 import { useAuth } from '@/providers/auth-provider';
 import { useProfile } from '@/providers/profile-provider';
 import { useServices } from '@/providers/services-provider';
+import { getPersistenceMode } from '@/config/persistence';
+import {
+  cloneImportantItemsConfig,
+  defaultImportantItemsConfig,
+} from '@/domain/important-items-config';
 import { assembleTripFromDraft } from '@/services/trip-assembly';
+import { persistCommittedTripProfiles } from '@/services/persist-committed-trip-profiles';
 import {
   addTravellerToTrip as orchestrateAddTravellerToTrip,
   reconcileActiveListAfterTravellerRemoval,
@@ -133,8 +139,6 @@ interface TripsContextValue {
   setDraft: (patch: Partial<TripDraft>) => void;
   setDraftWizardStep: (step: number) => void;
   markDraftReachedSummary: () => void;
-  /** @deprecated Use createNewDraft — creates a new draft without removing existing drafts. */
-  resetDraft: () => void;
   saveDraftImportantItemsForProfile: (profileId: string, names: string[]) => ImportantItem[];
   dismissDraftImportantPromptForProfile: (profileId: string) => void;
   getActiveDraftImportantByProfileId: () => Record<string, ImportantItemsConfig>;
@@ -214,8 +218,8 @@ function resolvePackingListSelection(
 }
 
 export function TripsProvider({ children }: { children: ReactNode }) {
-  const { tripRepository, packingGenerator, weatherService } = useServices();
-  const { isAuthReady, authError } = useAuth();
+  const { tripRepository, profileRepository, packingGenerator, weatherService } = useServices();
+  const { isAuthReady, authError, userId } = useAuth();
   const { importantByProfileId, rememberPackingProfile, purgeImportantProfileIds, savedPackingProfiles } = useProfile();
 
   const [trips, setTrips] = useState<Trip[]>([]);
@@ -485,10 +489,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  const resetDraft = useCallback(() => {
-    createNewDraft();
-  }, [createNewDraft]);
-
   const markDraftReachedSummary = useCallback(() => {
     setDraftsState(
       applyDraftsStateUpdate(draftsStateRef, (current) => {
@@ -604,21 +604,51 @@ export function TripsProvider({ children }: { children: ReactNode }) {
           },
           { packingMode, importantByProfileId: mergedImportant },
         );
-        const saved = await tripRepository.createTrip(assembled);
 
-        for (const profile of draftSnapshot.packingProfiles) {
-          if (!profile.isSelf && profile.rememberForFutureTrips) {
-            rememberPackingProfile(profile, stored.draftImportantByProfileId[profile.id]);
+        if (getPersistenceMode() === 'supabase') {
+          if (!isAuthReady) {
+            throw new Error('Authentication is still starting. Please wait and try again.');
+          }
+          if (!userId) {
+            throw new Error(
+              authError ??
+                'Not authenticated — trip cannot be saved to Supabase. Enable anonymous sign-in for this project.',
+            );
           }
         }
 
-        setTrips((current) => {
-          const withoutDuplicate = current.filter((trip) => trip.id !== saved.id);
-          return [saved, ...withoutDuplicate];
-        });
+        const saved = await tripRepository.createTrip(assembled);
+
+        if (getPersistenceMode() === 'supabase') {
+          const profilePersistResult = await persistCommittedTripProfiles({
+            tripProfiles: draftSnapshot.packingProfiles,
+            savedProfiles: savedPackingProfiles,
+            draftImportantByProfileId: stored.draftImportantByProfileId,
+            globalImportantByProfileId: importantByProfileId,
+            profileRepository,
+            rememberPackingProfile,
+          });
+
+          if (profilePersistResult.errors.length > 0) {
+            setRepositoryError(profilePersistResult.errors.join('; '));
+          }
+        } else {
+          for (const profile of draftSnapshot.packingProfiles) {
+            if (!profile.isSelf && profile.rememberForFutureTrips) {
+              const draftImportant =
+                stored.draftImportantByProfileId[profile.id] ??
+                cloneImportantItemsConfig(defaultImportantItemsConfig);
+              rememberPackingProfile(profile, draftImportant);
+            }
+          }
+        }
+
+        const nextTrips = [saved, ...tripsRef.current.filter((trip) => trip.id !== saved.id)];
+        tripsRef.current = nextTrips;
+        setTrips(nextTrips);
         setActiveTripIdState(saved.id);
         setActivePackingListIdState(
-          resolvePackingListSelection(saved.id, null, null, [saved, ...tripsRef.current.filter((t) => t.id !== saved.id)]),
+          resolvePackingListSelection(saved.id, null, null, nextTrips),
         );
         setDraftsState(
           applyDraftsStateUpdate(draftsStateRef, (current) =>
@@ -642,9 +672,14 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       }
     },
     [
+      authError,
       importantByProfileId,
+      isAuthReady,
       packingGenerator,
+      profileRepository,
       rememberPackingProfile,
+      savedPackingProfiles,
+      userId,
       weatherService,
       tripRepository,
     ],
@@ -701,9 +736,24 @@ export function TripsProvider({ children }: { children: ReactNode }) {
           importantByProfileId,
         });
 
-        for (const entry of input.newTravellers ?? []) {
-          if (!entry.profile.isSelf && entry.profile.rememberForFutureTrips) {
-            rememberPackingProfile(entry.profile);
+        if (getPersistenceMode() === 'supabase') {
+          const profilePersistResult = await persistCommittedTripProfiles({
+            tripProfiles: (input.newTravellers ?? []).map((entry) => entry.profile),
+            savedProfiles: savedPackingProfiles,
+            draftImportantByProfileId: {},
+            globalImportantByProfileId: importantByProfileId,
+            profileRepository,
+            rememberPackingProfile,
+          });
+
+          if (profilePersistResult.errors.length > 0) {
+            setRepositoryError(profilePersistResult.errors.join('; '));
+          }
+        } else {
+          for (const entry of input.newTravellers ?? []) {
+            if (!entry.profile.isSelf && entry.profile.rememberForFutureTrips) {
+              rememberPackingProfile(entry.profile);
+            }
           }
         }
 
@@ -715,7 +765,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         throw error;
       }
     },
-    [importantByProfileId, packingGenerator, rememberPackingProfile, tripRepository],
+    [importantByProfileId, packingGenerator, profileRepository, rememberPackingProfile, savedPackingProfiles, tripRepository],
   );
 
   const updateTripSharedDetails = useCallback(
@@ -1403,7 +1453,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       setDraft,
       setDraftWizardStep,
       markDraftReachedSummary,
-      resetDraft,
       saveDraftImportantItemsForProfile,
       dismissDraftImportantPromptForProfile,
       getActiveDraftImportantByProfileId,
@@ -1457,7 +1506,6 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       setDraft,
       setDraftWizardStep,
       markDraftReachedSummary,
-      resetDraft,
       saveDraftImportantItemsForProfile,
       dismissDraftImportantPromptForProfile,
       getActiveDraftImportantByProfileId,
