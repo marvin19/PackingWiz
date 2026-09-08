@@ -8,20 +8,21 @@ Current status and intended sequencing. Order may change based on user testing.
 
 ## Current focus
 
-PackingWiz has completed the core multi-person packing and profile-scoped Important
-work plus the lightweight Quality Foundation (CI + unit-test harness). The next focus
-is Trip lifecycle and management before external integrations.
+**Active:** Cleanup Phase 4–5.
 
-Current sequence:
+MP1–MP6, live Supabase canonical persistence (MP6-B2), and Verification & Test
+Hardening (VH1–VH4) are complete.
 
-1. **MP5 — Trip Lifecycle & Management**
-2. **MP6 — Multi-person cleanup / migration / persistence contract**
-3. **Verification & Test Hardening**
-4. **Cleanup Phase 4–5**
-5. **Frontend freeze + manual accessibility pass**
-6. Backend integrations and Web/SEO work
-7. Alpha / beta
-8. Launch
+Remaining sequence:
+
+1. **Cleanup Phase 4–5** ← active
+2. Frontend freeze + manual accessibility pass
+3. Backend integrations and Web/SEO work
+4. Alpha / beta
+5. Launch
+
+Weather, OpenAI, and broader backend integration ordering are unchanged — they
+remain after Cleanup 4–5 and frontend freeze/polish.
 
 ---
 
@@ -36,6 +37,26 @@ Current sequence:
 - Tracked `package-lock.json` for reproducible `npm ci`
 - GitHub Actions: app typecheck, test typecheck, ESLint, `verify:mp1`, unit tests
 - Invariant harness preserved (`npm run verify:mp1`) — not migrated to Jest
+
+### Verification & Test Hardening — COMPLETE
+
+- **VH1** — audit complete
+- **VH2** — integration/provider hardening complete
+- **VH3** — runtime/state hardening complete (require-cycle breaks, bootstrap/active-state contracts, test harness hygiene)
+- **VH4** — manual regression complete (live Supabase core flows)
+- Automated baseline: **60 suites / 440 tests** passing
+- Live Supabase manual core flows passed; **no BLOCKER or HIGH** findings from VH4
+
+**Accepted limitations (1.0 — not release blockers):**
+
+- `activeTripId` / `activePackingListId` are session-only
+- No automatic first-trip/list selection after bootstrap
+- Important master changes require explicit list sync
+- Reuse double-submit protection currently lives at UI level
+- Same-tick item double-toggle edge case remains accepted
+- Full user-switch lifecycle is outside the current anonymous-session 1.0 path
+
+---
 
 ### Foundation / Cleanup Phase 1
 
@@ -550,7 +571,7 @@ Pure builder + service/provider API (no UI):
 - `TripsProvider.reuseTrip(sourceTripId, input)` — returns created trip; does not change `activeTripId`
 - Supabase: multi-list reuse rejected by existing `createTrip()` guard until MP6 persistence
 
-### MP5D-B — Reuse trip UI — implementation complete (manual verification pending)
+### MP5D-B — Reuse trip UI — COMPLETE
 
 - **Reuse trip** action on Previous trip overflow menu in Trips browser
 - `/trip/reuse` screen: source summary, required new dates, traveller selection, editable trip details sections
@@ -729,6 +750,8 @@ reprioritized.
 
 ## Cleanup Phase 4 — Profile / onboarding readiness
 
+**Status: active** — next implementation phase.
+
 After MP4–MP6 so Profile is built around the final Packing Profile and Trip lifecycle
 model.
 
@@ -803,6 +826,16 @@ Resolve small launch-facing UX issues that do not require new domain architectur
 - Verify Good morning / afternoon / evening behavior
 - Final copy consistency pass
 - Final empty/loading/error-state review
+
+### Home Upcoming — deferred
+
+Do not implement until frontend freeze/polish:
+
+- Sort upcoming trips on Home by **start date ascending**
+- Show at most **3** upcoming trips on Home
+- When more than 3 exist, show **View all upcoming**
+- Link to the Upcoming-filtered Trips view
+- Do **not** introduce last-opened / last-edited sorting
 
 ### Trip identity on Manage all trips cards — deferred
 
