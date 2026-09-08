@@ -1,6 +1,6 @@
 import { PACKING_CATEGORY_ORDER, type PackingCategory } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
-import { formatPackingListProfileName } from '@/domain/packing-list-display';
+import { formatPackingListProfileName } from '@/domain/packing-list-labels';
 import { findPackingListById } from '@/domain/trip-compatibility';
 
 export type PackingProgress = { packed: number; total: number; pct: number };

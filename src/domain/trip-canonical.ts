@@ -1,8 +1,9 @@
 import type { PackingItem } from '@/domain/packing-item';
-import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile, PackingProfileSnapshot } from '@/domain/packing-profile';
 import type { Trip } from '@/domain/trip';
-import { isCompatibilityPrimaryList } from '@/domain/trip-compatibility';
+import { isLegacyTripIngress } from '@/domain/trip-ingress';
+
+export { isLegacyTripIngress } from '@/domain/trip-ingress';
 
 /**
  * MP6-A canonical application contract.
@@ -24,22 +25,6 @@ export type TripCanonicalContract = {
   /** Unfinished wizard aggregate — never a committed Trip status. */
   draft: 'StoredTripDraft';
 };
-
-/** True when trip input still uses flat/single-list compatibility ingress. */
-export function isLegacyTripIngress(trip: {
-  id: string;
-  packingLists?: PackingList[];
-}): boolean {
-  if (!trip.packingLists || trip.packingLists.length === 0) {
-    return true;
-  }
-
-  if (trip.packingLists.length === 1) {
-    return isCompatibilityPrimaryList(trip.id, trip.packingLists[0]);
-  }
-
-  return false;
-}
 
 /** True when the trip already uses nested canonical packing lists. */
 export function isCanonicalTripShape(trip: Trip): boolean {

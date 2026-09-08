@@ -1,8 +1,12 @@
 import type { PackingProfile } from '@/domain/packing-profile';
 import type { Trip } from '@/domain/trip';
 import { hasDuplicateDraftProfileName } from '@/domain/trip-draft-profiles';
-import type { ReuseTripFormState } from '@/features/trips/utils/reuse-trip-view-model';
-import { listsForSelectedIds } from '@/features/trips/utils/reuse-trip-view-model';
+import {
+  listsForSelectedIds,
+  type ReuseTripFormSelection,
+} from '@/features/trips/utils/reuse-plan';
+
+export { countReuseResultingLists } from '@/features/trips/utils/reuse-plan';
 
 function profileFromListSnapshot(
   snapshot: Trip['packingLists'][number]['profileSnapshot'],
@@ -18,7 +22,7 @@ function profileFromListSnapshot(
 
 export function getReusePlanProfiles(
   sourceTrip: Trip,
-  form: Pick<ReuseTripFormState, 'selectedPackingListIds' | 'newTravellers'>,
+  form: Pick<ReuseTripFormSelection, 'selectedPackingListIds' | 'newTravellers'>,
 ): PackingProfile[] {
   const fromSource = listsForSelectedIds(sourceTrip, form.selectedPackingListIds).map((list) =>
     profileFromListSnapshot(list.profileSnapshot),
@@ -30,7 +34,7 @@ export function getReusePlanProfiles(
 
 export function reusePlanHasProfile(
   sourceTrip: Trip,
-  form: Pick<ReuseTripFormState, 'selectedPackingListIds' | 'newTravellers'>,
+  form: Pick<ReuseTripFormSelection, 'selectedPackingListIds' | 'newTravellers'>,
   profile: Pick<PackingProfile, 'id' | 'isSelf' | 'name'>,
 ): boolean {
   const planned = getReusePlanProfiles(sourceTrip, form);
@@ -50,7 +54,7 @@ export function reusePlanHasProfile(
 export function availableSavedProfilesForReusePlan(
   savedProfiles: PackingProfile[],
   sourceTrip: Trip,
-  form: Pick<ReuseTripFormState, 'selectedPackingListIds' | 'newTravellers'>,
+  form: Pick<ReuseTripFormSelection, 'selectedPackingListIds' | 'newTravellers'>,
 ): PackingProfile[] {
   return savedProfiles.filter(
     (profile) =>
@@ -60,7 +64,7 @@ export function availableSavedProfilesForReusePlan(
 
 export function canAddProfileToReusePlan(
   sourceTrip: Trip,
-  form: Pick<ReuseTripFormState, 'selectedPackingListIds' | 'newTravellers'>,
+  form: Pick<ReuseTripFormSelection, 'selectedPackingListIds' | 'newTravellers'>,
   profile: PackingProfile,
 ): boolean {
   if (profile.isSelf && reusePlanHasProfile(sourceTrip, form, profile)) {
@@ -81,7 +85,7 @@ export function canAddProfileToReusePlan(
 
 export function getReusePlanExistingNames(
   sourceTrip: Trip,
-  form: Pick<ReuseTripFormState, 'selectedPackingListIds' | 'newTravellers'>,
+  form: Pick<ReuseTripFormSelection, 'selectedPackingListIds' | 'newTravellers'>,
 ): string[] {
   return getReusePlanProfiles(sourceTrip, form).map((profile) =>
     profile.isSelf ? 'Me' : profile.name,
@@ -91,7 +95,7 @@ export function getReusePlanExistingNames(
 /** Virtual trip shape for AddTravellerSheet saved-profile filtering (selected source lists only). */
 export function buildReusePlanTripForSavedProfileFilter(
   sourceTrip: Trip,
-  form: Pick<ReuseTripFormState, 'selectedPackingListIds' | 'newTravellers'>,
+  form: Pick<ReuseTripFormSelection, 'selectedPackingListIds' | 'newTravellers'>,
 ): Trip {
   const selectedLists = listsForSelectedIds(sourceTrip, form.selectedPackingListIds);
   const newLists = form.newTravellers.map((entry) => ({
@@ -112,10 +116,4 @@ export function buildReusePlanTripForSavedProfileFilter(
     ...sourceTrip,
     packingLists: [...selectedLists, ...newLists],
   };
-}
-
-export function countReuseResultingLists(
-  form: Pick<ReuseTripFormState, 'selectedPackingListIds' | 'newTravellers'>,
-): number {
-  return form.selectedPackingListIds.length + form.newTravellers.length;
 }

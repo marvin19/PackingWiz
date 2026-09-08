@@ -105,7 +105,7 @@ function applyDraftsStateUpdate(
 
 export type AppTab = 'trips' | 'pack' | 'profile';
 
-interface TripsContextValue {
+export interface TripsContextValue {
   trips: Trip[];
   activeTripId: string | null;
   activeTrip: Trip | null;
@@ -619,6 +619,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
         const saved = await tripRepository.createTrip(assembled);
 
+        let profilePersistErrors: string[] = [];
+
         if (getPersistenceMode() === 'supabase') {
           const profilePersistResult = await persistCommittedTripProfiles({
             tripProfiles: draftSnapshot.packingProfiles,
@@ -628,10 +630,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
             profileRepository,
             rememberPackingProfile,
           });
-
-          if (profilePersistResult.errors.length > 0) {
-            setRepositoryError(profilePersistResult.errors.join('; '));
-          }
+          profilePersistErrors = profilePersistResult.errors;
         } else {
           for (const profile of draftSnapshot.packingProfiles) {
             if (!profile.isSelf && profile.rememberForFutureTrips) {
@@ -655,7 +654,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
             removeCommittedDraft(current, targetDraftId),
           ),
         );
-        setRepositoryError(null);
+        if (profilePersistErrors.length > 0) {
+          setRepositoryError(profilePersistErrors.join('; '));
+        } else {
+          setRepositoryError(null);
+        }
         return saved;
       })().catch((error) => {
         setIsCommitDraftInFlight(false);
@@ -748,6 +751,8 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
           if (profilePersistResult.errors.length > 0) {
             setRepositoryError(profilePersistResult.errors.join('; '));
+          } else {
+            setRepositoryError(null);
           }
         } else {
           for (const entry of input.newTravellers ?? []) {
@@ -755,10 +760,10 @@ export function TripsProvider({ children }: { children: ReactNode }) {
               rememberPackingProfile(entry.profile);
             }
           }
+          setRepositoryError(null);
         }
 
         setTrips((current) => [created, ...current.filter((entry) => entry.id !== created.id)]);
-        setRepositoryError(null);
         return created;
       } catch (error) {
         setRepositoryError(error instanceof Error ? error.message : 'Failed to reuse trip');
