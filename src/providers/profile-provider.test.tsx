@@ -520,4 +520,13 @@ describe('ProfileProvider auth + persistence (VH2-C)', () => {
       expect(currentProfileContext()!.repositoryError).toBeNull();
     });
   });
+
+  it('does not expose legacy savedTravelers separate from savedPackingProfiles', async () => {
+    await mountProfileProvider();
+
+    const context = currentProfileContext()!;
+    expect(context).not.toHaveProperty('savedTravelers');
+    expect(context).not.toHaveProperty('addSavedTraveler');
+    expect(Array.isArray(context.savedPackingProfiles)).toBe(true);
+  });
 });

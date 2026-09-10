@@ -46,20 +46,17 @@ import {
 } from '@/domain/profile-important-items';
 import {
   defaultUserPreferences,
-  type SavedTravelerProfile,
   type UserPreferences,
 } from '@/domain/user-settings';
 import { createUuid } from '@/lib/id';
 import { mockSavedPackingProfiles } from '@/mocks/saved-packing-profiles';
 import { useAuth } from '@/providers/auth-provider';
 import { useServices } from '@/providers/services-provider';
-import { mockSavedTravelers } from '@/mocks/saved-travelers';
 
 type PreferenceKey = keyof UserPreferences;
 
 export interface ProfileContextValue {
   preferences: UserPreferences;
-  savedTravelers: SavedTravelerProfile[];
   /** Session/mock reusable packing profiles (non-self) for trip creation. */
   savedPackingProfiles: PackingProfile[];
   /** Canonical self profile id for Important master lookups. */
@@ -93,7 +90,6 @@ export interface ProfileContextValue {
   removeImportantItemForProfile: (profileId: string, itemId: string) => void;
   resolveImportantProfileId: typeof resolveImportantProfileId;
   setPreference: (key: PreferenceKey, value: boolean) => void;
-  addSavedTraveler: () => void;
   rememberPackingProfile: (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => void;
   /** Remove draft-only Important keys after draft deletion (MP5B). */
   purgeImportantProfileIds: (profileIds: string[]) => void;
@@ -119,7 +115,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const { isAuthReady } = useAuth();
   const persistenceMode = getPersistenceMode();
   const [preferences, setPreferences] = useState<UserPreferences>(defaultUserPreferences);
-  const [savedTravelers, setSavedTravelers] = useState<SavedTravelerProfile[]>(mockSavedTravelers);
   const [savedPackingProfiles, setSavedPackingProfiles] = useState<PackingProfile[]>(() =>
     persistenceMode === 'supabase'
       ? []
@@ -337,22 +332,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     setPreferences((current) => ({ ...current, [key]: value }));
   }, []);
 
-  const addSavedTraveler = useCallback(() => {
-    setSavedTravelers((current) => {
-      const nextIndex =
-        current.filter((traveler) => traveler.name.startsWith('Traveler ')).length + 1;
-
-      return [
-        ...current,
-        {
-          id: createUuid(),
-          name: `Traveler ${nextIndex}`,
-          role: 'Adult',
-        },
-      ];
-    });
-  }, []);
-
   const rememberPackingProfile = useCallback(
     (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => {
       if (profile.isSelf) {
@@ -501,7 +480,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ProfileContextValue>(
     () => ({
       preferences,
-      savedTravelers,
       savedPackingProfiles,
       selfImportantProfileId: SELF_IMPORTANT_PROFILE_ID,
       importantByProfileId,
@@ -528,7 +506,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       removeImportantItemForProfile,
       resolveImportantProfileId,
       setPreference,
-      addSavedTraveler,
       rememberPackingProfile,
       purgeImportantProfileIds,
       importImportantConfigForProfile,
@@ -546,7 +523,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }),
     [
       addImportantItemForProfile,
-      addSavedTraveler,
       consumeImportantEditorRequest,
       dismissImportantPrompt,
       dismissImportantPromptForProfile,
@@ -576,7 +552,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       saveImportantItems,
       saveImportantItemsForProfile,
       savedPackingProfiles,
-      savedTravelers,
       selfImportantConfig.isConfigured,
       selfImportantConfig.isEnabled,
       selfImportantConfig.items,

@@ -15,10 +15,6 @@ import { ImportantItemsSetupSheet } from '@/features/packing/components/importan
 import { ImportantProfileMenuRows } from '@/features/profile/components/important-profile-menu-rows';
 import { ProfileIdentityCard } from '@/features/profile/components/profile-identity-card';
 import { ProfileStatCard } from '@/features/profile/components/profile-stat-card';
-import {
-  AddTravelerRow,
-  TravelerProfileRow,
-} from '@/features/profile/components/traveler-profile-row';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { profileTravelStats } from '@/features/profile/utils/profile-stats';
@@ -34,7 +30,6 @@ export function ProfileScreen() {
   const { trips } = useTrips();
   const {
     preferences,
-    savedTravelers,
     savedPackingProfiles,
     getImportantItemsForProfile,
     getImportantConfigForProfile,
@@ -42,7 +37,6 @@ export function ProfileScreen() {
     isImportantEnabledForProfile,
     resolveImportantProfileId,
     setPreference,
-    addSavedTraveler,
     saveImportantItemsForProfile,
     setImportantEnabledForProfile,
     resetImportantPromptDismissedForProfile,
@@ -152,20 +146,6 @@ export function ProfileScreen() {
             label="items packed"
             icon={<Feather name="briefcase" size={16} color={theme.colors.primary} />}
           />
-        </View>
-
-        <View style={styles.section}>
-          <SectionTitle>Travelers</SectionTitle>
-          <SettingsCard>
-            {savedTravelers.map((traveler, index) => (
-              <View key={traveler.id}>
-                {index > 0 ? <SettingsDivider /> : null}
-                <TravelerProfileRow traveler={traveler} />
-              </View>
-            ))}
-            <SettingsDivider />
-            <AddTravelerRow onPress={addSavedTraveler} />
-          </SettingsCard>
         </View>
 
         <View style={styles.section}>
