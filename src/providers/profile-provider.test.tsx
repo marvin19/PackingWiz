@@ -8,6 +8,7 @@ import {
 } from '@/domain/important-items-config';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { SELF_IMPORTANT_PROFILE_ID } from '@/domain/profile-important-items';
+import { createCanonicalSelfPackingProfile } from '@/domain/self-packing-profile';
 import { ProfileProvider, useProfile, type ProfileContextValue } from '@/providers/profile-provider';
 import type { PackingProfileRepository } from '@/repositories/profiles/packing-profile-repository';
 
@@ -528,5 +529,17 @@ describe('ProfileProvider auth + persistence (VH2-C)', () => {
     expect(context).not.toHaveProperty('savedTravelers');
     expect(context).not.toHaveProperty('addSavedTraveler');
     expect(Array.isArray(context.savedPackingProfiles)).toBe(true);
+  });
+
+  it('exposes canonical self PackingProfile aligned with Important master id', async () => {
+    await mountProfileProvider();
+
+    const context = currentProfileContext()!;
+    expect(context.selfPackingProfile).toEqual(createCanonicalSelfPackingProfile());
+    expect(context.selfImportantProfileId).toBe(SELF_IMPORTANT_PROFILE_ID);
+    expect(context.resolveImportantProfileId(context.selfPackingProfile)).toBe(
+      SELF_IMPORTANT_PROFILE_ID,
+    );
+    expect(context.savedPackingProfiles.some((profile) => profile.isSelf)).toBe(false);
   });
 });

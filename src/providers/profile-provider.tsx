@@ -44,6 +44,7 @@ import {
   updateImportantItemForProfileStore,
   type ImportantItemsByProfileId,
 } from '@/domain/profile-important-items';
+import { createCanonicalSelfPackingProfile } from '@/domain/self-packing-profile';
 import {
   defaultUserPreferences,
   type UserPreferences,
@@ -57,6 +58,8 @@ type PreferenceKey = keyof UserPreferences;
 
 export interface ProfileContextValue {
   preferences: UserPreferences;
+  /** Canonical session self PackingProfile for Me — stable `profile-self` id. */
+  selfPackingProfile: PackingProfile;
   /** Session/mock reusable packing profiles (non-self) for trip creation. */
   savedPackingProfiles: PackingProfile[];
   /** Canonical self profile id for Important master lookups. */
@@ -114,6 +117,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const { profileRepository } = useServices();
   const { isAuthReady } = useAuth();
   const persistenceMode = getPersistenceMode();
+  const selfPackingProfile = useMemo(() => createCanonicalSelfPackingProfile(), []);
   const [preferences, setPreferences] = useState<UserPreferences>(defaultUserPreferences);
   const [savedPackingProfiles, setSavedPackingProfiles] = useState<PackingProfile[]>(() =>
     persistenceMode === 'supabase'
@@ -480,6 +484,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ProfileContextValue>(
     () => ({
       preferences,
+      selfPackingProfile,
       savedPackingProfiles,
       selfImportantProfileId: SELF_IMPORTANT_PROFILE_ID,
       importantByProfileId,
@@ -552,6 +557,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       saveImportantItems,
       saveImportantItemsForProfile,
       savedPackingProfiles,
+      selfPackingProfile,
       selfImportantConfig.isConfigured,
       selfImportantConfig.isEnabled,
       selfImportantConfig.items,

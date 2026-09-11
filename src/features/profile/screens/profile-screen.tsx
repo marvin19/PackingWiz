@@ -10,7 +10,6 @@ import { SectionTitle } from '@/components/ui/section-title';
 import { SettingsCard, SettingsDivider } from '@/components/ui/settings/settings-card';
 import { SettingsLinkRow } from '@/components/ui/settings/settings-link-row';
 import { SettingsToggleRow } from '@/components/ui/settings/settings-toggle-row';
-import { createDefaultSelfProfile } from '@/domain/trip-draft-profiles';
 import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
 import { ImportantProfileMenuRows } from '@/features/profile/components/important-profile-menu-rows';
 import { ProfileIdentityCard } from '@/features/profile/components/profile-identity-card';
@@ -21,7 +20,6 @@ import { profileTravelStats } from '@/features/profile/utils/profile-stats';
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
-import { mockUserProfile } from '@/mocks/user-profile';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
 export function ProfileScreen() {
@@ -30,6 +28,7 @@ export function ProfileScreen() {
   const { trips } = useTrips();
   const {
     preferences,
+    selfPackingProfile,
     savedPackingProfiles,
     getImportantItemsForProfile,
     getImportantConfigForProfile,
@@ -44,8 +43,8 @@ export function ProfileScreen() {
   } = useProfile();
 
   const manageableProfiles = useMemo(
-    () => [createDefaultSelfProfile(), ...savedPackingProfiles],
-    [savedPackingProfiles],
+    () => [selfPackingProfile, ...savedPackingProfiles],
+    [selfPackingProfile, savedPackingProfiles],
   );
 
   const [editingProfile, setEditingProfile] = useState<PackingProfile | null>(null);
@@ -133,7 +132,7 @@ export function ProfileScreen() {
           },
         ]}
         showsVerticalScrollIndicator={false}>
-        <ProfileIdentityCard profile={mockUserProfile} />
+        <ProfileIdentityCard profile={selfPackingProfile} />
 
         <View style={styles.statsRow}>
           <ProfileStatCard
