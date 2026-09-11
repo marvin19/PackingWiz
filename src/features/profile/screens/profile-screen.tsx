@@ -72,7 +72,7 @@ export function ProfileScreen() {
 
   const stats = useMemo(() => profileTravelStats(trips), [trips]);
 
-  const metricHint = preferences.metricUnits ? 'Celsius, kilometers' : 'Fahrenheit, miles';
+  const metricHint = preferences.metricUnits ? 'Celsius' : 'Fahrenheit';
 
   const handleOpenImportantForProfile = useCallback(
     (profile: PackingProfile) => {

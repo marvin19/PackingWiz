@@ -9,6 +9,7 @@ import {
 import type { TripWeather } from '@/domain/weather';
 import { tripDetailCardStyles } from '@/features/trip-creation/components/trip-detail-card-styles';
 import { getPrimaryWeatherIcon, getWeatherFeatherIcon } from '@/features/trip-creation/utils/weather-icons';
+import { useProfile } from '@/hooks/use-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { spacing } from '@/theme/spacing';
 
@@ -19,6 +20,8 @@ type WeatherCardProps = {
 
 export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
   const theme = useTheme();
+  const { preferences } = useProfile();
+  const temperatureOptions = { metricUnits: preferences.metricUnits };
 
   if (isLoading) {
     return (
@@ -68,7 +71,7 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
           </View>
         </View>
         <AppText variant="bodySemiBold" color="primary" style={styles.temperature}>
-          {formatWeatherTemperatureRange(weather.high, weather.low)}
+          {formatWeatherTemperatureRange(weather.high, weather.low, temperatureOptions)}
         </AppText>
       </View>
 
@@ -100,7 +103,7 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
                 </AppText>
                 <Feather name={getWeatherFeatherIcon(day.icon)} size={20} color={theme.colors.primary} />
                 <AppText variant="micro" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-                  {formatWeatherTemperature(day.high)}
+                  {formatWeatherTemperature(day.high, temperatureOptions)}
                 </AppText>
               </View>
             ))}
