@@ -50,6 +50,7 @@ import {
   isPersistedPreferenceKey,
   mergeLoadedUserPreferences,
   toPersistedUserPreferences,
+  type PersistedUserPreferences,
   type UserPreferences,
 } from '@/domain/user-settings';
 import { createUuid } from '@/lib/id';
@@ -140,7 +141,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [repositoryError, setRepositoryError] = useState<string | null>(null);
   const savedPackingProfilesRef = useRef(savedPackingProfiles);
   const importantByProfileIdRef = useRef(importantByProfileId);
-  const hasLocalPreferenceEditsRef = useRef(false);
+  const hasLocalPersistedPreferenceEditsRef = useRef(false);
+  const preferenceSaveRevisionRef = useRef(0);
+  const preferenceSaveInFlightRef = useRef(false);
+  const pendingPersistedPreferencesRef = useRef<{
+    snapshot: PersistedUserPreferences;
+    revision: number;
+  } | null>(null);
 
   useEffect(() => {
     savedPackingProfilesRef.current = savedPackingProfiles;
@@ -225,6 +232,42 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     };
   }, [isAuthReady, persistenceMode, profileRepository]);
 
+  const drainPersistedPreferencesSave = useCallback(async () => {
+    if (preferenceSaveInFlightRef.current) {
+      return;
+    }
+
+    while (pendingPersistedPreferencesRef.current) {
+      const pending = pendingPersistedPreferencesRef.current;
+      pendingPersistedPreferencesRef.current = null;
+      preferenceSaveInFlightRef.current = true;
+
+      try {
+        await preferencesRepository.save(pending.snapshot);
+
+        if (pending.revision === preferenceSaveRevisionRef.current) {
+          setRepositoryError(null);
+        }
+      } catch (error) {
+        if (pending.revision === preferenceSaveRevisionRef.current) {
+          setRepositoryError(
+            error instanceof Error ? error.message : 'Failed to save preferences',
+          );
+        }
+      } finally {
+        preferenceSaveInFlightRef.current = false;
+      }
+    }
+  }, [preferencesRepository]);
+
+  const enqueuePersistedPreferencesSave = useCallback(
+    (snapshot: PersistedUserPreferences, revision: number) => {
+      pendingPersistedPreferencesRef.current = { snapshot, revision };
+      void drainPersistedPreferencesSave();
+    },
+    [drainPersistedPreferencesSave],
+  );
+
   useEffect(() => {
     if (persistenceMode !== 'supabase' || !isAuthReady) {
       return;
@@ -235,11 +278,20 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     void preferencesRepository
       .load()
       .then((loaded) => {
-        if (cancelled || hasLocalPreferenceEditsRef.current) {
+        if (cancelled) {
           return;
         }
 
-        setPreferences(mergeLoadedUserPreferences(loaded));
+        setPreferences((current) => {
+          if (hasLocalPersistedPreferenceEditsRef.current) {
+            return current;
+          }
+
+          return {
+            ...mergeLoadedUserPreferences(loaded),
+            packingReminders: current.packingReminders,
+          };
+        });
         setRepositoryError(null);
       })
       .catch((error) => {
@@ -370,28 +422,22 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
 
   const setPreference = useCallback(
     (key: PreferenceKey, value: boolean) => {
-      hasLocalPreferenceEditsRef.current = true;
-
       setPreferences((current) => {
         const next = { ...current, [key]: value };
 
         if (persistenceMode === 'supabase' && isPersistedPreferenceKey(key)) {
-          void preferencesRepository
-            .save(toPersistedUserPreferences(next))
-            .then(() => {
-              setRepositoryError(null);
-            })
-            .catch((error) => {
-              setRepositoryError(
-                error instanceof Error ? error.message : 'Failed to save preferences',
-              );
-            });
+          hasLocalPersistedPreferenceEditsRef.current = true;
+          preferenceSaveRevisionRef.current += 1;
+          enqueuePersistedPreferencesSave(
+            toPersistedUserPreferences(next),
+            preferenceSaveRevisionRef.current,
+          );
         }
 
         return next;
       });
     },
-    [persistenceMode, preferencesRepository],
+    [enqueuePersistedPreferencesSave, persistenceMode],
   );
 
   const rememberPackingProfile = useCallback(

@@ -636,6 +636,147 @@ describe('ProfileProvider auth + persistence (VH2-C)', () => {
       expect(currentProfileContext()!.preferences.smartQuantities).toBe(false);
       expect(currentProfileContext()!.repositoryError).toBe('preferences save failed');
     });
+
+    it('hydrates persisted preferences while preserving session-only packingReminders during load', async () => {
+      let resolveLoad: (value: { smartQuantities: boolean; metricUnits: boolean }) => void = () => {};
+      mockPreferencesRepository.load.mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveLoad = resolve;
+        }),
+      );
+
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+
+      act(() => {
+        currentProfileContext()!.setPreference('packingReminders', false);
+      });
+
+      await act(async () => {
+        resolveLoad({ smartQuantities: false, metricUnits: false });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await flushAsync();
+
+      expect(currentProfileContext()!.preferences).toEqual({
+        smartQuantities: false,
+        metricUnits: false,
+        packingReminders: false,
+      });
+      expect(mockPreferencesRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('persists the latest snapshot when rapid persisted edits resolve out of order', async () => {
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+      mockPreferencesRepository.save.mockClear();
+
+      let resolveFirstSave: (() => void) | undefined;
+      const firstSave = new Promise<void>((resolve) => {
+        resolveFirstSave = resolve;
+      });
+
+      mockPreferencesRepository.save
+        .mockImplementationOnce(() => firstSave)
+        .mockResolvedValueOnce(undefined);
+
+      act(() => {
+        currentProfileContext()!.setPreference('smartQuantities', false);
+      });
+      act(() => {
+        currentProfileContext()!.setPreference('metricUnits', false);
+      });
+
+      await act(async () => {
+        resolveFirstSave?.();
+        await firstSave;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await flushAsync();
+
+      expect(mockPreferencesRepository.save).toHaveBeenCalledTimes(2);
+      expect(mockPreferencesRepository.save.mock.calls[1]?.[0]).toEqual({
+        smartQuantities: false,
+        metricUnits: false,
+      });
+      expect(currentProfileContext()!.preferences).toEqual({
+        smartQuantities: false,
+        metricUnits: false,
+        packingReminders: true,
+      });
+    });
+
+    it('does not clear a newer preference save error when an older save succeeds first', async () => {
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+      mockPreferencesRepository.save.mockClear();
+
+      let resolveFirstSave: (() => void) | undefined;
+      const firstSave = new Promise<void>((resolve) => {
+        resolveFirstSave = resolve;
+      });
+
+      mockPreferencesRepository.save
+        .mockImplementationOnce(() => firstSave)
+        .mockRejectedValueOnce(new Error('newer save failed'));
+
+      act(() => {
+        currentProfileContext()!.setPreference('smartQuantities', false);
+      });
+      act(() => {
+        currentProfileContext()!.setPreference('metricUnits', false);
+      });
+
+      await act(async () => {
+        resolveFirstSave?.();
+        await firstSave;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await flushAsync();
+
+      expect(currentProfileContext()!.repositoryError).toBe('newer save failed');
+      expect(mockPreferencesRepository.save.mock.calls[1]?.[0]).toEqual({
+        smartQuantities: false,
+        metricUnits: false,
+      });
+    });
+
+    it('does not restore an obsolete error when a newer preference save succeeds', async () => {
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+      mockPreferencesRepository.save.mockClear();
+
+      let rejectFirstSave: ((error: Error) => void) | undefined;
+      const firstSave = new Promise<void>((_, reject) => {
+        rejectFirstSave = reject;
+      });
+
+      mockPreferencesRepository.save
+        .mockImplementationOnce(() => firstSave)
+        .mockResolvedValueOnce(undefined);
+
+      act(() => {
+        currentProfileContext()!.setPreference('smartQuantities', false);
+      });
+      act(() => {
+        currentProfileContext()!.setPreference('metricUnits', false);
+      });
+      await flushAsync();
+
+      expect(currentProfileContext()!.repositoryError).toBeNull();
+
+      await act(async () => {
+        rejectFirstSave?.(new Error('older save failed'));
+        await firstSave.catch(() => undefined);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await flushAsync();
+
+      expect(currentProfileContext()!.repositoryError).toBeNull();
+    });
   });
 
   it('exposes canonical self PackingProfile aligned with Important master id', async () => {
