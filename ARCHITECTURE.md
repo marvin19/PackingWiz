@@ -296,14 +296,48 @@ Supabase: `createTrip()` rejects multi-list aggregates until MP6 persistence; UI
 
 ### ProfileProvider
 
-- In-memory only today (no repository persistence)
-- `saveImportantItems`, `setImportantEnabled`, stale-notice dismiss map (session)
-- **Target:** Important master keyed by `PackingProfile.id`; multi-profile Important hub UX (MP4)
+- **Mock mode:** in-memory saved profiles, Important master, and preferences (session-only reload)
+- **Supabase mode:** loads/saves reusable `packing_profiles`, Important masters, and `user_preferences` after `isAuthReady`
+- Important master keyed by canonical `PackingProfile.id` (`profile-self` for Me)
 
 ### AuthProvider
 
 - **Mock mode:** `isAuthReady = true` immediately, no session
-- **Supabase mode:** anonymous sign-in, session in context
+- **Supabase mode:** restores existing session via `getSession()`; otherwise `signInAnonymously()` once
+- Exposes `userId` (`auth.users.id`) to providers — **not** shown in Profile UI
+- **Out of scope (1.0):** sign-out, mid-session user switching, multi-account lifecycle
+
+### Account persistence readiness (Cleanup Phase 4)
+
+PackingWiz persisted data is owned by the **Supabase auth user id** (`auth.users.id`), not by packing-domain ids such as `profile-self`.
+
+```
+auth.users.id  (anonymous today; linkable to permanent credentials later)
+├── user_preferences
+├── packing_profiles (incl. profile-self row for Me)
+│   ├── important_profile_configs
+│   └── important_profile_items
+└── trips
+    ├── packing_lists (+ profileSnapshot copies)
+    ├── packing_items
+    ├── trip_weather / trip_insights / trip_bags / trip_travelers (compat)
+    └── …
+```
+
+| Concept | Role |
+|---------|------|
+| `auth.users.id` | **Persistence owner** for all Supabase rows |
+| `profile-self` | **Packing-domain** id for Me — Important master + canonical self profile |
+| `{tripId}-profile-self` | **Historical list snapshot** id — frozen at trip commit |
+| `public.profiles` | Auth-user shell row (auto-created on signup) — not a Packing Profile |
+
+**Current runtime:** anonymous Supabase sign-in → JWT uses `authenticated` role → RLS filters every query with `auth.uid()`.
+
+**Future account linking (not implemented):** upgrade/link the **same** Supabase auth identity to email/OAuth/password. Because ownership columns already reference `auth.users.id`, trips, packing profiles, Important masters, and preferences should **remain attached without domain-level copy migration**.
+
+**Explicit non-goal:** if a future flow creates a **new** auth user instead of linking the existing anonymous identity, ownership transfer/merge is a separate explicit migration — must **not** happen implicitly during sign-in.
+
+Repositories obtain ownership only from the authenticated Supabase session (`auth.getUser()` / RPC `auth.uid()`). They never persist UI profile ids as account owners.
 
 ---
 
@@ -446,7 +480,7 @@ Otherwise → **mock**.
 | Integration | Status | Notes |
 |-------------|--------|-------|
 | Supabase persistence | Schema + repo exist; opt-in | **Not** aligned with MP model yet |
-| Anonymous auth + upgrade | Partial (anonymous in Supabase mode) | Account linking planned |
+| Anonymous auth + upgrade | Anonymous session + auth-user ownership in place | Link/upgrade **same** auth user id (no data copy) — UX not implemented |
 | Google Places | Destination fields ready | Autocomplete not wired |
 | Weather/climate API | Mock only | Should consume lat/lng from Destination |
 | OpenAI packing | Mock generator only | Per-list generation in target model |
@@ -476,8 +510,8 @@ During MP migration, apply the same discipline at **packing-list** granularity o
 | Risk | Detail |
 |------|--------|
 | Legacy flat `Trip.items` | Entire Pack/Overview/provider stack assumes single list |
-| Profile not persisted | Important master + preferences lost on mock reload |
-| Important not per-profile | Cannot model Anna vs Emilie must-haves correctly |
+| Mock reload | Important master + preferences reset in mock mode (expected) |
 | Single process memory | Mock repo singleton — HMR can reset in dev |
-| Supabase partial integration | Trips may persist while Profile/Important do not; schema mismatched with MP target |
+| Account linking UX | Schema ready; anonymous → permanent credential flow not built |
+| Mid-session user switch | Out of scope for 1.0 anonymous-session path |
 | Traveler assignment debt | `assignedTo` may conflict with per-person lists |
