@@ -47,6 +47,9 @@ import {
 import { createCanonicalSelfPackingProfile } from '@/domain/self-packing-profile';
 import {
   defaultUserPreferences,
+  isPersistedPreferenceKey,
+  mergeLoadedUserPreferences,
+  toPersistedUserPreferences,
   type UserPreferences,
 } from '@/domain/user-settings';
 import { createUuid } from '@/lib/id';
@@ -114,7 +117,7 @@ export interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const { profileRepository } = useServices();
+  const { profileRepository, preferencesRepository } = useServices();
   const { isAuthReady } = useAuth();
   const persistenceMode = getPersistenceMode();
   const selfPackingProfile = useMemo(() => createCanonicalSelfPackingProfile(), []);
@@ -137,6 +140,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [repositoryError, setRepositoryError] = useState<string | null>(null);
   const savedPackingProfilesRef = useRef(savedPackingProfiles);
   const importantByProfileIdRef = useRef(importantByProfileId);
+  const hasLocalPreferenceEditsRef = useRef(false);
 
   useEffect(() => {
     savedPackingProfilesRef.current = savedPackingProfiles;
@@ -220,6 +224,38 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [isAuthReady, persistenceMode, profileRepository]);
+
+  useEffect(() => {
+    if (persistenceMode !== 'supabase' || !isAuthReady) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void preferencesRepository
+      .load()
+      .then((loaded) => {
+        if (cancelled || hasLocalPreferenceEditsRef.current) {
+          return;
+        }
+
+        setPreferences(mergeLoadedUserPreferences(loaded));
+        setRepositoryError(null);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRepositoryError(
+          error instanceof Error ? error.message : 'Failed to load preferences',
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthReady, persistenceMode, preferencesRepository]);
 
   const selfImportantConfig = useMemo(
     () => getImportantConfigForProfile(importantByProfileId, SELF_IMPORTANT_PROFILE_ID),
@@ -332,9 +368,31 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     [commitImportantStore],
   );
 
-  const setPreference = useCallback((key: PreferenceKey, value: boolean) => {
-    setPreferences((current) => ({ ...current, [key]: value }));
-  }, []);
+  const setPreference = useCallback(
+    (key: PreferenceKey, value: boolean) => {
+      hasLocalPreferenceEditsRef.current = true;
+
+      setPreferences((current) => {
+        const next = { ...current, [key]: value };
+
+        if (persistenceMode === 'supabase' && isPersistedPreferenceKey(key)) {
+          void preferencesRepository
+            .save(toPersistedUserPreferences(next))
+            .then(() => {
+              setRepositoryError(null);
+            })
+            .catch((error) => {
+              setRepositoryError(
+                error instanceof Error ? error.message : 'Failed to save preferences',
+              );
+            });
+        }
+
+        return next;
+      });
+    },
+    [persistenceMode, preferencesRepository],
+  );
 
   const rememberPackingProfile = useCallback(
     (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => {

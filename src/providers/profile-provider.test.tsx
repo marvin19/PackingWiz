@@ -11,6 +11,7 @@ import { SELF_IMPORTANT_PROFILE_ID } from '@/domain/profile-important-items';
 import { createCanonicalSelfPackingProfile } from '@/domain/self-packing-profile';
 import { ProfileProvider, useProfile, type ProfileContextValue } from '@/providers/profile-provider';
 import type { PackingProfileRepository } from '@/repositories/profiles/packing-profile-repository';
+import type { UserPreferencesRepository } from '@/repositories/preferences/user-preferences-repository';
 
 const LOCAL_EMILIE_ID = 'profile-local-emilie';
 const REMOTE_JONAS_ID = 'profile-remote-jonas';
@@ -66,6 +67,21 @@ function createProfileRepositoryMock(): PackingProfileRepository & {
 
 const mockProfileRepository = createProfileRepositoryMock();
 
+function createPreferencesRepositoryMock(): UserPreferencesRepository & {
+  load: jest.Mock;
+  save: jest.Mock;
+} {
+  return {
+    load: jest.fn(async () => ({
+      smartQuantities: true,
+      metricUnits: true,
+    })),
+    save: jest.fn(async () => undefined),
+  };
+}
+
+const mockPreferencesRepository = createPreferencesRepositoryMock();
+
 let mockIsAuthReady = false;
 
 jest.mock('@/config/persistence', () => ({
@@ -84,6 +100,7 @@ jest.mock('@/providers/auth-provider', () => ({
 jest.mock('@/providers/services-provider', () => ({
   useServices: () => ({
     profileRepository: mockProfileRepository,
+    preferencesRepository: mockPreferencesRepository,
     tripRepository: {},
     packingGenerator: {},
     weatherService: {},
@@ -108,6 +125,7 @@ async function flushAsync(): Promise<void> {
 
 async function mountProfileProvider(): Promise<void> {
   Object.assign(mockProfileRepository, createProfileRepositoryMock());
+  Object.assign(mockPreferencesRepository, createPreferencesRepositoryMock());
   profileContext = null;
   renderer = null;
 
@@ -529,6 +547,95 @@ describe('ProfileProvider auth + persistence (VH2-C)', () => {
     expect(context).not.toHaveProperty('savedTravelers');
     expect(context).not.toHaveProperty('addSavedTraveler');
     expect(Array.isArray(context.savedPackingProfiles)).toBe(true);
+  });
+
+  describe('user preferences persistence', () => {
+    beforeEach(async () => {
+      await mountProfileProvider();
+    });
+
+    it('does not load preferences before auth is ready', () => {
+      expect(mockPreferencesRepository.load).not.toHaveBeenCalled();
+    });
+
+    it('surfaces load failures and keeps defaults', async () => {
+      mockPreferencesRepository.load.mockRejectedValueOnce(new Error('preferences load failed'));
+
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+
+      expect(currentProfileContext()!.preferences).toEqual({
+        smartQuantities: true,
+        metricUnits: true,
+        packingReminders: true,
+      });
+      expect(currentProfileContext()!.repositoryError).toBe('preferences load failed');
+    });
+
+    it('hydrates preferences after auth becomes ready', async () => {
+      mockPreferencesRepository.load.mockResolvedValueOnce({
+        smartQuantities: false,
+        metricUnits: false,
+      });
+
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+
+      expect(mockPreferencesRepository.load).toHaveBeenCalledTimes(1);
+      expect(currentProfileContext()!.preferences).toEqual({
+        smartQuantities: false,
+        metricUnits: false,
+        packingReminders: true,
+      });
+    });
+
+    it('persists active preference changes through the repository', async () => {
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+
+      act(() => {
+        currentProfileContext()!.setPreference('metricUnits', false);
+      });
+      await flushAsync();
+
+      expect(mockPreferencesRepository.save).toHaveBeenCalledWith({
+        smartQuantities: true,
+        metricUnits: false,
+      });
+    });
+
+    it('does not persist coming-soon packingReminders', async () => {
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+      mockPreferencesRepository.save.mockClear();
+
+      act(() => {
+        currentProfileContext()!.setPreference('packingReminders', false);
+      });
+      await flushAsync();
+
+      expect(mockPreferencesRepository.save).not.toHaveBeenCalled();
+      expect(currentProfileContext()!.preferences.packingReminders).toBe(false);
+    });
+
+    it('surfaces save failures without crashing', async () => {
+      mockIsAuthReady = true;
+      await rerenderProfileProvider();
+      await flushAsync();
+      mockPreferencesRepository.save.mockRejectedValueOnce(new Error('preferences save failed'));
+
+      act(() => {
+        currentProfileContext()!.setPreference('smartQuantities', false);
+      });
+      await flushAsync();
+
+      expect(currentProfileContext()!.preferences.smartQuantities).toBe(false);
+      expect(currentProfileContext()!.repositoryError).toBe('preferences save failed');
+    });
   });
 
   it('exposes canonical self PackingProfile aligned with Important master id', async () => {
