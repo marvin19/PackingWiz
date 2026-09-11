@@ -13,6 +13,7 @@ import { SettingsToggleRow } from '@/components/ui/settings/settings-toggle-row'
 import { ImportantItemsSetupSheet } from '@/features/packing/components/important-items-setup-sheet';
 import { ImportantProfileMenuRows } from '@/features/profile/components/important-profile-menu-rows';
 import { ProfileIdentityCard } from '@/features/profile/components/profile-identity-card';
+import { SavedPackingProfileMenuRows } from '@/features/profile/components/saved-packing-profile-menu-rows';
 import { ProfileStatCard } from '@/features/profile/components/profile-stat-card';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import type { PackingProfile } from '@/domain/packing-profile';
@@ -145,6 +146,11 @@ export function ProfileScreen() {
             label="items packed"
             icon={<Feather name="briefcase" size={16} color={theme.colors.primary} />}
           />
+        </View>
+
+        <View style={styles.section}>
+          <SectionTitle>People you&apos;ve packed for before</SectionTitle>
+          <SavedPackingProfileMenuRows profiles={savedPackingProfiles} />
         </View>
 
         <View style={styles.section}>
