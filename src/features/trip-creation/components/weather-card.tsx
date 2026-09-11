@@ -2,6 +2,10 @@ import { Feather } from '@expo/vector-icons';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import {
+  formatWeatherTemperature,
+  formatWeatherTemperatureRange,
+} from '@/domain/weather-display';
 import type { TripWeather } from '@/domain/weather';
 import { tripDetailCardStyles } from '@/features/trip-creation/components/trip-detail-card-styles';
 import { getPrimaryWeatherIcon, getWeatherFeatherIcon } from '@/features/trip-creation/utils/weather-icons';
@@ -64,7 +68,7 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
           </View>
         </View>
         <AppText variant="bodySemiBold" color="primary" style={styles.temperature}>
-          {weather.high}° / {weather.low}°
+          {formatWeatherTemperatureRange(weather.high, weather.low)}
         </AppText>
       </View>
 
@@ -96,7 +100,7 @@ export function WeatherCard({ weather, isLoading = false }: WeatherCardProps) {
                 </AppText>
                 <Feather name={getWeatherFeatherIcon(day.icon)} size={20} color={theme.colors.primary} />
                 <AppText variant="micro" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-                  {day.high}°
+                  {formatWeatherTemperature(day.high)}
                 </AppText>
               </View>
             ))}
