@@ -769,7 +769,7 @@ Intentionally deferred (not Phase 4 blockers):
 - Saved profile edit/delete → post-1.0 / auth phase until semantics are defined
 - Account linking UX → Authentication / backend phase
 - Home greeting off mock identity → pre-freeze UX polish
-- Preference-driven weather/generator behavior → Phase 5 / integrations
+- `smartQuantities` generator wiring → post-freeze integrations (weather °C/°F presentation delivered in Phase 5)
 - `packingReminders` persistence → notification work
 
 ---

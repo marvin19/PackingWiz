@@ -345,8 +345,8 @@ Each list can receive age/person-appropriate recommendations. OpenAI is **not** 
 
 - **Anonymous-first** preferred; data preserved on account upgrade
 - Onboarding likely gathers profile, preferences, Packing Profiles, Important Items
-- **Unit preferences:** `metricUnits` exists in mock Profile; Celsius/Fahrenheit split planned (Cleanup Phase 5)
-- **Current:** Profile preferences and Important master are **in-memory only** (lost on full reload in mock mode)
+- **Unit preferences:** Single `metricUnits` toggle — metric shows Celsius, imperial shows Fahrenheit at the weather display boundary; canonical weather storage remains Celsius (Cleanup Phase 5)
+- **Current:** `smartQuantities` and `metricUnits` persist via Supabase `user_preferences` when enabled; `packingReminders` is session-only; Important master persists in Supabase mode (mock mode resets on full reload)
 
 ---
 
