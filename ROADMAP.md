@@ -8,21 +8,23 @@ Current status and intended sequencing. Order may change based on user testing.
 
 ## Current focus
 
-**Active:** Cleanup Phase 4–5.
+**Active:** Cleanup Phase 5.
 
-MP1–MP6, live Supabase canonical persistence (MP6-B2), and Verification & Test
-Hardening (VH1–VH4) are complete.
+MP1–MP6, live Supabase canonical persistence (MP6-B2), Verification & Test
+Hardening (VH1–VH4), and Cleanup Phase 4 are complete.
+
+Automated baseline: **70 suites / 487 tests** passing.
 
 Remaining sequence:
 
-1. **Cleanup Phase 4–5** ← active
+1. **Cleanup Phase 5** ← active
 2. Frontend freeze + manual accessibility pass
 3. Backend integrations and Web/SEO work
 4. Alpha / beta
 5. Launch
 
 Weather, OpenAI, and broader backend integration ordering are unchanged — they
-remain after Cleanup 4–5 and frontend freeze/polish.
+remain after Cleanup Phase 5 and frontend freeze/polish.
 
 ---
 
@@ -748,26 +750,33 @@ reprioritized.
 
 ---
 
-## Cleanup Phase 4 — Profile / onboarding readiness
+## Cleanup Phase 4 — Profile / onboarding readiness — COMPLETE
 
-**Status: active** — next implementation phase.
+Delivered (Slices 1–5):
 
-After MP4–MP6 so Profile is built around the final Packing Profile and Trip lifecycle
-model.
+- Legacy `savedTravelers` / Traveler UI removed; canonical `savedPackingProfiles` model retained
+- Canonical self PackingProfile ownership via `profile-self`
+- Profile identity decoupled from `mockUserProfile`
+- Read-only **People you've packed for before** Profile section
+- Supabase persistence for `smartQuantities` + `metricUnits` (`user_preferences`)
+- `packingReminders` remains session-only / coming soon
+- Account persistence readiness documented and contract-tested (`auth.users.id` remains persistence owner)
+- Preference persistence live-smoke passed (Supabase mode)
 
-- Profile preference model refinement
-- Self Packing Profile ownership
-- Saved Packing Profile management polish
-- Onboarding-ready flows
-- Gather preferences without requiring full auth
-- Gather Important Items without requiring full auth
-- Prepare for later account persistence
+Intentionally deferred (not Phase 4 blockers):
 
-Do not implement full authentication here.
+- Dedicated onboarding UX → frontend freeze/polish or later
+- Saved profile edit/delete → post-1.0 / auth phase until semantics are defined
+- Account linking UX → Authentication / backend phase
+- Home greeting off mock identity → pre-freeze UX polish
+- Preference-driven weather/generator behavior → Phase 5 / integrations
+- `packingReminders` persistence → notification work
 
 ---
 
 ## Cleanup Phase 5 — Future readiness
+
+**Status: active** — next implementation phase.
 
 ### Units
 
