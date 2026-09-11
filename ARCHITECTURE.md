@@ -486,7 +486,150 @@ Otherwise → **mock**.
 | OpenAI packing | Mock generator only | Per-list generation in target model |
 | TripImageService | Placeholder in `trip-image.ts` | User upload → Supabase Storage; provider TBD |
 | i18n | English hardcoded | Structure strings for future extraction |
-| Affiliate/products | Deferred | Must not hardcode URLs into `PackingItem` |
+| Affiliate/products | Deferred — architecture documented below | Must not hardcode URLs into `PackingItem` |
+
+---
+
+## Affiliate / product recommendations (future — not implemented)
+
+**Status:** Architecture contract only (Cleanup Phase 5). No affiliate links, commerce UI,
+tracking, product APIs, or schema tables in 1.0.
+
+### Product intent (from roadmap)
+
+Affiliate shopping / product recommendations are **validated-demand candidates** and
+**explicitly deferred** until post–frontend-freeze integration work. They are **not** MVP
+requirements.
+
+Current **Shopping** in Pack is a packing workflow filter only: items flagged `needToBuy`
+mark a purchase intent; checking them off clears the flag. It is **not** commerce,
+affiliate routing, or product enrichment.
+
+Weather/trip **recommendations** in roadmap copy refer to **packing-list change
+review** (add/remove items when context changes) — not merchant product suggestions.
+
+### Packing intent vs purchasable product
+
+`PackingItem` (`src/domain/packing-item.ts`) is canonical **packing intent**:
+
+| Field | Role | Commerce-safe? |
+|-------|------|----------------|
+| `id`, `name`, `quantity`, `category` | What to pack | Yes — semantic need (e.g. "Rain jacket") |
+| `packed`, `needToBuy` | User packing/shopping workflow | Yes — not merchant metadata |
+| `note` | User-authored reminder | Yes |
+| `source`, `importantItemId` | Important vs generated provenance | Yes |
+| `assignedTo` | Legacy assignment metadata | Yes — transitional |
+
+**Rule:** Do **not** add affiliate URLs, merchant ids, product skus, prices, or provider
+payloads to `PackingItem` or `packing_items`. A merchant-specific title must not replace
+the generic packing need as the item's canonical name.
+
+Problematic if added directly to `PackingItem`:
+
+- Stale prices/links baked into trip history
+- Provider lock-in in persisted trip rows
+- AI generation coupled to a single merchant catalog
+- Pack/check semantics tied to product availability
+- Privacy leakage (full trip context sent to commerce APIs as part of core item shape)
+
+### Future enrichment boundary
+
+When implemented, treat **product recommendations as optional enrichment** attached to a
+packing need — not as the need itself.
+
+Conceptual shape (documentation only — **not** implemented):
+
+```
+PackingItem (unchanged intent)
+  └── zero or more ProductRecommendation (future, separate)
+        providerId, productId, merchant, destinationUrl, affiliateUrl?,
+        imageUrl?, price?, currency?, availability?, fetchedAt, expiresAt?,
+        disclosure?, rationale?
+```
+
+- **Zero recommendations** is valid — the list remains fully useful.
+- Recommendations may be **refreshed or replaced** without changing item identity (`id`, `name`).
+- Eligibility: likely generated/essential items and explicit `needToBuy` — not Important
+  master snapshots unless product policy explicitly allows (TBD at implementation).
+
+### Persistence recommendation (future)
+
+Prefer a **hybrid, low-coupling** model:
+
+| Layer | Persist? | Rationale |
+|-------|----------|-----------|
+| `PackingItem` rows | Yes (current) | Stable trip history; user packing state |
+| Live provider lookup | Transient | Fresh price/availability; swappable providers |
+| UI/session cache | Optional, TTL | Avoid refetch spam; tolerate staleness |
+| Snapshot of chosen product | Only if user explicitly saves/pins | Rare; document expiry; never overwrite item `name` |
+
+**Do not** persist affiliate URLs on `packing_items` by default. If a snapshot table is
+added later, scope it separately (e.g. keyed by `trip_id` + `packing_item_id` + `fetched_at`),
+cascade-delete with trip/item deletion, and keep provider swappable without migrating core items.
+
+Consider: expired links, stale prices, merchant API failures, and historical trips where
+commerce data should degrade gracefully (hide offer, keep "Rain jacket" packable).
+
+### AI generation vs affiliate selection (hard separation)
+
+Two independent integrations:
+
+| Stage | Responsibility | Must not know |
+|-------|----------------|---------------|
+| **A. PackingGenerator** (mock today; OpenAI later) | Produce packing **needs** — names, categories, quantities, `needToBuy` hints | Affiliate URLs, merchants, skus, commission rules |
+| **B. ProductRecommendationProvider** (future) | Map eligible needs → optional purchasable products | Whether an essential item exists; must not add/remove packing rows silently |
+
+Affiliate availability or API failure **must not** remove or block core packing items.
+Commerce is an optional layer on top of a complete list.
+
+### UI / UX constraints (future)
+
+When commerce UI is built:
+
+- Packing list remains fully usable with **no** product links
+- Opening a product link is **optional** — pack/check flows work without it
+- Sponsored/affiliate content must be **visually and verbally distinct** from packing content
+- No forced purchase flow; no paywall on basic packing
+- Display generic packing name as primary; merchant product title secondary if shown
+- `needToBuy` checkbox semantics stay **purchased/handled** — not "bought via affiliate"
+
+Do not implement badges, buttons, or disclosure copy until a scheduled commerce phase.
+
+### Provider abstraction (conceptual API only)
+
+A future service interface (no runtime implementation until scheduled):
+
+```typescript
+// Conceptual — not in codebase
+interface ProductRecommendationProvider {
+  /** Returns zero or more offers for one packing need; empty on failure. */
+  getRecommendations(input: {
+    packingItemId: string;
+    itemName: string;
+    category: PackingCategory;
+    quantity: number;
+    /** Minimal trip context — avoid sending full notes/private profile by default */
+    destinationCountry?: string;
+    locale?: string;
+  }): Promise<ProductRecommendation[]>;
+}
+```
+
+Keep the surface minimal. Tracking/analytics, A/B tests, and consent gates belong in a
+**separate** layer — not inside the provider or `PackingItem`.
+
+### Privacy / tracking (future)
+
+When affiliate features ship (separate phase):
+
+- Clear **affiliate/sponsored disclosure** before external navigation
+- **Minimal** event tracking — e.g. offer impression / outbound click — not full trip dumps
+- Do not send full private trip notes, Important master contents, or profile PII to merchant
+  APIs unless explicitly required and consented
+- External links open with user intent; no hidden redirects
+- Consent/privacy rules depend on jurisdiction and store policies — resolve at implementation
+
+**No** analytics, tracking SDKs, or affiliate URLs in the current codebase.
 
 ---
 

@@ -8,16 +8,16 @@ Current status and intended sequencing. Order may change based on user testing.
 
 ## Current focus
 
-**Active:** Cleanup Phase 5.
+**Active:** Pre-freeze UX cleanup (see below).
 
 MP1–MP6, live Supabase canonical persistence (MP6-B2), Verification & Test
-Hardening (VH1–VH4), and Cleanup Phase 4 are complete.
+Hardening (VH1–VH4), Cleanup Phase 4, and Cleanup Phase 5 are complete.
 
-Automated baseline: **70 suites / 487 tests** passing.
+Automated baseline: **72 suites / 502 tests** passing.
 
 Remaining sequence:
 
-1. **Cleanup Phase 5** ← active
+1. **Pre-freeze UX cleanup** ← active
 2. Frontend freeze + manual accessibility pass
 3. Backend integrations and Web/SEO work
 4. Alpha / beta
@@ -776,33 +776,22 @@ Intentionally deferred (not Phase 4 blockers):
 
 ## Cleanup Phase 5 — Future readiness
 
-**Status: active** — next implementation phase.
+**Status: COMPLETE** (Units, i18n-readiness, affiliate architecture).
 
-### Units
+Delivered:
 
-- Metric / imperial preference
-- Celsius / Fahrenheit preference as a separate setting
-- Ensure weather presentation follows temperature preference
-- Prepare packing-related measurements to follow unit preference
+- **Units (Slice 1–2):** Single `metricUnits` preference — °C vs °F at weather display boundary; canonical weather storage remains Celsius; Profile hint corrected; no distance conversion
+- **i18n readiness (Slice 3):** `count-display.ts` centralizes duplicated age/duration/item plural formatting; no translation framework
+- **Affiliate architecture (Slice 4):** Documented packing-intent vs product-enrichment boundary in [ARCHITECTURE.md](./ARCHITECTURE.md); no commerce implementation
 
-### i18n readiness
+Intentionally deferred (not Phase 5 blockers):
 
-English only for MVP.
+- Full i18n / locale switching / `Intl` refactors
+- Affiliate links, product APIs, commerce UI, tracking
+- `smartQuantities` generator wiring
+- `packingReminders` persistence
 
-- Organize user-facing strings
-- Reduce scattered hard-coded copy
-- Prepare architecture for later localization
-
-Do not implement full i18n.
-
-### Affiliate architecture
-
-Architecture only.
-
-- Define future recommendation/product-link boundaries
-- Keep commerce concerns out of core `PackingItem`
-- No affiliate marketplace
-- No affiliate URLs on `PackingItem`
+**Next milestone:** Pre-freeze UX cleanup → frontend freeze + accessibility pass → backend integrations (weather, OpenAI, affiliate commerce if scheduled).
 
 ---
 
