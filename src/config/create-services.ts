@@ -1,5 +1,8 @@
 import { getPersistenceMode, logPersistenceDiagnosticsDev } from '@/config/persistence';
 import { getSupabaseClient } from '@/lib/supabase/client';
+import { mockUserPreferencesRepository } from '@/repositories/preferences/mock-user-preferences-repository';
+import type { UserPreferencesRepository } from '@/repositories/preferences/user-preferences-repository';
+import { SupabaseUserPreferencesRepository } from '@/repositories/preferences/supabase-user-preferences-repository';
 import { mockPackingProfileRepository } from '@/repositories/profiles/mock-packing-profile-repository';
 import type { PackingProfileRepository } from '@/repositories/profiles/packing-profile-repository';
 import { SupabasePackingProfileRepository } from '@/repositories/profiles/supabase-packing-profile-repository';
@@ -14,6 +17,7 @@ import type { WeatherService } from '@/services/weather/weather-service';
 export interface AppServices {
   tripRepository: TripRepository;
   profileRepository: PackingProfileRepository;
+  preferencesRepository: UserPreferencesRepository;
   packingGenerator: PackingGenerator;
   weatherService: WeatherService;
 }
@@ -31,6 +35,7 @@ export function createAppServices(): AppServices {
     return {
       tripRepository: new SupabaseTripRepository(client),
       profileRepository: new SupabasePackingProfileRepository(client),
+      preferencesRepository: new SupabaseUserPreferencesRepository(client),
       packingGenerator: mockPackingGenerator,
       weatherService: mockWeatherService,
     };
@@ -39,6 +44,7 @@ export function createAppServices(): AppServices {
   return {
     tripRepository: mockTripRepository,
     profileRepository: mockPackingProfileRepository,
+    preferencesRepository: mockUserPreferencesRepository,
     packingGenerator: mockPackingGenerator,
     weatherService: mockWeatherService,
   };

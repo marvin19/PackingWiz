@@ -1,3 +1,4 @@
+import { formatAgeYears } from '@/domain/count-display';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { formatNaturalEnglishList } from '@/domain/natural-list-format';
 import type { Traveler, TravelerRole } from '@/domain/traveler';
@@ -21,7 +22,7 @@ export function formatPackingProfileLabel(profile: PackingProfile): string {
   }
 
   if (profile.age !== undefined) {
-    return `${profile.name} · ${profile.age} ${profile.age === 1 ? 'year' : 'years'}`;
+    return `${profile.name} · ${formatAgeYears(profile.age)}`;
   }
 
   return profile.name;

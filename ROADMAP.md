@@ -8,21 +8,23 @@ Current status and intended sequencing. Order may change based on user testing.
 
 ## Current focus
 
-**Active:** Cleanup Phase 4–5.
+**Active:** Pre-freeze UX cleanup (see below).
 
-MP1–MP6, live Supabase canonical persistence (MP6-B2), and Verification & Test
-Hardening (VH1–VH4) are complete.
+MP1–MP6, live Supabase canonical persistence (MP6-B2), Verification & Test
+Hardening (VH1–VH4), Cleanup Phase 4, and Cleanup Phase 5 are complete.
+
+Automated baseline: **72 suites / 502 tests** passing.
 
 Remaining sequence:
 
-1. **Cleanup Phase 4–5** ← active
+1. **Pre-freeze UX cleanup** ← active
 2. Frontend freeze + manual accessibility pass
 3. Backend integrations and Web/SEO work
 4. Alpha / beta
 5. Launch
 
 Weather, OpenAI, and broader backend integration ordering are unchanged — they
-remain after Cleanup 4–5 and frontend freeze/polish.
+remain after Cleanup Phase 5 and frontend freeze/polish.
 
 ---
 
@@ -748,52 +750,48 @@ reprioritized.
 
 ---
 
-## Cleanup Phase 4 — Profile / onboarding readiness
+## Cleanup Phase 4 — Profile / onboarding readiness — COMPLETE
 
-**Status: active** — next implementation phase.
+Delivered (Slices 1–5):
 
-After MP4–MP6 so Profile is built around the final Packing Profile and Trip lifecycle
-model.
+- Legacy `savedTravelers` / Traveler UI removed; canonical `savedPackingProfiles` model retained
+- Canonical self PackingProfile ownership via `profile-self`
+- Profile identity decoupled from `mockUserProfile`
+- Read-only **People you've packed for before** Profile section
+- Supabase persistence for `smartQuantities` + `metricUnits` (`user_preferences`)
+- `packingReminders` remains session-only / coming soon
+- Account persistence readiness documented and contract-tested (`auth.users.id` remains persistence owner)
+- Preference persistence live-smoke passed (Supabase mode)
 
-- Profile preference model refinement
-- Self Packing Profile ownership
-- Saved Packing Profile management polish
-- Onboarding-ready flows
-- Gather preferences without requiring full auth
-- Gather Important Items without requiring full auth
-- Prepare for later account persistence
+Intentionally deferred (not Phase 4 blockers):
 
-Do not implement full authentication here.
+- Dedicated onboarding UX → frontend freeze/polish or later
+- Saved profile edit/delete → post-1.0 / auth phase until semantics are defined
+- Account linking UX → Authentication / backend phase
+- Home greeting off mock identity → pre-freeze UX polish
+- `smartQuantities` generator wiring → post-freeze integrations (weather °C/°F presentation delivered in Phase 5)
+- `packingReminders` persistence → notification work
 
 ---
 
 ## Cleanup Phase 5 — Future readiness
 
-### Units
+**Status: COMPLETE** (Units, i18n-readiness, affiliate architecture).
 
-- Metric / imperial preference
-- Celsius / Fahrenheit preference as a separate setting
-- Ensure weather presentation follows temperature preference
-- Prepare packing-related measurements to follow unit preference
+Delivered:
 
-### i18n readiness
+- **Units (Slice 1–2):** Single `metricUnits` preference — °C vs °F at weather display boundary; canonical weather storage remains Celsius; Profile hint corrected; no distance conversion
+- **i18n readiness (Slice 3):** `count-display.ts` centralizes duplicated age/duration/item plural formatting; no translation framework
+- **Affiliate architecture (Slice 4):** Documented packing-intent vs product-enrichment boundary in [ARCHITECTURE.md](./ARCHITECTURE.md); no commerce implementation
 
-English only for MVP.
+Intentionally deferred (not Phase 5 blockers):
 
-- Organize user-facing strings
-- Reduce scattered hard-coded copy
-- Prepare architecture for later localization
+- Full i18n / locale switching / `Intl` refactors
+- Affiliate links, product APIs, commerce UI, tracking
+- `smartQuantities` generator wiring
+- `packingReminders` persistence
 
-Do not implement full i18n.
-
-### Affiliate architecture
-
-Architecture only.
-
-- Define future recommendation/product-link boundaries
-- Keep commerce concerns out of core `PackingItem`
-- No affiliate marketplace
-- No affiliate URLs on `PackingItem`
+**Next milestone:** Pre-freeze UX cleanup → frontend freeze + accessibility pass → backend integrations (weather, OpenAI, affiliate commerce if scheduled).
 
 ---
 

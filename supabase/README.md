@@ -40,6 +40,8 @@ Use this only when you cannot use the CLI. Run **every** migration file below **
 3. `supabase/migrations/20260906100000_mp6b2_canonical_trip_rpcs.sql`
 4. `supabase/migrations/20260906110000_mp6b2_data_api_grants.sql`
 5. `supabase/migrations/20260906120000_mp6b2_trip_table_data_api_grants.sql`
+6. `supabase/migrations/20260911100000_user_preferences.sql`
+7. `supabase/migrations/20260911110000_user_preferences_data_api_grants.sql`
 
 Do not blindly re-apply migrations that are already present — especially the initial schema and B1 forward migration, which are not idempotent for existing data.
 
@@ -67,9 +69,10 @@ All user-owned tables have Row Level Security enabled.
 | `important_profile_configs` | `auth.uid() = user_id` |
 | `important_profile_items` | `auth.uid() = user_id` |
 | `trips` | `auth.uid() = user_id` |
+| `user_preferences` | `auth.uid() = user_id` |
 | Trip child tables (`packing_lists`, `packing_items`, …) | Parent trip owned by `auth.uid()` |
 
-Anonymous users receive a real `auth.users` row and are subject to the same policies.
+Anonymous users receive a real `auth.users` row and are subject to the same policies. Future account linking should preserve that same `auth.users.id` so existing rows require no domain copy migration (see `ARCHITECTURE.md` — Account persistence readiness).
 
 ## Identity model
 

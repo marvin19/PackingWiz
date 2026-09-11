@@ -16,7 +16,7 @@ import { AppTextInput } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
-import type { PackingItem } from '@/domain/packing-item';
+import { SELECTABLE_PACKING_CATEGORIES, type PackingCategory, type PackingItem } from '@/domain/packing-item';
 import {
   canSavePackingItemSettings,
   hasPackingItemSettingsChanges,
@@ -69,6 +69,7 @@ function PackingItemSettingsSheetBody({
   const [needToBuy, setNeedToBuy] = useState(item.needToBuy);
   const [assignedTo, setAssignedTo] = useState<string | null>(item.assignedTo);
   const [note, setNote] = useState(item.note ?? '');
+  const [category, setCategory] = useState<PackingCategory>(item.category);
   const [nameFocused, setNameFocused] = useState(false);
   const [noteFocused, setNoteFocused] = useState(false);
 
@@ -83,8 +84,9 @@ function PackingItemSettingsSheetBody({
         needToBuy,
         assignedTo,
         note,
+        category,
       }),
-    [assignedTo, name, needToBuy, note, quantity],
+    [assignedTo, category, name, needToBuy, note, quantity],
   );
 
   const hasChanges = hasPackingItemSettingsChanges(item, stagedSettings);
@@ -175,37 +177,39 @@ function PackingItemSettingsSheetBody({
             )}
           </View>
 
-          <View style={styles.fieldBlock}>
-            <AppText variant="sectionLabel" color="mutedForeground">
-              Quantity
-            </AppText>
-            <View style={styles.quantityRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Decrease quantity of ${item.name}`}
-                disabled={quantity <= 1}
-                onPress={() => setQuantity((current) => Math.max(1, current - 1))}
-                style={[
-                  styles.quantityButton,
-                  {
-                    backgroundColor: theme.colors.muted,
-                    opacity: quantity <= 1 ? 0.35 : 1,
-                  },
-                ]}>
-                <Feather name="minus" size={14} color={theme.colors.foreground} />
-              </Pressable>
-              <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold, minWidth: 24, textAlign: 'center' }}>
-                {quantity}
+          {!isImportant ? (
+            <View style={styles.fieldBlock}>
+              <AppText variant="sectionLabel" color="mutedForeground">
+                Quantity
               </AppText>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Increase quantity of ${item.name}`}
-                onPress={() => setQuantity((current) => current + 1)}
-                style={[styles.quantityButton, { backgroundColor: theme.colors.muted }]}>
-                <Feather name="plus" size={14} color={theme.colors.foreground} />
-              </Pressable>
+              <View style={styles.quantityRow}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Decrease quantity of ${item.name}`}
+                  disabled={quantity <= 1}
+                  onPress={() => setQuantity((current) => Math.max(1, current - 1))}
+                  style={[
+                    styles.quantityButton,
+                    {
+                      backgroundColor: theme.colors.muted,
+                      opacity: quantity <= 1 ? 0.35 : 1,
+                    },
+                  ]}>
+                  <Feather name="minus" size={14} color={theme.colors.foreground} />
+                </Pressable>
+                <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansSemiBold, minWidth: 24, textAlign: 'center' }}>
+                  {quantity}
+                </AppText>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Increase quantity of ${item.name}`}
+                  onPress={() => setQuantity((current) => current + 1)}
+                  style={[styles.quantityButton, { backgroundColor: theme.colors.muted }]}>
+                  <Feather name="plus" size={14} color={theme.colors.foreground} />
+                </Pressable>
+              </View>
             </View>
-          </View>
+          ) : null}
 
           <Pressable
             accessibilityRole="switch"
@@ -255,6 +259,43 @@ function PackingItemSettingsSheetBody({
                     onPress={() => setAssignedTo(traveler.id)}
                   />
                 ))}
+              </ScrollView>
+            </View>
+          ) : null}
+
+          {!isImportant ? (
+            <View style={styles.fieldBlock}>
+              <AppText variant="sectionLabel" color="mutedForeground">
+                Category
+              </AppText>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+                {SELECTABLE_PACKING_CATEGORIES.map((entry) => {
+                  const selected = entry === category;
+                  return (
+                    <Pressable
+                      key={entry}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      accessibilityLabel={`Category ${entry}`}
+                      onPress={() => setCategory(entry)}
+                      style={[
+                        styles.assignChip,
+                        {
+                          backgroundColor: selected ? theme.colors.primary : theme.colors.card,
+                          borderColor: selected ? theme.colors.primary : theme.colors.border,
+                        },
+                      ]}>
+                      <AppText
+                        variant="caption"
+                        style={{
+                          fontFamily: theme.fontFamilies.sansMedium,
+                          color: selected ? theme.colors.primaryForeground : theme.colors.foreground,
+                        }}>
+                        {entry}
+                      </AppText>
+                    </Pressable>
+                  );
+                })}
               </ScrollView>
             </View>
           ) : null}
