@@ -1,5 +1,5 @@
 import { isImportantPackingItem } from '@/domain/important-snapshot';
-import type { PackingItem } from '@/domain/packing-item';
+import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 
 export type PackingItemSettingsInput = {
   name: string;
@@ -7,6 +7,7 @@ export type PackingItemSettingsInput = {
   needToBuy: boolean;
   assignedTo: string | null;
   note: string;
+  category: PackingCategory;
 };
 
 export function normalizePackingItemSettingsInput(
@@ -21,6 +22,7 @@ export function normalizePackingItemSettingsInput(
     needToBuy: input.needToBuy,
     assignedTo: input.assignedTo,
     note: trimmedNote,
+    category: input.category,
   };
 }
 
@@ -35,7 +37,7 @@ export function hasPackingItemSettingsChanges(
   if (!isImportant && normalized.name !== item.name) {
     return true;
   }
-  if (normalized.quantity !== item.quantity) {
+  if (!isImportant && normalized.quantity !== item.quantity) {
     return true;
   }
   if (normalized.needToBuy !== item.needToBuy) {
@@ -45,6 +47,9 @@ export function hasPackingItemSettingsChanges(
     return true;
   }
   if (!isImportant && normalized.note !== persistedNote) {
+    return true;
+  }
+  if (!isImportant && normalized.category !== item.category) {
     return true;
   }
 
@@ -76,7 +81,7 @@ export function buildPackingItemSettingsPatch(
   if (!isImportant && normalized.name !== item.name) {
     patch.name = normalized.name;
   }
-  if (normalized.quantity !== item.quantity) {
+  if (!isImportant && normalized.quantity !== item.quantity) {
     patch.quantity = normalized.quantity;
   }
   if (normalized.needToBuy !== item.needToBuy) {
@@ -90,6 +95,9 @@ export function buildPackingItemSettingsPatch(
     const persistedNote = item.note?.trim();
     if (nextNote !== persistedNote) {
       patch.note = nextNote;
+    }
+    if (normalized.category !== item.category) {
+      patch.category = normalized.category;
     }
   }
 
