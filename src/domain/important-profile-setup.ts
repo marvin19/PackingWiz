@@ -1,3 +1,4 @@
+import { formatItemCount } from '@/domain/count-display';
 import type { ImportantItemsConfig } from '@/domain/important-items-config';
 import { formatImportantUpdatedDate } from '@/domain/dates';
 import type { PackingProfile } from '@/domain/packing-profile';
@@ -60,7 +61,7 @@ export function importantProfileStatusLabel(config: ImportantItemsConfig): strin
     return 'No items';
   }
 
-  return `${config.items.length} ${config.items.length === 1 ? 'item' : 'items'}`;
+  return formatItemCount(config.items.length);
 }
 
 /** Compact card metadata for configured Important profiles in the wizard. */

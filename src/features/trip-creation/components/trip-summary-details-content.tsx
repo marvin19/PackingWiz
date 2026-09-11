@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
+import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { SummaryDetailCard } from '@/features/trip-creation/components/summary-detail-card';
 import { SummaryEditButton } from '@/features/trip-creation/components/summary-edit-button';
@@ -74,7 +75,7 @@ export function TripSummaryDetailsContent({
             <AppText variant="bodySmall" color="mutedForeground" style={styles.heroMeta}>
               {facts.countryLabel ? `${facts.countryLabel} · ` : ''}
               {formatRange(facts.startDate, facts.endDate)}
-              {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
+              {days > 0 ? ` · ${formatTripDurationDays(days)}` : ''}
             </AppText>
           </View>
           {isEditable && editHandlers.onEditDestination ? (

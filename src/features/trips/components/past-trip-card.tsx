@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
 import type { Trip } from '@/domain/trip';
@@ -41,7 +42,7 @@ export function PastTripCard({ trip, onPress }: PastTripCardProps) {
           {tripName}
         </AppText>
         <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
-          {formatRange(trip.startDate, trip.endDate)} · {days} {days === 1 ? 'day' : 'days'}
+          {formatRange(trip.startDate, trip.endDate)} · {formatTripDurationDays(days)}
         </AppText>
         <AppText variant="bodySmall" color="mutedForeground" numberOfLines={1}>
           {formatTripPeopleCount(getTripPackingPeopleCount(trip))}

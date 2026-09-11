@@ -1,3 +1,4 @@
+import { formatAgeYears } from '@/domain/count-display';
 import type { PackingProfile } from '@/domain/packing-profile';
 import { SELF_IMPORTANT_PROFILE_ID } from '@/domain/profile-important-items';
 
@@ -21,7 +22,7 @@ export function formatSelfPackingProfileIdentityHint(
   profile: Pick<PackingProfile, 'isSelf' | 'age'>,
 ): string {
   if (profile.age !== undefined) {
-    return `${profile.age} ${profile.age === 1 ? 'year' : 'years'}`;
+    return formatAgeYears(profile.age);
   }
 
   return 'Your packing profile';

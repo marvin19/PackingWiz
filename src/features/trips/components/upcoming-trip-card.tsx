@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AppText } from '@/components/ui/app-text';
 import { getDestinationCountryLabel } from '@/domain/destination';
+import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
 import { packingStats } from '@/domain/packing-stats';
@@ -96,7 +97,7 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
           </View>
           <View style={styles.metaZone}>
             <AppText variant="bodySmall" numberOfLines={1} color="mutedForeground" style={styles.metaRight}>
-              {days} {days === 1 ? 'day' : 'days'}
+              {formatTripDurationDays(days)}
             </AppText>
           </View>
         </View>
