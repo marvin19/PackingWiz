@@ -1,6 +1,10 @@
 import type { ImportantItem } from '@/domain/important-item';
 import type { ImportantItemsConfig } from '@/domain/important-items-config';
-import type { PackingCategory, PackingItem, PackingItemSource } from '@/domain/packing-item';
+import {
+  normalizePackingCategory,
+  type PackingItem,
+  type PackingItemSource,
+} from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile, PackingProfileSnapshot } from '@/domain/packing-profile';
 import type { Traveler } from '@/domain/traveler';
@@ -86,22 +90,25 @@ export function mapPackingListToDbInsert(
 }
 
 export function mapDbCanonicalPackingItemRow(row: DbCanonicalPackingItemRow): PackingItem {
+  const source = row.source ? (row.source as PackingItemSource) : undefined;
+  const importantItemId = row.important_item_id ?? undefined;
+
   const item: PackingItem = {
     id: row.id,
     name: row.name,
     quantity: row.quantity,
-    category: row.category as PackingCategory,
+    category: normalizePackingCategory(row.category, { source, importantItemId }),
     packed: row.packed,
     needToBuy: row.need_to_buy,
     assignedTo: row.assigned_to,
     note: row.note ?? undefined,
   };
 
-  if (row.source) {
-    item.source = row.source as PackingItemSource;
+  if (source) {
+    item.source = source;
   }
-  if (row.important_item_id) {
-    item.importantItemId = row.important_item_id;
+  if (importantItemId) {
+    item.importantItemId = importantItemId;
   }
 
   return item;

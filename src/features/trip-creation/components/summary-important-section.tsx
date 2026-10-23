@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { pluralize } from '@/domain/count-display';
 import { profilesWithConfiguredImportant } from '@/domain/important-profile-setup';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import type { PackingProfile } from '@/domain/packing-profile';
@@ -39,7 +40,7 @@ export function SummaryImportantSection({
           const countLabel =
             itemCount === 0
               ? 'None saved'
-              : `${itemCount} saved ${itemCount === 1 ? 'item' : 'items'}`;
+              : `${itemCount} saved ${pluralize(itemCount, 'item', 'items')}`;
 
           return (
             <View key={profile.id} style={styles.row}>

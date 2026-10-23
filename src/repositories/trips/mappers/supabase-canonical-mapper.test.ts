@@ -261,6 +261,64 @@ describe('supabase-canonical-mapper', () => {
     });
   });
 
+  describe('packing item category ingress', () => {
+    it('normalizes unknown persisted categories to Uncategorized', () => {
+      const row: DbCanonicalPackingItemRow = {
+        trip_id: 'trip-1',
+        packing_list_id: 'list-1',
+        id: 'item-legacy',
+        name: 'Legacy item',
+        quantity: 1,
+        category: 'LegacyBucket',
+        packed: false,
+        need_to_buy: false,
+        assigned_to: null,
+        note: null,
+        source: 'generated',
+        important_item_id: null,
+        sort_order: 0,
+      };
+
+      expect(mapDbCanonicalPackingItemRow(row).category).toBe('Uncategorized');
+    });
+
+    it('preserves valid categories on round-trip mapping', () => {
+      const item: PackingItem = {
+        id: 'item-1',
+        name: 'Passport',
+        quantity: 1,
+        category: 'Essentials',
+        packed: false,
+        needToBuy: false,
+        assignedTo: null,
+        source: 'generated',
+      };
+
+      const row = mapPackingItemToDbRow('trip-1', 'list-1', item, 0);
+      expect(mapDbCanonicalPackingItemRow(row).category).toBe('Essentials');
+    });
+
+    it('preserves Important items when source is important despite unknown category string', () => {
+      const row: DbCanonicalPackingItemRow = {
+        trip_id: 'trip-1',
+        packing_list_id: 'list-1',
+        id: 'item-important',
+        name: 'EpiPen',
+        quantity: 1,
+        category: 'LegacyBucket',
+        packed: false,
+        need_to_buy: false,
+        assigned_to: null,
+        note: null,
+        source: 'important',
+        important_item_id: 'imp-1',
+        sort_order: 0,
+      };
+
+      expect(mapDbCanonicalPackingItemRow(row).category).toBe('Important');
+    });
+  });
+
   describe('I. assignedTo is not used as list ownership', () => {
     it('groups items by packing_list_id, not assigned_to', () => {
       const rows: DbCanonicalPackingItemRow[] = [

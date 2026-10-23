@@ -44,22 +44,26 @@ import {
   updateImportantItemForProfileStore,
   type ImportantItemsByProfileId,
 } from '@/domain/profile-important-items';
+import { createCanonicalSelfPackingProfile } from '@/domain/self-packing-profile';
 import {
   defaultUserPreferences,
-  type SavedTravelerProfile,
+  isPersistedPreferenceKey,
+  mergeLoadedUserPreferences,
+  toPersistedUserPreferences,
+  type PersistedUserPreferences,
   type UserPreferences,
 } from '@/domain/user-settings';
 import { createUuid } from '@/lib/id';
 import { mockSavedPackingProfiles } from '@/mocks/saved-packing-profiles';
 import { useAuth } from '@/providers/auth-provider';
 import { useServices } from '@/providers/services-provider';
-import { mockSavedTravelers } from '@/mocks/saved-travelers';
 
 type PreferenceKey = keyof UserPreferences;
 
 export interface ProfileContextValue {
   preferences: UserPreferences;
-  savedTravelers: SavedTravelerProfile[];
+  /** Canonical session self PackingProfile for Me — stable `profile-self` id. */
+  selfPackingProfile: PackingProfile;
   /** Session/mock reusable packing profiles (non-self) for trip creation. */
   savedPackingProfiles: PackingProfile[];
   /** Canonical self profile id for Important master lookups. */
@@ -93,7 +97,6 @@ export interface ProfileContextValue {
   removeImportantItemForProfile: (profileId: string, itemId: string) => void;
   resolveImportantProfileId: typeof resolveImportantProfileId;
   setPreference: (key: PreferenceKey, value: boolean) => void;
-  addSavedTraveler: () => void;
   rememberPackingProfile: (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => void;
   /** Remove draft-only Important keys after draft deletion (MP5B). */
   purgeImportantProfileIds: (profileIds: string[]) => void;
@@ -115,11 +118,11 @@ export interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | null>(null);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
-  const { profileRepository } = useServices();
+  const { profileRepository, preferencesRepository } = useServices();
   const { isAuthReady } = useAuth();
   const persistenceMode = getPersistenceMode();
+  const selfPackingProfile = useMemo(() => createCanonicalSelfPackingProfile(), []);
   const [preferences, setPreferences] = useState<UserPreferences>(defaultUserPreferences);
-  const [savedTravelers, setSavedTravelers] = useState<SavedTravelerProfile[]>(mockSavedTravelers);
   const [savedPackingProfiles, setSavedPackingProfiles] = useState<PackingProfile[]>(() =>
     persistenceMode === 'supabase'
       ? []
@@ -138,6 +141,13 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const [repositoryError, setRepositoryError] = useState<string | null>(null);
   const savedPackingProfilesRef = useRef(savedPackingProfiles);
   const importantByProfileIdRef = useRef(importantByProfileId);
+  const hasLocalPersistedPreferenceEditsRef = useRef(false);
+  const preferenceSaveRevisionRef = useRef(0);
+  const preferenceSaveInFlightRef = useRef(false);
+  const pendingPersistedPreferencesRef = useRef<{
+    snapshot: PersistedUserPreferences;
+    revision: number;
+  } | null>(null);
 
   useEffect(() => {
     savedPackingProfilesRef.current = savedPackingProfiles;
@@ -221,6 +231,83 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [isAuthReady, persistenceMode, profileRepository]);
+
+  const drainPersistedPreferencesSave = useCallback(async () => {
+    if (preferenceSaveInFlightRef.current) {
+      return;
+    }
+
+    while (pendingPersistedPreferencesRef.current) {
+      const pending = pendingPersistedPreferencesRef.current;
+      pendingPersistedPreferencesRef.current = null;
+      preferenceSaveInFlightRef.current = true;
+
+      try {
+        await preferencesRepository.save(pending.snapshot);
+
+        if (pending.revision === preferenceSaveRevisionRef.current) {
+          setRepositoryError(null);
+        }
+      } catch (error) {
+        if (pending.revision === preferenceSaveRevisionRef.current) {
+          setRepositoryError(
+            error instanceof Error ? error.message : 'Failed to save preferences',
+          );
+        }
+      } finally {
+        preferenceSaveInFlightRef.current = false;
+      }
+    }
+  }, [preferencesRepository]);
+
+  const enqueuePersistedPreferencesSave = useCallback(
+    (snapshot: PersistedUserPreferences, revision: number) => {
+      pendingPersistedPreferencesRef.current = { snapshot, revision };
+      void drainPersistedPreferencesSave();
+    },
+    [drainPersistedPreferencesSave],
+  );
+
+  useEffect(() => {
+    if (persistenceMode !== 'supabase' || !isAuthReady) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void preferencesRepository
+      .load()
+      .then((loaded) => {
+        if (cancelled) {
+          return;
+        }
+
+        setPreferences((current) => {
+          if (hasLocalPersistedPreferenceEditsRef.current) {
+            return current;
+          }
+
+          return {
+            ...mergeLoadedUserPreferences(loaded),
+            packingReminders: current.packingReminders,
+          };
+        });
+        setRepositoryError(null);
+      })
+      .catch((error) => {
+        if (cancelled) {
+          return;
+        }
+
+        setRepositoryError(
+          error instanceof Error ? error.message : 'Failed to load preferences',
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthReady, persistenceMode, preferencesRepository]);
 
   const selfImportantConfig = useMemo(
     () => getImportantConfigForProfile(importantByProfileId, SELF_IMPORTANT_PROFILE_ID),
@@ -333,25 +420,25 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     [commitImportantStore],
   );
 
-  const setPreference = useCallback((key: PreferenceKey, value: boolean) => {
-    setPreferences((current) => ({ ...current, [key]: value }));
-  }, []);
+  const setPreference = useCallback(
+    (key: PreferenceKey, value: boolean) => {
+      setPreferences((current) => {
+        const next = { ...current, [key]: value };
 
-  const addSavedTraveler = useCallback(() => {
-    setSavedTravelers((current) => {
-      const nextIndex =
-        current.filter((traveler) => traveler.name.startsWith('Traveler ')).length + 1;
+        if (persistenceMode === 'supabase' && isPersistedPreferenceKey(key)) {
+          hasLocalPersistedPreferenceEditsRef.current = true;
+          preferenceSaveRevisionRef.current += 1;
+          enqueuePersistedPreferencesSave(
+            toPersistedUserPreferences(next),
+            preferenceSaveRevisionRef.current,
+          );
+        }
 
-      return [
-        ...current,
-        {
-          id: createUuid(),
-          name: `Traveler ${nextIndex}`,
-          role: 'Adult',
-        },
-      ];
-    });
-  }, []);
+        return next;
+      });
+    },
+    [enqueuePersistedPreferencesSave, persistenceMode],
+  );
 
   const rememberPackingProfile = useCallback(
     (profile: PackingProfile, draftImportantConfig?: ImportantItemsConfig) => {
@@ -501,7 +588,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const value = useMemo<ProfileContextValue>(
     () => ({
       preferences,
-      savedTravelers,
+      selfPackingProfile,
       savedPackingProfiles,
       selfImportantProfileId: SELF_IMPORTANT_PROFILE_ID,
       importantByProfileId,
@@ -528,7 +615,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       removeImportantItemForProfile,
       resolveImportantProfileId,
       setPreference,
-      addSavedTraveler,
       rememberPackingProfile,
       purgeImportantProfileIds,
       importImportantConfigForProfile,
@@ -546,7 +632,6 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     }),
     [
       addImportantItemForProfile,
-      addSavedTraveler,
       consumeImportantEditorRequest,
       dismissImportantPrompt,
       dismissImportantPromptForProfile,
@@ -576,7 +661,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       saveImportantItems,
       saveImportantItemsForProfile,
       savedPackingProfiles,
-      savedTravelers,
+      selfPackingProfile,
       selfImportantConfig.isConfigured,
       selfImportantConfig.isEnabled,
       selfImportantConfig.items,

@@ -1,4 +1,5 @@
 import type { Bag } from '@/domain/bag';
+import { formatTripDurationDays } from '@/domain/count-display';
 import type { Destination } from '@/domain/destination';
 import { durationDays } from '@/domain/dates';
 import { formatNaturalEnglishList } from '@/domain/natural-list-format';
@@ -55,13 +56,13 @@ function bagsEqual(a: Bag[], b: Bag[]): boolean {
 
 function formatDurationDeltaLine(deltaDays: number): string {
   const magnitude = Math.abs(deltaDays);
-  const dayWord = magnitude === 1 ? 'day' : 'days';
+  const durationLabel = formatTripDurationDays(magnitude);
 
   if (deltaDays > 0) {
-    return `${magnitude} ${dayWord} longer than the original trip`;
+    return `${durationLabel} longer than the original trip`;
   }
 
-  return `${magnitude} ${dayWord} shorter than the original trip`;
+  return `${durationLabel} shorter than the original trip`;
 }
 
 function formatRemovedTravellerLine(name: string): string {

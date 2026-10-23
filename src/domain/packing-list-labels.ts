@@ -1,3 +1,4 @@
+import { formatAgeYears } from '@/domain/count-display';
 import type { PackingProfileSnapshot } from '@/domain/packing-profile';
 import type { Trip } from '@/domain/trip';
 
@@ -26,7 +27,7 @@ export function formatPackingListProfileSubtitle(snapshot: PackingProfileSnapsho
   }
 
   if (snapshot.age !== undefined) {
-    return `${snapshot.age} ${snapshot.age === 1 ? 'year' : 'years'}`;
+    return formatAgeYears(snapshot.age);
   }
 
   return null;

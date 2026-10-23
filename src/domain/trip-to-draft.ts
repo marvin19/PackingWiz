@@ -1,6 +1,7 @@
 import type { PackingProfile } from '@/domain/packing-profile';
 import type { TripDraft } from '@/domain/trip-draft';
 import type { Trip } from '@/domain/trip';
+import { getTripName } from '@/domain/trip-name';
 
 function profileFromListSnapshot(
   snapshot: Trip['packingLists'][number]['profileSnapshot'],
@@ -21,7 +22,8 @@ function profileFromListSnapshot(
  * accommodation, laundry, bags, note, and legacy mirrors (packingProfiles, travelers).
  *
  * Excludes Trip runtime/generated fields: weather, insights, packingLists/items,
- * status, image, and trip name — those are not part of TripDraft or generator input.
+ * status, and image. Trip name is copied for edit-form compatibility but is not
+ * generator input.
  *
  * The profile being added/generated is passed separately to assemblePackingListForProfile;
  * it is intentionally not injected here.
@@ -29,6 +31,7 @@ function profileFromListSnapshot(
 export function tripToTripDraft(trip: Trip): TripDraft {
   return {
     id: trip.id,
+    name: getTripName(trip),
     destination: { ...trip.destination },
     startDate: trip.startDate,
     endDate: trip.endDate,

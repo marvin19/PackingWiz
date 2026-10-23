@@ -5,6 +5,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 import { ScreenHeader } from '@/components/navigation/screen-header';
 import { AppScreen } from '@/components/ui/app-screen';
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import { resolveTripDraftName } from '@/domain/trip-draft-naming';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { SummaryImportantSection } from '@/features/trip-creation/components/summary-important-section';
 import { SummaryFooter } from '@/features/trip-creation/components/summary-footer';
@@ -35,6 +36,7 @@ export function TripSummaryScreen() {
 
   const destinationLabel = getDestinationLabel(normalizedDraft.destination);
   const countryLabel = getDestinationCountryLabel(normalizedDraft.destination);
+  const tripNameLabel = resolveTripDraftName(normalizedDraft);
   const weatherKey = `${destinationLabel}-${normalizedDraft.startDate}-${normalizedDraft.endDate}-${countryLabel}`;
 
   const openEdit = useCallback(
@@ -98,6 +100,7 @@ export function TripSummaryScreen() {
         <TripSummaryDetailsContent
           mode="create"
           facts={{
+            tripNameLabel,
             destinationLabel,
             countryLabel,
             startDate: normalizedDraft.startDate,
@@ -110,6 +113,7 @@ export function TripSummaryScreen() {
             note: normalizedDraft.note,
           }}
           editHandlers={{
+            onEditTripName: () => openEdit('trip-name'),
             onEditDestination: () => openEdit('destination'),
             onEditTripContext: () => openEdit('trip-context'),
             onEditStayingIn: () => openEdit('accommodation'),

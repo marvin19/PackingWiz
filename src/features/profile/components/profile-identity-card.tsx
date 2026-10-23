@@ -1,18 +1,26 @@
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
+import { formatPackingListProfileName } from '@/domain/packing-list-display';
+import type { PackingProfile } from '@/domain/packing-profile';
+import {
+  formatSelfPackingProfileIdentityHint,
+  selfPackingProfileInitials,
+} from '@/domain/self-packing-profile';
 import { useTheme } from '@/hooks/use-theme';
-import type { UserProfile } from '@/domain/user-profile';
 
 type ProfileIdentityCardProps = {
-  profile: UserProfile;
+  profile: PackingProfile;
 };
 
 export function ProfileIdentityCard({ profile }: ProfileIdentityCardProps) {
   const theme = useTheme();
+  const displayName = formatPackingListProfileName(profile);
+  const hint = formatSelfPackingProfileIdentityHint(profile);
 
   return (
     <View
+      accessibilityLabel={`${displayName}, ${hint}`}
       style={[
         styles.card,
         {
@@ -25,15 +33,15 @@ export function ProfileIdentityCard({ profile }: ProfileIdentityCardProps) {
           variant="subheading"
           color="primaryForeground"
           style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-          {profile.initials}
+          {selfPackingProfileInitials(profile)}
         </AppText>
       </View>
       <View style={styles.copy}>
         <AppText variant="bodySemiBold" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-          {profile.displayName}
+          {displayName}
         </AppText>
         <AppText variant="bodySmall" color="mutedForeground">
-          {profile.email}
+          {hint}
         </AppText>
       </View>
     </View>

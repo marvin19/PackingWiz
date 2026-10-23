@@ -9,6 +9,7 @@ import {
   createDestinationFromText,
   getDestinationLabel,
 } from '@/domain/destination';
+import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, parseDate } from '@/domain/dates';
 import {
   getNewTripDateValidationMessage,
@@ -116,7 +117,7 @@ export function DestinationStep({ draft, onChange }: DestinationStepProps) {
       {days && days > 0 ? (
         <View style={[styles.durationBanner, { backgroundColor: theme.colors.accent }]}>
           <AppText variant="bodySmall" color="accentForeground" style={{ fontFamily: theme.fontFamilies.sansMedium }}>
-            Trip duration: {days} {days === 1 ? 'day' : 'days'}
+            Trip duration: {formatTripDurationDays(days)}
           </AppText>
         </View>
       ) : null}

@@ -59,6 +59,13 @@ export const MP6B2_INTERNAL_RPC_HELPERS = [
   'replace_canonical_packing_lists_from_payload',
 ] as const;
 
+export const USER_PREFERENCES_TABLE = 'user_preferences' as const;
+
+export const USER_PREFERENCES_SCHEMA_MIGRATION = '20260911100000_user_preferences.sql';
+
+export const USER_PREFERENCES_DATA_API_GRANTS_MIGRATION =
+  '20260911110000_user_preferences_data_api_grants.sql';
+
 export const MP6B2_DATA_API_GRANTS_MIGRATION = '20260906110000_mp6b2_data_api_grants.sql';
 
 export const MP6B2_TRIP_TABLE_DATA_API_GRANTS_MIGRATION =

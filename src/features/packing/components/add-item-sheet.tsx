@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppTextInput } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
-import { PACKING_CATEGORY_ORDER, type PackingCategory } from '@/domain/packing-item';
+import { SELECTABLE_PACKING_CATEGORIES, type PackingCategory } from '@/domain/packing-item';
 import { shouldShowLegacyItemAssignmentControls } from '@/domain/trip-canonical';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
@@ -30,7 +30,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
   const insets = useSafeAreaInsets();
   const { addPackingItem, activeTrip } = useTrips();
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<PackingCategory>('Essentials');
+  const [category, setCategory] = useState<PackingCategory>('Uncategorized');
   const [needToBuy, setNeedToBuy] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
@@ -41,7 +41,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
 
   const reset = () => {
     setName('');
-    setCategory('Essentials');
+    setCategory('Uncategorized');
     setNeedToBuy(false);
     setQuantity(1);
     setAssignedTo(null);
@@ -108,7 +108,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
           />
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
-            {PACKING_CATEGORY_ORDER.filter((entry) => entry !== 'Important').map((entry) => {
+            {SELECTABLE_PACKING_CATEGORIES.map((entry) => {
               const selected = entry === category;
               return (
                 <Pressable

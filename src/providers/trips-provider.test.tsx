@@ -447,6 +447,7 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
           needToBuy: false,
           assignedTo: null,
           note: 'Updated note',
+          category: 'Essentials',
         });
       });
 
@@ -464,6 +465,40 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
       );
     });
 
+    it('updates category for regular items through the settings patch path', async () => {
+      mockTripRepository.updatePackingItem.mockResolvedValueOnce({
+        id: 'item-emilie',
+        name: 'Emilie toy',
+        quantity: 2,
+        category: 'Shoes',
+        packed: false,
+        needToBuy: true,
+        assignedTo: null,
+        note: 'Emilie-only note',
+      });
+
+      await runProviderMutation(() => {
+        tripsContext!.updatePackingItemSettings('item-emilie', {
+          name: 'Emilie toy',
+          quantity: 2,
+          needToBuy: true,
+          assignedTo: null,
+          note: 'Emilie-only note',
+          category: 'Shoes',
+        });
+      });
+
+      expect(getTrip().packingLists.find((list) => list.id === EMILIE_LIST_ID)!.items[0]?.category).toBe(
+        'Shoes',
+      );
+      expect(mockTripRepository.updatePackingItem).toHaveBeenCalledWith(
+        TRIP_ID,
+        'item-emilie',
+        expect.objectContaining({ category: 'Shoes' }),
+        EMILIE_LIST_ID,
+      );
+    });
+
     it('restores exact original item when repository fails', async () => {
       const before = tripListsSnapshot(getTrip());
 
@@ -476,6 +511,7 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
           needToBuy: false,
           assignedTo: null,
           note: 'Broken note',
+          category: 'Essentials',
         });
       });
 

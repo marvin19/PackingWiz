@@ -103,6 +103,6 @@ describe('tripToTripDraft', () => {
     expect(draft).not.toHaveProperty('items');
     expect(draft).not.toHaveProperty('status');
     expect(draft).not.toHaveProperty('image');
-    expect(draft).not.toHaveProperty('name');
+    expect(draft.name).toBe('Summer trip');
   });
 });

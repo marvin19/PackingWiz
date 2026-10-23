@@ -3,7 +3,7 @@ import type { Href } from 'expo-router';
 import type { WizardStepId } from '@/features/trip-creation/utils/wizard-steps';
 
 /** Legacy aliases map to stable step ids (not numeric indices). */
-export type WizardStepKey = WizardStepId | 'travelers';
+export type WizardStepKey = WizardStepId | 'travelers' | 'trip-name';
 
 export type WizardReturnTo = 'summary';
 
@@ -24,6 +24,7 @@ const STEP_ALIASES: Record<string, WizardStepId> = {
   'additional-information': 'note',
   important: 'important',
   'important-items': 'important',
+  'trip-name': 'trip-name',
 };
 
 export function parseWizardStepKeyParam(raw: string | string[] | undefined): WizardStepId | null {
@@ -57,7 +58,8 @@ export function parseWizardReturnToParam(raw: string | string[] | undefined): Wi
 }
 
 export function buildCreateTripEditHref(stepKey: WizardStepKey): Href {
-  const stepId: WizardStepId = stepKey === 'travelers' ? 'packing-profiles' : stepKey;
+  const stepId: WizardStepId =
+    stepKey === 'travelers' ? 'packing-profiles' : stepKey;
   return `/trip/create?step=${stepId}&returnTo=summary`;
 }
 

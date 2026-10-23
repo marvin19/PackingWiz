@@ -29,3 +29,15 @@ export function getDestinationLabel(destination: Destination): string {
 export function getDestinationCountryLabel(destination: Destination): string {
   return destination.countryName?.trim() ?? '';
 }
+
+/** Place name for trip cards — includes country when set and distinct from the place. */
+export function formatTripCardLocationLine(destination: Destination): string {
+  const place = getDestinationLabel(destination);
+  const country = getDestinationCountryLabel(destination);
+
+  if (place && country && !place.toLowerCase().includes(country.toLowerCase())) {
+    return `${place}, ${country}`;
+  }
+
+  return place || country;
+}

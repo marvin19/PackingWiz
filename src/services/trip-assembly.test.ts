@@ -69,6 +69,38 @@ describe('assembleTripFromDraft regression after per-profile extraction', () => 
     expect(trip.weather.summary).toBe('Sunny');
     expect(trip.insights.some((insight) => insight.id === 'insight-laundry-available')).toBe(true);
     expect(trip.insights.filter((insight) => insight.category === 'trip-context')).toHaveLength(0);
+    expect(trip.name).toBe('Oslo');
+  });
+
+  it('commits a user-edited draft trip name on assembly', async () => {
+    const draft = {
+      ...createTwoProfileDraft(),
+      name: 'Family week in Oslo',
+      isTripNameUserEdited: true,
+    };
+
+    const weatherService: WeatherService = {
+      getWeatherForTrip: jest.fn(async () => ({
+        mode: 'climate' as const,
+        summary: 'Sunny',
+        detail: '',
+        high: 24,
+        low: 14,
+      })),
+    };
+
+    const packingGenerator: PackingGenerator = {
+      generate: jest.fn(async () => ({ items: [] })),
+    };
+
+    const trip = await assembleTripFromDraft(
+      draft,
+      { packingGenerator, weatherService },
+      { packingMode: 'manual' },
+    );
+
+    expect(trip.name).toBe('Family week in Oslo');
+    expect(trip.title).toBe('Family week in Oslo');
   });
 
   it('creates one trip-level insight snapshot for multi-person generated trips', async () => {

@@ -10,6 +10,7 @@ import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { packingListBreakdownForTrip, packingStatsForTrip, shoppingCount } from '@/domain/packing-stats';
 import { TripInsightCard } from '@/features/packing/components/overview-insight-card';
@@ -86,7 +87,7 @@ export function TripOverviewScreen() {
               <AppText variant="bodySmall" color="mutedForeground">
                 {countryLabel ? `${countryLabel} · ` : ''}
                 {formatRange(activeTrip.startDate, activeTrip.endDate)}
-                {days > 0 ? ` · ${days} ${days === 1 ? 'day' : 'days'}` : ''}
+                {days > 0 ? ` · ${formatTripDurationDays(days)}` : ''}
               </AppText>
             </View>
             <Pressable

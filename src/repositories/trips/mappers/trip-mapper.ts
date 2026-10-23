@@ -5,7 +5,7 @@ import {
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import { createDestinationFromText, getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
-import type { PackingCategory, PackingItem } from '@/domain/packing-item';
+import { normalizePackingCategory, type PackingCategory, type PackingItem, type PackingItemSource } from '@/domain/packing-item';
 import type { Traveler } from '@/domain/traveler';
 import {
   getTripPackingItems,
@@ -137,20 +137,23 @@ export function mapBagRow(row: DbBagRow): Bag {
 }
 
 export function mapPackingItemRow(row: DbPackingItemRow): PackingItem {
+  const source = (row.source ?? 'generated') as PackingItemSource;
+  const importantItemId = row.important_item_id ?? undefined;
+
   const item: PackingItem = {
     id: row.id,
     name: row.name,
     quantity: row.quantity,
-    category: row.category as PackingCategory,
+    category: normalizePackingCategory(row.category, { source, importantItemId }),
     packed: row.packed,
     needToBuy: row.need_to_buy,
     assignedTo: row.assigned_to,
     note: row.note ?? undefined,
-    source: row.source ?? 'generated',
+    source,
   };
 
-  if (row.important_item_id) {
-    item.importantItemId = row.important_item_id;
+  if (importantItemId) {
+    item.importantItemId = importantItemId;
   }
 
   return item;

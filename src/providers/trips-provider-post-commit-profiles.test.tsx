@@ -12,6 +12,10 @@ import type { TripRepository } from '@/repositories/trips/trip-repository';
 import type { PackingProfileRepository } from '@/repositories/profiles/packing-profile-repository';
 import { mockPackingGenerator } from '@/services/packing/mock-packing-generator';
 import { mockWeatherService } from '@/services/weather/mock-weather-service';
+import { validNewTripDateRangeForTests } from '@/test-support/valid-new-trip-dates';
+
+const COMMIT_READY_TRIP_DATES = validNewTripDateRangeForTests();
+const REUSE_TRIP_DATES = validNewTripDateRangeForTests(new Date(), 90, 6);
 
 let tripsContext: TripsContextValue | null = null;
 const mockRememberPackingProfile = jest.fn();
@@ -133,8 +137,8 @@ function seedRememberedEmilieDraft(): void {
     tripsContext!.createNewDraft();
     tripsContext!.setDraft({
       destination: createDestinationFromText('Oslo', 'Norway'),
-      startDate: '2026-10-01',
-      endDate: '2026-10-10',
+      startDate: COMMIT_READY_TRIP_DATES.startDate,
+      endDate: COMMIT_READY_TRIP_DATES.endDate,
       tripContext: ['City'],
       accommodation: 'hotel',
       laundry: 'no',
@@ -211,8 +215,8 @@ describe('TripsProvider post-commit profile persistence (VH2-F)', () => {
       tripsContext!.createNewDraft();
       tripsContext!.setDraft({
         destination: createDestinationFromText('Oslo', 'Norway'),
-        startDate: '2026-10-01',
-        endDate: '2026-10-10',
+        startDate: COMMIT_READY_TRIP_DATES.startDate,
+        endDate: COMMIT_READY_TRIP_DATES.endDate,
         tripContext: ['City'],
         accommodation: 'hotel',
         laundry: 'no',
@@ -255,8 +259,8 @@ describe('TripsProvider post-commit profile persistence (VH2-F)', () => {
         packingListIds: [source.packingLists[0]!.id],
         sharedDetails: {
           destination: createDestinationFromText('Bergen', 'Norway'),
-          startDate: '2026-11-01',
-          endDate: '2026-11-07',
+          startDate: REUSE_TRIP_DATES.startDate,
+          endDate: REUSE_TRIP_DATES.endDate,
         },
         newTravellers: [
           {
