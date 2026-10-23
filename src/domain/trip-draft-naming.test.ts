@@ -2,6 +2,7 @@ import { createDestinationFromText } from '@/domain/destination';
 import { createEmptyTripDraft } from '@/domain/trip-draft';
 import {
   applyTripDraftPatch,
+  createTripDraftNameInputPatch,
   createUserEditedTripDraftNamePatch,
   resolveCommittedTripNameFromDraft,
   resolveTripDraftName,
@@ -70,6 +71,35 @@ describe('applyTripDraftPatch', () => {
 
     expect(draft.name).toBe('Camping in Geiranger');
     expect(draft.isTripNameUserEdited).toBe(true);
+  });
+});
+
+describe('createTripDraftNameInputPatch', () => {
+  it('clears user ownership when the field is emptied so destination can drive the name again', () => {
+    let draft = applyTripDraftPatch(createEmptyTripDraft('draft-1'), {
+      destination: createDestinationFromText('Barcelona', 'Spain'),
+    });
+
+    draft = applyTripDraftPatch(draft, createTripDraftNameInputPatch('Hyttetur'));
+    draft = applyTripDraftPatch(draft, createTripDraftNameInputPatch(''));
+
+    expect(draft.name).toBe('Barcelona');
+    expect(draft.isTripNameUserEdited).toBe(false);
+
+    draft = applyTripDraftPatch(draft, {
+      destination: createDestinationFromText('London', 'United Kingdom'),
+    });
+
+    expect(draft.name).toBe('London');
+    expect(draft.isTripNameUserEdited).toBe(false);
+  });
+
+  it('marks the name as user-edited when the user types', () => {
+    const patch = createTripDraftNameInputPatch('Festival in Barcelona');
+    expect(patch).toEqual({
+      name: 'Festival in Barcelona',
+      isTripNameUserEdited: true,
+    });
   });
 });
 

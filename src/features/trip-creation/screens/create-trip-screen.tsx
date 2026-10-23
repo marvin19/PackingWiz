@@ -15,7 +15,7 @@ import { getDestinationLabel } from '@/domain/destination';
 import { BAG_TYPES } from '@/domain/catalog';
 import type { Bag, BagType } from '@/domain/bag';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
-import { createUserEditedTripDraftNamePatch } from '@/domain/trip-draft-naming';
+import { createTripDraftNameInputPatch } from '@/domain/trip-draft-naming';
 import { findTripContextTag, tripContextIncludes } from '@/domain/trip-context-tags';
 import {
   createDraftProfile,
@@ -190,7 +190,7 @@ export function CreateTripScreen() {
 
   const handleTripNameChange = useCallback(
     (name: string) => {
-      setDraft(createUserEditedTripDraftNamePatch(name));
+      setDraft(createTripDraftNameInputPatch(name));
     },
     [setDraft],
   );
@@ -301,7 +301,13 @@ export function CreateTripScreen() {
   const renderStep = (stepId: WizardStepId) => {
     switch (stepId) {
       case 'destination':
-        return <DestinationStep draft={normalizedDraft} onChange={setDraft} />;
+        return (
+          <DestinationStep
+            draft={normalizedDraft}
+            onChange={setDraft}
+            onChangeName={handleTripNameChange}
+          />
+        );
       case 'trip-context':
         return (
           <TripContextStep

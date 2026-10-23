@@ -803,6 +803,7 @@ Resolve small launch-facing UX issues that do not require new domain architectur
 
 - **Trip name on Review trip (Slice 1):** creation draft carries proposed `Trip.name` (default = destination label); editable on Summary before commit; user-edited draft names are not silently overwritten by destination changes; committed name persists via `trips.title`
 - **Trip identity title hierarchy (Slice 2):** Pack header, Insights/Overview hero, and multi-list packing picker show `getTripName` as primary title with optional secondary location via `formatTripCardLocationLine` / `getTripSecondaryLocationLine` (no duplicate pin row when redundant); Upcoming card uses the same secondary-line rule; list switcher / picker behavior unchanged
+- **Optional trip name on first creation step (Slice 3 / PW-003):** “Where are you going?” includes optional Trip name below destination; shares draft `name` / `isTripNameUserEdited` with Review trip editor via `createTripDraftNameInputPatch` and `TripNameField`; blank field keeps destination-driven default naming
 - Review Trip Summary 2×2 cards on narrow screens
 - Prefer 1×4 if it improves readability on small devices
 - Show number of nights where useful

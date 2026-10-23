@@ -21,14 +21,17 @@ import {
   DESTINATION_SUGGESTIONS,
   suggestionToDestination,
 } from '@/features/trip-creation/constants';
+import { TripNameField } from '@/features/trip-creation/components/trip-name-field';
 import { useTheme } from '@/hooks/use-theme';
 
 type DestinationStepProps = {
   draft: TripDraft;
   onChange: (patch: Partial<TripDraft>) => void;
+  /** When set, shows the optional trip name field (creation wizard only). */
+  onChangeName?: (name: string) => void;
 };
 
-export function DestinationStep({ draft, onChange }: DestinationStepProps) {
+export function DestinationStep({ draft, onChange, onChangeName }: DestinationStepProps) {
   const theme = useTheme();
   const [destinationFocused, setDestinationFocused] = useState(false);
   const days =
@@ -92,6 +95,14 @@ export function DestinationStep({ draft, onChange }: DestinationStepProps) {
           ))}
         </View>
       </Field>
+
+      {onChangeName ? (
+        <TripNameField
+          draft={draft}
+          onChangeName={onChangeName}
+          label="Trip name (optional)"
+        />
+      ) : null}
 
       <View style={styles.dateRow}>
         <DateField

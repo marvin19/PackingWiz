@@ -31,6 +31,18 @@ export function createUserEditedTripDraftNamePatch(name: string): Pick<TripDraft
   };
 }
 
+/** Maps trip-name field input to draft patches (cleared field reverts to destination-owned naming). */
+export function createTripDraftNameInputPatch(name: string): Pick<TripDraft, 'name' | 'isTripNameUserEdited'> {
+  if (name === '') {
+    return {
+      name: '',
+      isTripNameUserEdited: false,
+    };
+  }
+
+  return createUserEditedTripDraftNamePatch(name);
+}
+
 function destinationDisplayChanged(before: Destination, after: Destination): boolean {
   return getDestinationLabel(before) !== getDestinationLabel(after);
 }
