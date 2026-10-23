@@ -52,6 +52,7 @@ function parseTripIdParam(value: string | string[] | undefined): string | null {
 function formToDraftSlice(form: ReuseTripFormState): TripDraft {
   return {
     id: 'reuse-draft-slice',
+    name: form.name,
     destination: form.destination,
     startDate: form.startDate,
     endDate: form.endDate,

@@ -465,7 +465,7 @@ Otherwise → **mock**.
 | Important master | User-global `ImportantItemsPreferences` | Per `PackingProfile` | Data loss on profile split |
 | Important snapshot | On trip items | Per packing list | Stale sync applies to wrong scope |
 | Travelers | `travelers[]` + `assignedTo` | Packing Profiles + lists | Orphaned assignment UI |
-| Trip naming | `title` often ≈ destination | Separate `name` + `Destination` | Confusing Home/Overview copy |
+| Trip naming | `Trip.name` + creation draft name; DB column remains `trips.title`; default = destination label | Separate `name` + `Destination`; user edits never auto-overwritten | Pack/Overview still destination-first until later UX slices |
 | Pack state | `activeTripId` only | + `activePackingListId` | Cannot switch lists reliably |
 | Generation | One call per trip | One call per list | Lists lack person-specific items |
 | Supabase schema | Flat trip + items | Profiles, lists, nested items | Premature SQL locks wrong shape |

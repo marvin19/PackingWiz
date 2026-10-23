@@ -40,7 +40,7 @@ Packing personalization is about **who you pack for**, not modeling every person
 | Who is modeled | Travelers + optional item assignment | Packing Profiles + one list per profile |
 | Important master | Per Packing Profile (`importantByProfileId`) | Per Packing Profile |
 | `packingMode` | Trip-level | Per Packing List |
-| Trip name | `Trip.title` (often mirrors destination) | Separate editable trip name vs destination |
+| Trip name | `Trip.name` (persisted as `trips.title`; creation default = destination label) | Separate editable trip name vs destination |
 | Pack entry | Always one list | Direct Pack if one list; picker if multiple |
 | Try before signup | Mock mode needs no auth; Supabase mode uses anonymous auth | Full anonymous → account upgrade |
 
@@ -210,7 +210,7 @@ For an additional person, MVP fields are minimal:
 
 **Do not ask for gender.** Goal: packing personalization, not full travel-party modeling.
 
-Trip name may receive a sensible default and should become editable separately from destination.
+During trip creation, **Trip name** defaults to the destination label (e.g. `Barcelona`) and is editable on Review trip before commit. User-edited names must never be silently overwritten. Future AI may suggest richer names later; that is not implemented yet.
 
 ### Trip context tags
 

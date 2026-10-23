@@ -1,5 +1,6 @@
 import { getDestinationLabel } from '@/domain/destination';
 import { validateNewTripDateRange } from '@/domain/new-trip-date-validation';
+import { resolveTripDraftName } from '@/domain/trip-draft-naming';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import type { TripDraft } from '@/domain/trip-draft';
 import type { WizardStepId } from '@/features/trip-creation/utils/wizard-steps';
@@ -28,6 +29,8 @@ export function canProceedFromStepId(stepId: WizardStepId, draft: TripDraft): bo
     case 'important':
     case 'note':
       return true;
+    case 'trip-name':
+      return resolveTripDraftName(normalizedDraft).trim().length > 0;
     default:
       return false;
   }

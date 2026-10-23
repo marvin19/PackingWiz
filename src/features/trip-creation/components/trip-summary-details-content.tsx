@@ -20,6 +20,8 @@ import { spacing } from '@/theme/spacing';
 import { Feather } from '@expo/vector-icons';
 
 export type TripSummaryDetailsFacts = {
+  /** Shown on create Summary only — proposed trip title before commit. */
+  tripNameLabel?: string;
   destinationLabel: string;
   countryLabel: string;
   startDate: string;
@@ -33,6 +35,7 @@ export type TripSummaryDetailsFacts = {
 };
 
 export type TripSummaryDetailsEditHandlers = {
+  onEditTripName?: () => void;
   onEditDestination?: () => void;
   onEditTripContext?: () => void;
   onEditStayingIn?: () => void;
@@ -87,6 +90,20 @@ export function TripSummaryDetailsContent({
           ) : null}
         </View>
       </View>
+
+      {facts.tripNameLabel !== undefined ? (
+        <View style={styles.tripNameBlock}>
+          <SummaryDetailCard
+            icon={<Feather name="type" size={16} color={theme.colors.primary} />}
+            title="Trip name"
+            editAccessibilityLabel="Edit trip name"
+            onEdit={editHandlers.onEditTripName}>
+            <AppText variant="bodySmall" color="mutedForeground" style={styles.factValue}>
+              {facts.tripNameLabel || 'New trip'}
+            </AppText>
+          </SummaryDetailCard>
+        </View>
+      ) : null}
 
       <View style={styles.factsStack}>
         <SummaryDetailCard
@@ -169,6 +186,9 @@ const styles = StyleSheet.create({
   },
   heroMeta: {
     lineHeight: 20,
+  },
+  tripNameBlock: {
+    marginBottom: spacing.lg,
   },
   factsStack: {
     gap: 0,

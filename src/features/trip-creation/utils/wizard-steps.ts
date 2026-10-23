@@ -6,7 +6,9 @@ export type WizardStepId =
   | 'packing-profiles'
   | 'bags'
   | 'important'
-  | 'note';
+  | 'note'
+  /** Summary-only edit route — not part of the main wizard sequence. */
+  | 'trip-name';
 
 export const WIZARD_STEPS: WizardStepId[] = [
   'destination',
@@ -31,6 +33,7 @@ export const WIZARD_STEP_TITLE_BY_ID: Record<WizardStepId, string> = {
   bags: 'What are you packing in?',
   important: 'Important items',
   note: 'Anything else?',
+  'trip-name': 'Trip name',
 };
 
 /** Fixed wizard steps before Summary — Important is always included. */

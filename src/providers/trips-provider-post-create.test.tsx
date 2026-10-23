@@ -14,6 +14,9 @@ import { TripsProvider, useTrips, type TripsContextValue } from '@/providers/tri
 import type { TripRepository } from '@/repositories/trips/trip-repository';
 import { mockPackingGenerator } from '@/services/packing/mock-packing-generator';
 import { mockWeatherService } from '@/services/weather/mock-weather-service';
+import { validNewTripDateRangeForTests } from '@/test-support/valid-new-trip-dates';
+
+const COMMIT_READY_TRIP_DATES = validNewTripDateRangeForTests();
 
 let tripsContext: TripsContextValue | null = null;
 
@@ -118,8 +121,8 @@ function seedCommitReadyDraft(options?: { multiProfile?: boolean }): void {
     tripsContext!.createNewDraft();
     tripsContext!.setDraft({
       destination: createDestinationFromText('Oslo', 'Norway'),
-      startDate: '2026-10-01',
-      endDate: '2026-10-10',
+      startDate: COMMIT_READY_TRIP_DATES.startDate,
+      endDate: COMMIT_READY_TRIP_DATES.endDate,
       tripContext: ['City'],
       accommodation: 'hotel',
       laundry: 'no',

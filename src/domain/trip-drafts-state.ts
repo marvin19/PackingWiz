@@ -6,6 +6,7 @@ import {
 } from '@/domain/profile-important-items';
 import type { TripDraft } from '@/domain/trip-draft';
 import { createEmptyTripDraft } from '@/domain/trip-draft';
+import { applyTripDraftPatch } from '@/domain/trip-draft-naming';
 import { isDraftInProgress } from '@/features/trip-creation/utils/draft-progress';
 import { createUuid } from '@/lib/id';
 
@@ -47,8 +48,7 @@ export function cloneTripDraft(draft: TripDraft): TripDraft {
 
 export function createStoredTripDraft(overrides?: Partial<TripDraft>): StoredTripDraft {
   const id = createTripDraftId();
-  const draft = cloneTripDraft({
-    ...createEmptyTripDraft(id),
+  const draft = applyTripDraftPatch(createEmptyTripDraft(id), {
     ...overrides,
     id,
   });
@@ -216,8 +216,7 @@ export function updateStoredDraftTrip(
     return state;
   }
 
-  const nextDraft = cloneTripDraft({
-    ...stored.draft,
+  const nextDraft = applyTripDraftPatch(stored.draft, {
     ...patch,
     id: stored.id,
   });

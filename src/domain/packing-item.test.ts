@@ -38,6 +38,7 @@ describe('generated packing regression', () => {
     const items = buildMockPackingList(
       {
         id: 'draft-test',
+        name: 'Oslo',
         destination: createDestinationFromText('Oslo', 'Norway'),
         startDate: '2026-07-01',
         endDate: '2026-07-07',

@@ -15,6 +15,13 @@ export { emptyDestination } from '@/domain/destination';
 export interface TripDraft {
   /** Stable session identity for unfinished trips (MP5B). */
   id: string;
+  /** Proposed user-facing trip title during creation — committed to Trip.name. */
+  name: string;
+  /**
+   * Creation-only guard: when true, destination and other draft edits must not
+   * silently replace `name`. Not persisted on committed Trip records.
+   */
+  isTripNameUserEdited?: boolean;
   destination: Destination;
   startDate: string;
   endDate: string;
@@ -37,6 +44,8 @@ export function createEmptyTripDraft(id: string = createUuid()): TripDraft {
 
   return {
     id,
+    name: '',
+    isTripNameUserEdited: false,
     destination: emptyDestination(),
     startDate: '',
     endDate: '',

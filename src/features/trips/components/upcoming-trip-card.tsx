@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AppText } from '@/components/ui/app-text';
-import { getDestinationCountryLabel } from '@/domain/destination';
+import { formatTripCardLocationLine } from '@/domain/destination';
 import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
@@ -29,7 +29,7 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
   const stats = packingStats(trip);
   const days = durationDays(trip.startDate, trip.endDate);
   const typeIcon = getTripContextIcon(trip.tripContext[0]);
-  const country = getDestinationCountryLabel(trip.destination);
+  const locationLine = formatTripCardLocationLine(trip.destination);
   const tripName = getTripName(trip);
 
   return (
@@ -66,12 +66,14 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
             ]}>
             {tripName}
           </AppText>
-          <View style={styles.locationRow}>
-            <Feather name="map-pin" size={14} color="rgba(255,255,255,0.85)" />
-            <AppText variant="bodySmall" style={styles.countryText}>
-              {country}
-            </AppText>
-          </View>
+          {locationLine ? (
+            <View style={styles.locationRow}>
+              <Feather name="map-pin" size={14} color="rgba(255,255,255,0.85)" />
+              <AppText variant="bodySmall" style={styles.countryText}>
+                {locationLine}
+              </AppText>
+            </View>
+          ) : null}
         </View>
       </View>
 

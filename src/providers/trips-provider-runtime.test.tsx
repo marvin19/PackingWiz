@@ -12,6 +12,10 @@ import { TripsProvider, useTrips, type TripsContextValue } from '@/providers/tri
 import type { TripRepository } from '@/repositories/trips/trip-repository';
 import { mockPackingGenerator } from '@/services/packing/mock-packing-generator';
 import { mockWeatherService } from '@/services/weather/mock-weather-service';
+import { validNewTripDateRangeForTests } from '@/test-support/valid-new-trip-dates';
+
+const COMMIT_READY_TRIP_DATES = validNewTripDateRangeForTests();
+const REUSE_TRIP_DATES = validNewTripDateRangeForTests(new Date(), 90, 9);
 
 const TRIP_A_ID = 'trip-runtime-a';
 const TRIP_B_ID = 'trip-runtime-b';
@@ -319,8 +323,8 @@ function seedCommitReadyDraft(): void {
     tripsContext!.createNewDraft();
     tripsContext!.setDraft({
       destination: createDestinationFromText('Oslo', 'Norway'),
-      startDate: '2026-10-01',
-      endDate: '2026-10-10',
+      startDate: COMMIT_READY_TRIP_DATES.startDate,
+      endDate: COMMIT_READY_TRIP_DATES.endDate,
       tripContext: ['City'],
       accommodation: 'hotel',
       laundry: 'no',
@@ -555,8 +559,8 @@ describe('TripsProvider runtime state (VH3-B)', () => {
         packingListIds: [EMILIE_LIST_ID],
         sharedDetails: {
           destination: source.destination,
-          startDate: '2026-11-01',
-          endDate: '2026-11-10',
+          startDate: REUSE_TRIP_DATES.startDate,
+          endDate: REUSE_TRIP_DATES.endDate,
           tripContext: [...source.tripContext],
           accommodation: source.accommodation,
           laundry: source.laundry,

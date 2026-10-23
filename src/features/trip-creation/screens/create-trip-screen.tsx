@@ -15,6 +15,7 @@ import { getDestinationLabel } from '@/domain/destination';
 import { BAG_TYPES } from '@/domain/catalog';
 import type { Bag, BagType } from '@/domain/bag';
 import type { AccommodationId, LaundryOption } from '@/domain/trip';
+import { createUserEditedTripDraftNamePatch } from '@/domain/trip-draft-naming';
 import { findTripContextTag, tripContextIncludes } from '@/domain/trip-context-tags';
 import {
   createDraftProfile,
@@ -29,6 +30,7 @@ import { AccommodationStep } from '@/features/trip-creation/components/steps/acc
 import { BagsStep } from '@/features/trip-creation/components/steps/bags-step';
 import { DestinationStep } from '@/features/trip-creation/components/steps/destination-step';
 import { NoteStep } from '@/features/trip-creation/components/steps/note-step';
+import { TripNameStep } from '@/features/trip-creation/components/steps/trip-name-step';
 import { ImportantSetupStep, type ImportantSetupStepHandle } from '@/features/trip-creation/components/steps/important-setup-step';
 import { PackingProfilesStep } from '@/features/trip-creation/components/steps/packing-profiles-step';
 import { TripContextStep } from '@/features/trip-creation/components/steps/trip-context-step';
@@ -67,6 +69,7 @@ export function CreateTripScreen() {
   const returnTo = parseWizardReturnToParam(params.returnTo);
   const isEditingFromSummary = isWizardEditFromSummary(returnTo);
   const requestedStepKey = parseWizardStepKeyParam(params.step);
+  const isTripNameSummaryEdit = isEditingFromSummary && requestedStepKey === 'trip-name';
   const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
 
   const activeSteps = useMemo(() => buildActiveWizardSteps(), []);
@@ -90,11 +93,16 @@ export function CreateTripScreen() {
       return;
     }
 
+    if (requestedStepKey === 'trip-name' && isEditingFromSummary) {
+      appliedStepNavigationRef.current = navigationToken;
+      return;
+    }
+
     const nextIndex = resolveWizardStepIndex(activeSteps, { stepId: requestedStepKey });
     setDraftWizardStep(nextIndex);
     appliedStepNavigationRef.current = navigationToken;
     router.setParams({ step: undefined });
-  }, [activeSteps, requestedStepKey, returnTo, router, setDraftWizardStep]);
+  }, [activeSteps, isEditingFromSummary, requestedStepKey, returnTo, router, setDraftWizardStep]);
 
   useEffect(() => {
     if (draft.packingProfiles?.length) {
@@ -121,6 +129,11 @@ export function CreateTripScreen() {
 
   const handleBack = useCallback(() => {
     blurActiveElement();
+    if (isTripNameSummaryEdit) {
+      returnToSummary();
+      return;
+    }
+
     if (isEditingFromSummary) {
       returnToSummary();
       return;
@@ -132,7 +145,7 @@ export function CreateTripScreen() {
     }
 
     setStep(stepIndex - 1);
-  }, [isEditingFromSummary, returnToSummary, setStep, stepIndex]);
+  }, [isEditingFromSummary, isTripNameSummaryEdit, returnToSummary, setStep, stepIndex]);
 
   const handleContinue = useCallback(() => {
     if (!canContinue) {
@@ -143,6 +156,11 @@ export function CreateTripScreen() {
 
     if (currentStepId === 'important') {
       importantSetupRef.current?.commitStagedChanges();
+    }
+
+    if (isTripNameSummaryEdit) {
+      returnToSummary();
+      return;
     }
 
     if (isEditingFromSummary) {
@@ -167,7 +185,15 @@ export function CreateTripScreen() {
     router,
     setStep,
     stepIndex,
+    isTripNameSummaryEdit,
   ]);
+
+  const handleTripNameChange = useCallback(
+    (name: string) => {
+      setDraft(createUserEditedTripDraftNamePatch(name));
+    },
+    [setDraft],
+  );
 
   const toggleTripContextTag = useCallback(
     (tag: string) => {
@@ -326,6 +352,28 @@ export function CreateTripScreen() {
 
   if (!hasValidActiveDraft) {
     return null;
+  }
+
+  if (isTripNameSummaryEdit) {
+    const canSaveTripName = canProceedFromStepId('trip-name', normalizedDraft);
+
+    return (
+      <AppScreen>
+        <ScreenHeader title="Trip name" onBack={handleBack} />
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.flex}>
+          <ScrollView
+            style={styles.flex}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}>
+            <TripNameStep draft={normalizedDraft} onChangeName={handleTripNameChange} />
+          </ScrollView>
+          <WizardFooter label="Done" disabled={!canSaveTripName} onPress={handleContinue} />
+        </KeyboardAvoidingView>
+      </AppScreen>
+    );
   }
 
   return (

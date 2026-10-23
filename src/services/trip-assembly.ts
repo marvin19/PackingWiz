@@ -12,7 +12,7 @@ import {
   uniquePackingProfilesById,
 } from '@/domain/trip-packing-lists';
 import type { ImportantItemsByProfileId } from '@/domain/profile-important-items';
-import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
+import { resolveCommittedTripNameFromDraft } from '@/domain/trip-draft-naming';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
 import type { PackingGenerator } from '@/services/packing/packing-generator';
 import type { InsightGenerator } from '@/services/insights/insight-generator';
@@ -128,7 +128,7 @@ export async function assembleTripFromDraft(
   }
 
   const primaryList = packingLists[0];
-  const tripName = suggestDefaultTripNameFromDestination(draft.destination);
+  const tripName = resolveCommittedTripNameFromDraft(draft);
 
   const legacyTrip: TripLike = {
     id: tripId,
