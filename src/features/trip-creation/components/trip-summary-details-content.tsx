@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
-import type { AccommodationId, LaundryOption } from '@/domain/trip';
+import type { AccommodationId, LaundryOption, Trip } from '@/domain/trip';
 import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { SummaryDetailCard } from '@/features/trip-creation/components/summary-detail-card';
@@ -13,6 +13,7 @@ import {
   getStayingInSummaryLabel,
   getTripContextLabel,
 } from '@/features/trip-creation/utils/summary-labels';
+import { TripIdentityTitle } from '@/features/trips/components/trip-identity-title';
 import { getTripContextIcon } from '@/features/trips/utils/trip-context-icon';
 import type { TripSummaryDetailsMode } from '@/features/trip-edit/utils/trip-details-navigation';
 import { useTheme } from '@/hooks/use-theme';
@@ -20,8 +21,10 @@ import { spacing } from '@/theme/spacing';
 import { Feather } from '@expo/vector-icons';
 
 export type TripSummaryDetailsFacts = {
-  /** Shown on create Summary only — proposed trip title before commit. */
+  /** Proposed or committed trip title — shown on the Trip name card when set. */
   tripNameLabel?: string;
+  /** Existing Trip Details hub hero — name + destination identity. */
+  tripIdentity?: Pick<Trip, 'name' | 'title' | 'destination'>;
   destinationLabel: string;
   countryLabel: string;
   startDate: string;
@@ -66,20 +69,33 @@ export function TripSummaryDetailsContent({
   const accommodationIcon = getAccommodationIcon(facts.accommodation ?? 'hotel');
   const packingInIcon = getBagIcon('carryon');
   const isEditable = mode === 'existing' || mode === 'create';
+  const useIdentityHero = mode === 'existing' && facts.tripIdentity;
 
   return (
     <>
       <View style={styles.hero}>
-        <View style={styles.heroHeader}>
+        <View style={[styles.heroHeader, useIdentityHero && styles.heroHeaderTopAligned]}>
           <View style={styles.heroCopy}>
-            <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-              {facts.destinationLabel || 'Your trip'}
-            </AppText>
-            <AppText variant="bodySmall" color="mutedForeground" style={styles.heroMeta}>
-              {facts.countryLabel ? `${facts.countryLabel} · ` : ''}
-              {formatRange(facts.startDate, facts.endDate)}
-              {days > 0 ? ` · ${formatTripDurationDays(days)}` : ''}
-            </AppText>
+            {useIdentityHero ? (
+              <>
+                <TripIdentityTitle trip={facts.tripIdentity!} layout="stacked" />
+                <AppText variant="bodySmall" color="mutedForeground" style={styles.heroMeta}>
+                  {formatRange(facts.startDate, facts.endDate)}
+                  {days > 0 ? ` · ${formatTripDurationDays(days)}` : ''}
+                </AppText>
+              </>
+            ) : (
+              <>
+                <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
+                  {facts.destinationLabel || 'Your trip'}
+                </AppText>
+                <AppText variant="bodySmall" color="mutedForeground" style={styles.heroMeta}>
+                  {facts.countryLabel ? `${facts.countryLabel} · ` : ''}
+                  {formatRange(facts.startDate, facts.endDate)}
+                  {days > 0 ? ` · ${formatTripDurationDays(days)}` : ''}
+                </AppText>
+              </>
+            )}
           </View>
           {isEditable && editHandlers.onEditDestination ? (
             <SummaryEditButton
@@ -178,6 +194,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  heroHeaderTopAligned: {
+    alignItems: 'flex-start',
   },
   heroCopy: {
     flex: 1,

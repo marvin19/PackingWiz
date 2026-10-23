@@ -210,7 +210,7 @@ For an additional person, MVP fields are minimal:
 
 **Do not ask for gender.** Goal: packing personalization, not full travel-party modeling.
 
-During trip creation, **Trip name** is optional on the first step (below destination) and on Review trip. When left blank, the name defaults to the destination label (e.g. `Barcelona`). User-edited names must never be silently overwritten when the destination changes. Whitespace-only custom names are not persisted — commit falls back to the destination label. Future AI may suggest richer names later; that is not implemented yet.
+During trip creation, **Trip name** is optional on the first step (below destination) and on Review trip. When left blank, the name defaults to the destination label (e.g. `Barcelona`). User-edited names must never be silently overwritten when the destination changes. Whitespace-only custom names are not persisted — commit falls back to the destination label. After a trip is created, **Trip details** (`/trip/edit`) shows the trip name as the primary title (with destination as secondary location when it adds information). Trip name, destination, and dates are edited together in the **Destination & dates** section. Future AI may suggest richer names later; that is not implemented yet.
 
 ### Trip context tags
 

@@ -1,10 +1,17 @@
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import type { Trip } from '@/domain/trip';
+import { getTripName } from '@/domain/trip-name';
 import type { TripSummaryDetailsFacts } from '@/features/trip-creation/components/trip-summary-details-content';
 import { getPackingForLabel } from '@/features/trip-creation/utils/summary-labels';
 
 export function getTripDetailsFactsFromTrip(trip: Trip): TripSummaryDetailsFacts {
   return {
+    tripNameLabel: getTripName(trip),
+    tripIdentity: {
+      name: trip.name,
+      title: trip.title,
+      destination: trip.destination,
+    },
     destinationLabel: getDestinationLabel(trip.destination),
     countryLabel: getDestinationCountryLabel(trip.destination),
     startDate: trip.startDate,

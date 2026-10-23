@@ -84,6 +84,7 @@ export function TripDetailsScreen() {
           mode="existing"
           facts={facts}
           editHandlers={{
+            onEditTripName: () => openSection('destination'),
             onEditDestination: () => openSection('destination'),
             onEditTripContext: () => openSection('trip-context'),
             onEditStayingIn: () => openSection('accommodation'),
