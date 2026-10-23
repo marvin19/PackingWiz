@@ -9,7 +9,6 @@ import { AppText } from '@/components/ui/app-text';
 import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { profileNeedsImportantFirstTimeSetup } from '@/domain/important-profile-setup';
-import { getDestinationLabel } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import {
@@ -45,6 +44,7 @@ import {
 } from '@/features/packing/utils/group-items';
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
+import { TripIdentityTitle } from '@/features/trips/components/trip-identity-title';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 import { fabShadow } from '@/theme/shadows';
@@ -334,9 +334,7 @@ export function PackScreen() {
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 16) }]}>
         <View style={styles.headerTop}>
           <View style={styles.headerCopy}>
-            <AppText variant="title" numberOfLines={1} style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-              {getDestinationLabel(activeTrip.destination)}
-            </AppText>
+            <TripIdentityTitle trip={activeTrip} layout="inline" />
             <View style={styles.headerMetaRow}>
               <AppText variant="bodySmall" color="mutedForeground" style={styles.headerMetaCopy}>
                 {formatRange(activeTrip.startDate, activeTrip.endDate)} · {stats.packed} of {stats.total} packed

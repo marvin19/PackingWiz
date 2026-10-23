@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AppText } from '@/components/ui/app-text';
-import { formatTripCardLocationLine } from '@/domain/destination';
+import { getTripSecondaryLocationLine } from '@/domain/trip-identity-display';
 import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
@@ -29,8 +29,8 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
   const stats = packingStats(trip);
   const days = durationDays(trip.startDate, trip.endDate);
   const typeIcon = getTripContextIcon(trip.tripContext[0]);
-  const locationLine = formatTripCardLocationLine(trip.destination);
   const tripName = getTripName(trip);
+  const locationLine = getTripSecondaryLocationLine(trip);
 
   return (
     <Pressable

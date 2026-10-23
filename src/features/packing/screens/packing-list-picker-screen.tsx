@@ -6,9 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
-import { getDestinationLabel } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
 import { PackingListOptionRow } from '@/features/packing/components/packing-list-option-row';
+import { TripIdentityTitle } from '@/features/trips/components/trip-identity-title';
 import { useAcknowledgePostCreateNavigation } from '@/features/trip-creation/hooks/use-acknowledge-post-create-navigation';
 import { useTripNavigation } from '@/hooks/use-trip-navigation';
 import { useTrips } from '@/hooks/use-trips';
@@ -75,9 +75,7 @@ export function PackingListPickerScreen() {
           </AppText>
         </Pressable>
 
-        <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-          {getDestinationLabel(activeTrip.destination)}
-        </AppText>
+        <TripIdentityTitle trip={activeTrip} layout="stacked" />
         <AppText variant="bodySmall" color="mutedForeground">
           {formatRange(activeTrip.startDate, activeTrip.endDate)}
         </AppText>

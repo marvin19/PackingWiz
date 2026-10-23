@@ -9,13 +9,13 @@ import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { ProgressBar } from '@/components/ui/progress-bar';
-import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
 import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { packingListBreakdownForTrip, packingStatsForTrip, shoppingCount } from '@/domain/packing-stats';
 import { TripInsightCard } from '@/features/packing/components/overview-insight-card';
 import { SummarySection } from '@/features/trip-creation/components/summary-section';
 import { WeatherCard } from '@/features/trip-creation/components/weather-card';
+import { TripIdentityTitle } from '@/features/trips/components/trip-identity-title';
 import { buildEditTripHref } from '@/features/trip-edit/utils/edit-trip-navigation';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
@@ -64,8 +64,6 @@ export function TripOverviewScreen() {
 
   const days = durationDays(activeTrip.startDate, activeTrip.endDate);
   const remaining = stats.total - stats.packed;
-  const destinationLabel = getDestinationLabel(activeTrip.destination);
-  const countryLabel = getDestinationCountryLabel(activeTrip.destination);
   const hasInsights = activeTrip.insights.length > 0;
 
   return (
@@ -81,11 +79,8 @@ export function TripOverviewScreen() {
         <View style={styles.hero}>
           <View style={styles.heroHeader}>
             <View style={styles.heroCopy}>
-              <AppText variant="title" style={{ fontFamily: theme.fontFamilies.displayExtraBold }}>
-                {destinationLabel}
-              </AppText>
+              <TripIdentityTitle trip={activeTrip} layout="stacked" />
               <AppText variant="bodySmall" color="mutedForeground">
-                {countryLabel ? `${countryLabel} · ` : ''}
                 {formatRange(activeTrip.startDate, activeTrip.endDate)}
                 {days > 0 ? ` · ${formatTripDurationDays(days)}` : ''}
               </AppText>
