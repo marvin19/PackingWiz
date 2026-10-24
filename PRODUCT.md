@@ -34,14 +34,14 @@ Packing personalization is about **who you pack for**, not modeling every person
 
 ### Current vs target
 
-| Area | Current implementation | Target (MP phases) |
-|------|------------------------|---------------------|
-| Packing lists | Single shared list on `Trip.items` | `Trip → PackingList[] → PackingItem[]` |
-| Who is modeled | Travelers + optional item assignment | Packing Profiles + one list per profile |
-| Important master | Per Packing Profile (`importantByProfileId`) | Per Packing Profile |
-| `packingMode` | Trip-level | Per Packing List |
-| Trip name | `Trip.name` (persisted as `trips.title`; creation default = destination label) | Separate editable trip name vs destination |
-| Pack entry | Always one list | Direct Pack if one list; picker if multiple |
+| Area | Current implementation | Target / notes |
+|------|------------------------|----------------|
+| Packing lists | `Trip.packingLists[]` with items per list (MP2+); legacy `Trip.items` may remain for compatibility | One list per Packing Profile per trip |
+| Who is modeled | Packing Profiles + `travelers[]` / optional `assignedTo` on items (legacy assignment) | Profiles own lists; assignment migration TBD |
+| Important master | Per Packing Profile (`importantByProfileId`) | Same |
+| `packingMode` | Per Packing List (also mirrored at trip level for persistence) | Per Packing List |
+| Trip name | `Trip.name` / `trips.title`; editable on creation and in Trip Details | Separate from destination (implemented) |
+| Pack entry | Picker / switcher when multiple lists | Same |
 | Try before signup | Mock mode needs no auth; Supabase mode uses anonymous auth | Full anonymous → account upgrade |
 
 ---
@@ -145,7 +145,9 @@ Packing items belong to a **Packing List**, not directly to the Trip in the targ
 
 **`packingMode: 'generated' | 'manual'`** belongs to the Packing List — allowing, for example, Anna generated and Emilie manual on the same trip.
 
-**Current runtime:** `Trip.items` and `Trip.packingMode` still exist; migration is planned in [ROADMAP.md](./ROADMAP.md) (MP1–MP5).
+**Current runtime:** Multi-person packing lists are live (`Trip.packingLists`). Legacy
+`Trip.items` / trip-level `packingMode` fields may still exist for compatibility;
+see [ARCHITECTURE.md](./ARCHITECTURE.md).
 
 ### 5. Bags
 
@@ -192,6 +194,41 @@ Flow: wizard → **Summary** → **Generating** (mock steps) → **Pack** tab wi
 | **Pack** | Active packing list(s) and item state |
 
 Creation Summary and existing Trip Details share the same card presentation; Trip Details omits Weather (see Insights).
+
+### Editing existing trips (implemented — **upcoming** trips only until PW-004E)
+
+Applies to trips in the **`upcoming`** lifecycle bucket. **Past** trips will become
+read-only under PW-004E (MVP, not implemented).
+
+Section-level **Trip Details** at `/trip/edit` (MP5A) lets users change shared trip
+facts without regenerating packing lists:
+
+| Behavior | Rule |
+|----------|------|
+| Shared details edit | Preserves all existing packing lists and packed state |
+| Add traveller | Creates only that person's new list |
+| Remove traveller | Destructive for that trip's list only; profiles/Important master retained |
+| Date validation on edit | Invalid ranges blocked in UI and at save boundary; historical start dates allowed; invalid saved ranges can be repaired |
+| Generic section save (e.g. note) | No success banner — updated facts on Trip Details are sufficient confirmation |
+| Packing-relevant save (destination, dates, trip context, etc.) | Trip Details shows **Trip updated** with body: *Your packing lists haven't changed. They may need updating to match your new trip details.* |
+| Auto-regeneration | **Never** — no silent list rewrite; no weather refresh as part of this UX |
+| Smart list update suggestions | **Not implemented** — post-launch, demand-driven ([ROADMAP.md](./ROADMAP.md) PW-006) |
+
+### Past / completed trips — read-only (**PW-004E**, MVP — planned / not implemented)
+
+**Product decision (required before frontend freeze):** Trips in the **past**
+lifecycle bucket are **fully read-only** — no trip-detail edits, no packing-list
+item add/remove/rename, no checkoffs or item settings changes. Users may still
+**view**, **duplicate**, and **delete** those trips.
+
+**Lifecycle boundary (code today):** `deriveTripDateBucket` /
+`classifyTripLifecycle` — if `endDate` is **strictly before** the reference
+calendar day → **`past`** (product **Previous**); if `endDate` is on or after the
+reference day → **`upcoming`**. Stored `Trip.status` should follow this when
+persisted.
+
+**Not implemented yet.** Past trips can still be edited and packed in the app until
+PW-004E ships.
 
 Adding a person to a draft selects them for that trip only. **Remember this person** is stored on the draft profile and committed to reusable saved profiles at **trip creation**, not when the person is first added.
 
@@ -294,13 +331,12 @@ Inside Pack, provide a lightweight list switcher, e.g. **Packing for: Emilie ▾
 - **Trip Overview** — trip-level (shared context, weather, bags, insights)
 - **Pack** — packing-list-level
 
-### Current active-trip UX (legacy)
+### Current active-trip UX
 
 - User opens a trip from Trips or generates a new trip → that trip becomes active
-- **Pack** and **Overview** operate on the active trip's single flat item list
+- **Pack** and **Overview** operate on the active trip; multiple lists use picker/switcher
 - Navigating to **Profile** does not clear active trip
 - No trip selected → Pack shows **"No trip selected"**
-- No in-Pack packing-list picker or switcher yet
 
 ---
 
@@ -374,7 +410,10 @@ Do not implement unless explicitly requested:
 - Image provider / user upload
 - Affiliate shopping / product URLs on items
 - Full i18n (English only today)
-- Historical-trip reuse ("pack like last time")
+- Historical-trip reuse ("pack like last time") — distinct from **Duplicate trip** (implemented)
+- **Smart Packing List Updates** after context/date changes (PW-006 — post-launch, nice to have)
+- **Saved Stays & Available Items** (PW-007 — post-launch, not committed)
+- **Traveller visual identity** (PW-008 — post-launch, not committed)
 - AI tag suggestions
 - Advanced family sharing
 - Subscription / paywall
@@ -393,5 +432,5 @@ Document for future product decisions — do not guess in implementation:
 2. **Profile reuse across trips** — when/how saved Packing Profiles attach to new trips vs one-off people
 3. **Active packing list state** — `activePackingListId` in provider vs route param vs derived from last-opened list
 4. **Anonymous "Me" profile** — creation timing (first launch vs first trip) and persistence before auth
-5. **Trip name default** — derive from destination, trip context, or user prompt
+5. **Trip name default** — creation defaults to destination label when blank; AI suggestions deferred
 6. **Item → bag assignment** — UX and whether assignment replaces or complements list ownership

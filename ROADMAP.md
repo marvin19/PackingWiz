@@ -8,17 +8,27 @@ Current status and intended sequencing. Order may change based on user testing.
 
 ## Current focus
 
-**Active:** Pre-freeze UX cleanup (see below).
+**Active:** Pre-freeze UX cleanup — remaining polish items (see [Pre-freeze UX cleanup](#pre-freeze-ux-cleanup)).
 
 MP1–MP6, live Supabase canonical persistence (MP6-B2), Verification & Test
-Hardening (VH1–VH4), Cleanup Phase 4, and Cleanup Phase 5 are complete.
+Hardening (VH1–VH4), Cleanup Phase 4, Cleanup Phase 5, and MP5 (Trip lifecycle &
+management) are complete.
 
-Automated baseline: **72 suites / 502 tests** passing.
+**Pre-freeze UX milestones PW-001–PW-004C** (trip identity, creation naming, Trip
+Details hub, edit date validation, packing-relevant save notice) are complete and
+manually QA-approved.
+
+**Remaining before frontend freeze (MVP, planned — not implemented):** PW-004D
+(pre-freeze UX polish), **PW-004E** (read-only past trips), **PW-005** (developer
+verification ergonomics), **PW-005A** (accessibility audit & remediation).
+
+Automated baseline: **93 suites / 617 tests** passing (local `npm test`; CI runs the
+same gate).
 
 Remaining sequence:
 
-1. **Pre-freeze UX cleanup** ← active
-2. Frontend freeze + manual accessibility pass
+1. **Pre-freeze UX cleanup** — PW-004D, **PW-004E**, PW-005, **PW-005A** ← active
+2. Frontend freeze + manual accessibility sign-off (after PW-005A)
 3. Backend integrations and Web/SEO work
 4. Alpha / beta
 5. Launch
@@ -799,37 +809,29 @@ Intentionally deferred (not Phase 5 blockers):
 
 Resolve small launch-facing UX issues that do not require new domain architecture.
 
-### Trip creation / Summary
+### Completed milestones (PW-001–PW-004C)
 
-- **Trip name on Review trip (Slice 1):** creation draft carries proposed `Trip.name` (default = destination label); editable on Summary before commit; user-edited draft names are not silently overwritten by destination changes; committed name persists via `trips.title`
-- **Trip identity title hierarchy (Slice 2):** Pack header, Insights/Overview hero, and multi-list packing picker show `getTripName` as primary title with optional secondary location via `formatTripCardLocationLine` / `getTripSecondaryLocationLine` (no duplicate pin row when redundant); Upcoming card uses the same secondary-line rule; list switcher / picker behavior unchanged
-- **Optional trip name on first creation step (Slice 3 / PW-003):** “Where are you going?” includes optional Trip name below destination; shares draft `name` / `isTripNameUserEdited` with Review trip editor via `createTripDraftNameInputPatch` and `TripNameField`; blank field keeps destination-driven default naming
-- **Trip Details hub identity (PW-004A):** existing `/trip/edit` hub uses `TripIdentityTitle` (name + secondary location) and a Trip name card; both name and destination edits open the existing **Destination & dates** section — no new save flow
-- **Edit-trip date validation (PW-004B):** `validateEditTripDateRange` allows historical starts; edit UI uses `dateValidationMode="edit-existing"`; Save blocked when invalid; `updateTripSharedDetails` rejects invalid date patches (`INVALID_DATE_RANGE`)
-- **Trip edit save feedback (PW-004C):** generic section saves need no success banner; after packing-relevant edits (destination, dates, trip context, etc.) Trip Details shows an accessible **Trip updated** notice that lists were not auto-regenerated — staged in memory on save, consumed on hub focus (no URL param)
-- Review Trip Summary 2×2 cards on narrow screens
-- Prefer 1×4 if it improves readability on small devices
-- Show number of nights where useful
-- Derive nights from dates rather than storing duplicate state
-- Add age-aware Important examples/placeholders
-- Re-evaluate Trip Context + Accommodation step merge only if user testing justifies it
+| ID | Scope |
+|----|--------|
+| **PW-001** | Editable trip identity / name on committed trips (creation + edit surfaces) |
+| **PW-002** | Consistent trip identity headers (`TripIdentityTitle`) and long-name layout |
+| **PW-003** | Optional trip name on creation wizard first step; shared draft naming with Review trip |
+| **PW-004A** | Trip Details hub identity — name card + `TripIdentityTitle`; name and destination edit via **Destination & dates** |
+| **PW-004B** | Existing-trip date validation — historical starts allowed on edit; invalid ranges blocked in UI and at `updateTripSharedDetails`; repair of previously invalid saved ranges supported |
+| **PW-004C** | Post-edit feedback — **no** generic success banner; after **packing-relevant** section saves, Trip Details shows title **Trip updated** and body that packing lists were not changed and may need manual review; lists are never auto-regenerated; notice staged in memory and shown on hub focus |
 
-### Pack
+Earlier slices (pre-PW numbering): Review trip name (Slice 1), identity title hierarchy (Slice 2).
 
-- Consider category-aware Add Item defaults
-  - e.g. adding while focused on Electronics may preselect Electronics
-- Add safe recovery when the user selected Manual but wants PackingWiz generation
-- Add safe recovery when the user generated a list but wants to start manually
-- Never overwrite an existing list without explicit destructive confirmation
-- Review all controls for understandable text/icon affordances
+### Remaining pre-freeze milestones *(MVP — planned / not implemented)*
 
-### Product polish
+| ID | Scope |
+|----|--------|
+| **PW-004D** | Pre-freeze UX polish: Review Trip Summary narrow layout (2×2 vs 1×4); nights derived from dates; age-aware Important placeholders; Pack Manual ↔ generated recovery; Trove → PackingWiz and empty/loading/error copy pass; re-evaluate Trip Context + Accommodation merge only if user testing justifies it |
+| **PW-004E** | **Read-only past / completed trips (MVP):** when a trip is in the **past** lifecycle bucket, block trip edits, packing-list mutations, and checkoffs; allow **view**, **duplicate**, and **delete** only. **Planned — not implemented.** Implementation boundary: `deriveTripDateBucket` / `classifyTripLifecycle` — end date **strictly before** reference calendar day → `TripStatus` **`past`** (product **Previous**); end date on or after reference day → **`upcoming`**. Persisted `Trip.status` should stay aligned with this rule when synced. Today past trips remain editable in the UI. |
+| **PW-005** | Developer verification ergonomics: one-command full verification script + faster focused verification command (see [TODO.md](./TODO.md)) |
+| **PW-005A** | **Accessibility audit & remediation (required before frontend freeze):** manual VoiceOver (iOS) and TalkBack (Android); dynamic text scaling; light/dark contrast; touch targets; focus order; form errors; bottom sheets; screen-reader announcements; multi-traveller accessibility. Target **WCAG 2.2 AA** where applicable to mobile. Manual QA matrix: every test records **PASS** / **FAIL** / **IKKE TESTET** plus free-text comment. **Not completed.** |
 
-- Remove remaining **Trove** naming
-- Use **PackingWiz** consistently
-- Verify Good morning / afternoon / evening behavior
-- Final copy consistency pass
-- Final empty/loading/error-state review
+Pack, product polish, and narrow-summary items above are tracked under **PW-004D** unless deferred below.
 
 ### Home Upcoming — deferred
 
@@ -877,6 +879,43 @@ Do not implement until post-MP6 frontend polish.
 - Packing templates
 
 Prefer strong defaults over settings that have not demonstrated user value.
+
+---
+
+## Post-launch backlog
+
+Items here are **not committed** for MVP or frontend freeze unless explicitly
+reprioritized. Nice-to-have and demand-driven work lives here.
+
+### PW-006 — Smart Packing List Updates *(Nice to have / demand-driven / not committed)*
+
+After the user changes destination, dates, or other packing-relevant trip context,
+offer a **review** flow — not silent regeneration:
+
+- Bottom sheet to review suggested additions/removals
+- Separate suggestions per traveller / packing list
+- Safe preview and explicit merge
+- **Never** automatically overwrite existing packing lists, checked or manual items, or Important Items snapshots
+
+Related product copy on MVP is informational only ([PW-004C](#pre-freeze-ux-cleanup)); this phase adds optional guided updates.
+
+### PW-007 — Saved Stays & Available Items *(Post-launch / not committed / not implemented)*
+
+Users may eventually save places (e.g. **Family Cabin**) and record which items are
+typically already available there (bed linen, towels, etc.). Preferences inform
+future packing suggestions; must not be assumed for all stays of the same
+accommodation type.
+
+### PW-008 — Traveller Visual Identity *(Post-launch / not committed / not implemented)*
+
+Optional per-traveller color and symbol/icon; **traveller names always visible**.
+Color must never be the only means of distinguishing travellers. Consider
+accessible palettes and light/dark mode.
+
+### Other post-launch candidates
+
+See [TODO.md](./TODO.md) § Version 1.0.1 / Post-launch (sharing, bags notes, trip
+tags, traveller photos, list organization, web UX, etc.).
 
 ---
 
