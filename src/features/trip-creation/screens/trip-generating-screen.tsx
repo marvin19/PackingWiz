@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { TRIP_GENERATING_SUBTITLE } from '@/constants/product-brand';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
@@ -103,7 +104,7 @@ export function TripGeneratingScreen() {
             Building your list for {destinationLabel || 'your trip'}
           </AppText>
           <AppText variant="bodySmall" color="mutedForeground" style={styles.subtitle}>
-            Trove is tailoring every item to this trip.
+            {TRIP_GENERATING_SUBTITLE}
           </AppText>
         </View>
 

@@ -2,6 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { BrandMark } from '@/components/brand/brand-mark';
 import { AppText } from '@/components/ui/app-text';
+import { PRODUCT_DISPLAY_NAME } from '@/constants/product-brand';
 
 type WordmarkProps = {
   showName?: boolean;
@@ -13,7 +14,7 @@ export function Wordmark({ showName = false }: WordmarkProps) {
       <BrandMark />
       {showName ? (
         <AppText variant="title" style={styles.name}>
-          Trove
+          {PRODUCT_DISPLAY_NAME}
         </AppText>
       ) : null}
     </View>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { PACK_SHOPPING_FILTER_INTRO } from '@/constants/product-brand';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
@@ -417,7 +418,7 @@ export function PackScreen() {
               <View style={[styles.shoppingBanner, { backgroundColor: `${theme.colors.buy}1A`, borderColor: `${theme.colors.buy}4D` }]}>
                 <Feather name="shopping-bag" size={16} color={theme.colors.buyForeground} />
                 <AppText variant="caption" style={{ color: theme.colors.buyForeground, flex: 1, lineHeight: 18 }}>
-                  These are items Trove thinks you&apos;ll need to buy before you go. Toggle any item&apos;s &quot;Need to buy&quot; to manage this list.
+                  {PACK_SHOPPING_FILTER_INTRO}
                 </AppText>
               </View>
             ) : null}
