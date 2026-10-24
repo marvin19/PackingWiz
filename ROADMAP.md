@@ -805,6 +805,7 @@ Resolve small launch-facing UX issues that do not require new domain architectur
 - **Trip identity title hierarchy (Slice 2):** Pack header, Insights/Overview hero, and multi-list packing picker show `getTripName` as primary title with optional secondary location via `formatTripCardLocationLine` / `getTripSecondaryLocationLine` (no duplicate pin row when redundant); Upcoming card uses the same secondary-line rule; list switcher / picker behavior unchanged
 - **Optional trip name on first creation step (Slice 3 / PW-003):** “Where are you going?” includes optional Trip name below destination; shares draft `name` / `isTripNameUserEdited` with Review trip editor via `createTripDraftNameInputPatch` and `TripNameField`; blank field keeps destination-driven default naming
 - **Trip Details hub identity (PW-004A):** existing `/trip/edit` hub uses `TripIdentityTitle` (name + secondary location) and a Trip name card; both name and destination edits open the existing **Destination & dates** section — no new save flow
+- **Edit-trip date validation (PW-004B):** `validateEditTripDateRange` allows historical starts; edit UI uses `dateValidationMode="edit-existing"`; Save blocked when invalid; `updateTripSharedDetails` rejects invalid date patches (`INVALID_DATE_RANGE`)
 - Review Trip Summary 2×2 cards on narrow screens
 - Prefer 1×4 if it improves readability on small devices
 - Show number of nights where useful

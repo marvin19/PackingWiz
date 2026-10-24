@@ -49,7 +49,8 @@ export type TripEditErrorCode =
   | 'PROFILE_ALREADY_ON_TRIP'
   | 'DUPLICATE_PACKING_LIST'
   | 'PACKING_LIST_NOT_FOUND'
-  | 'CANNOT_REMOVE_ONLY_LIST';
+  | 'CANNOT_REMOVE_ONLY_LIST'
+  | 'INVALID_DATE_RANGE';
 
 export class TripEditError extends Error {
   readonly code: TripEditErrorCode;

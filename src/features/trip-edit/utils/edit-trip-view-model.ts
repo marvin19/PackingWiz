@@ -1,6 +1,10 @@
 import type { TripDetailsSection } from '@/features/trip-edit/utils/trip-details-navigation';
 import type { Bag } from '@/domain/bag';
 import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import {
+  validateEditTripDateRange,
+  validateEditTripSharedDetailsDates,
+} from '@/domain/edit-trip-date-validation';
 import type { PackingProfile } from '@/domain/packing-profile';
 import {
   formatPackingListProfileName,
@@ -113,6 +117,74 @@ export function buildSharedDetailsPatch(
 
 export function hasStagedSharedChanges(form: TripEditFormState, trip: Trip): boolean {
   return Object.keys(buildSharedDetailsPatch(form, trip)).length > 0;
+}
+
+export function isEditDestinationSectionDateRangeValid(form: TripEditFormState): boolean {
+  return validateEditTripDateRange(form.draft.startDate, form.draft.endDate).ok;
+}
+
+export type DestinationSectionSaveGate = {
+  sectionPatch: TripSharedDetailsUserEdit;
+  hasSectionChanges: boolean;
+  canPersist: boolean;
+};
+
+/**
+ * Destination section save eligibility — form dates and merged patch must agree.
+ * When either date changes, both dates are included in the patch so persistence matches the form.
+ */
+export function getDestinationSectionSaveGate(
+  form: TripEditFormState,
+  trip: Trip,
+): DestinationSectionSaveGate {
+  const sectionPatch = buildDestinationSectionPatchForSave(form, trip);
+  const hasSectionChanges = Object.keys(sectionPatch).length > 0;
+
+  if (!hasSectionChanges) {
+    return { sectionPatch, hasSectionChanges, canPersist: true };
+  }
+
+  const formDatesOk = isEditDestinationSectionDateRangeValid(form);
+  const mergedDatesOk = validateEditTripSharedDetailsDates(trip, sectionPatch).ok;
+
+  return {
+    sectionPatch,
+    hasSectionChanges,
+    canPersist: formDatesOk && mergedDatesOk,
+  };
+}
+
+export function buildDestinationSectionPatchForSave(
+  form: TripEditFormState,
+  trip: Trip,
+): TripSharedDetailsUserEdit {
+  const sectionPatch = pickSharedDetailsPatchForSection(
+    'destination',
+    buildSharedDetailsPatch(form, trip),
+  );
+
+  if (sectionPatch.startDate === undefined && sectionPatch.endDate === undefined) {
+    return sectionPatch;
+  }
+
+  return {
+    ...sectionPatch,
+    startDate: form.draft.startDate,
+    endDate: form.draft.endDate,
+  };
+}
+
+/** When the destination section has staged changes, dates must be valid before Save. */
+export function canSaveDestinationSectionEdit(
+  form: TripEditFormState,
+  trip: Trip,
+  hasSectionChanges: boolean,
+): boolean {
+  if (!hasSectionChanges) {
+    return true;
+  }
+
+  return getDestinationSectionSaveGate(form, trip).canPersist;
 }
 
 export function resolveEditTripPrimaryFooterAction(hasStagedSharedChanges: boolean): 'save' | 'done' {

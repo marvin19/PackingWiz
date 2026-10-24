@@ -670,6 +670,33 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
   });
 
   describe('updateTripSharedDetails', () => {
+    it('does not persist invalid date patches or mutate the trip', async () => {
+      const fixture = {
+        ...createMultiListFixture(),
+        startDate: '2026-07-01',
+        endDate: '2026-07-10',
+      };
+      await mountTripsProvider([fixture]);
+      const beforeStart = getTrip().startDate;
+      const beforeEnd = getTrip().endDate;
+      const beforeLists = tripListsSnapshot(getTrip());
+      const saveCallsBefore = mockTripRepository.save.mock.calls.length;
+
+      await act(async () => {
+        await expect(
+          tripsContext!.updateTripSharedDetails(TRIP_ID, {
+            startDate: '2026-10-29',
+            endDate: '2026-10-18',
+          }),
+        ).rejects.toThrow();
+      });
+
+      expect(getTrip().startDate).toBe(beforeStart);
+      expect(getTrip().endDate).toBe(beforeEnd);
+      expect(tripListsSnapshot(getTrip())).toEqual(beforeLists);
+      expect(mockTripRepository.save.mock.calls.length).toBe(saveCallsBefore);
+    });
+
     it('rolls back shared details and preserves packing lists when save fails', async () => {
       const fixture = createMultiListFixture();
       await mountTripsProvider([fixture]);

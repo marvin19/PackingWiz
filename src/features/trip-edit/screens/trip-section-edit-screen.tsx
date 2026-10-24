@@ -40,6 +40,7 @@ import {
   canRemoveTravellerFromTrip,
   createEditFormStateFromTrip,
   getEditTripTravellerRows,
+  getDestinationSectionSaveGate,
   getSectionSaveLabel,
   pickSharedDetailsPatchForSection,
   shouldDiscardStagedEdits,
@@ -133,6 +134,18 @@ export function TripSectionEditScreen() {
     const sectionPatch = pickSharedDetailsPatchForSection(section!, fullPatch);
     return Object.keys(sectionPatch).length > 0;
   }, [activeTrip, form, section]);
+
+  const destinationSaveGate = useMemo(() => {
+    if (!form || !activeTrip || section !== 'destination') {
+      return null;
+    }
+
+    return getDestinationSectionSaveGate(form, activeTrip);
+  }, [activeTrip, form, section]);
+
+  const canSaveSection = destinationSaveGate
+    ? !destinationSaveGate.hasSectionChanges || destinationSaveGate.canPersist
+    : true;
 
   const travellerRows = useMemo(
     () => (activeTrip ? getEditTripTravellerRows(activeTrip) : []),
@@ -266,14 +279,21 @@ export function TripSectionEditScreen() {
       return;
     }
 
-    const sectionPatch = pickSharedDetailsPatchForSection(
-      section,
-      buildSharedDetailsPatch(form, activeTrip),
-    );
+    const sectionPatch =
+      section === 'destination'
+        ? getDestinationSectionSaveGate(form, activeTrip).sectionPatch
+        : pickSharedDetailsPatchForSection(section, buildSharedDetailsPatch(form, activeTrip));
 
     if (Object.keys(sectionPatch).length === 0) {
       navigateToDetails();
       return;
+    }
+
+    if (section === 'destination') {
+      const gate = getDestinationSectionSaveGate(form, activeTrip);
+      if (gate.hasSectionChanges && !gate.canPersist) {
+        return;
+      }
     }
 
     setSaveLoading(true);
@@ -427,7 +447,11 @@ export function TripSectionEditScreen() {
                 accessibilityLabel="Trip name"
               />
             </Field>
-            <DestinationStep draft={form.draft} onChange={patchDraft} />
+            <DestinationStep
+              draft={form.draft}
+              onChange={patchDraft}
+              dateValidationMode="edit-existing"
+            />
           </>
         );
       case 'trip-context':
@@ -552,7 +576,7 @@ export function TripSectionEditScreen() {
         <PrimaryButton
           label={getSectionSaveLabel(section, saveLoading)}
           onPress={handleSave}
-          disabled={saveLoading}
+          disabled={saveLoading || !canSaveSection}
         />
         {saveLoading ? <ActivityIndicator size="small" color={theme.colors.primary} style={styles.saveSpinner} /> : null}
       </View>

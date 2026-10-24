@@ -12,6 +12,10 @@ import {
 import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, parseDate } from '@/domain/dates';
 import {
+  getEditTripDateValidationMessage,
+  validateEditTripDateRange,
+} from '@/domain/edit-trip-date-validation';
+import {
   getNewTripDateValidationMessage,
   startOfLocalCalendarDay,
   validateNewTripDateRange,
@@ -24,21 +28,35 @@ import {
 import { TripNameField } from '@/features/trip-creation/components/trip-name-field';
 import { useTheme } from '@/hooks/use-theme';
 
+export type DestinationStepDateValidationMode = 'new-trip' | 'edit-existing';
+
 type DestinationStepProps = {
   draft: TripDraft;
   onChange: (patch: Partial<TripDraft>) => void;
   /** When set, shows the optional trip name field (creation wizard only). */
   onChangeName?: (name: string) => void;
+  dateValidationMode?: DestinationStepDateValidationMode;
 };
 
-export function DestinationStep({ draft, onChange, onChangeName }: DestinationStepProps) {
+export function DestinationStep({
+  draft,
+  onChange,
+  onChangeName,
+  dateValidationMode = 'new-trip',
+}: DestinationStepProps) {
   const theme = useTheme();
   const [destinationFocused, setDestinationFocused] = useState(false);
   const days =
     draft.startDate && draft.endDate && durationDays(draft.startDate, draft.endDate);
-  const minimumStartDate = startOfLocalCalendarDay(new Date());
-  const dateValidation = validateNewTripDateRange(draft.startDate, draft.endDate);
-  const dateError = getNewTripDateValidationMessage(dateValidation);
+  const isEditExisting = dateValidationMode === 'edit-existing';
+  const minimumStartDate = isEditExisting ? undefined : startOfLocalCalendarDay(new Date());
+  const dateError = isEditExisting
+    ? getEditTripDateValidationMessage(
+        validateEditTripDateRange(draft.startDate, draft.endDate),
+      )
+    : getNewTripDateValidationMessage(
+        validateNewTripDateRange(draft.startDate, draft.endDate),
+      );
 
   return (
     <View style={styles.container}>
@@ -115,7 +133,13 @@ export function DestinationStep({ draft, onChange, onChangeName }: DestinationSt
           label="Return"
           value={draft.endDate}
           onChange={(endDate) => onChange({ endDate })}
-          minimumDate={draft.startDate ? parseDate(draft.startDate) : minimumStartDate}
+          minimumDate={
+            draft.startDate
+              ? parseDate(draft.startDate)
+              : isEditExisting
+                ? undefined
+                : minimumStartDate
+          }
         />
       </View>
 

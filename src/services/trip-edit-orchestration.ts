@@ -1,4 +1,8 @@
 import { reconcileActivePackingListId } from '@/domain/active-packing-list';
+import {
+  getEditTripDateValidationMessage,
+  validateEditTripSharedDetailsDates,
+} from '@/domain/edit-trip-date-validation';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile } from '@/domain/packing-profile';
 import type { ImportantItemsByProfileId } from '@/domain/profile-important-items';
@@ -42,6 +46,14 @@ export function updateTripSharedDetails(
   trip: Trip,
   patch: TripSharedDetailsUserEdit,
 ): UpdateTripSharedDetailsResult {
+  const dateValidation = validateEditTripSharedDetailsDates(trip, patch);
+  if (!dateValidation.ok) {
+    throw new TripEditError(
+      getEditTripDateValidationMessage(dateValidation) ?? 'Invalid trip dates.',
+      'INVALID_DATE_RANGE',
+    );
+  }
+
   const updatedTrip = applyTripSharedDetailsEdit(trip, patch);
 
   return {

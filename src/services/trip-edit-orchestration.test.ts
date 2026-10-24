@@ -13,6 +13,7 @@ import {
   snapshotPackingListsState,
   TripEditError,
 } from '@/domain/trip-edit';
+import { EDIT_TRIP_END_BEFORE_START_MESSAGE } from '@/domain/edit-trip-date-validation';
 import { MockTripRepository } from '@/repositories/trips/mock-trip-repository';
 import type { PackingGenerator } from '@/services/packing/packing-generator';
 import {
@@ -174,6 +175,53 @@ describe('updateTripSharedDetails orchestration', () => {
     expect(snapshotPackingListsState(after)).toEqual(beforeLists);
     expect(packingListsStateEqual(before, after)).toBe(true);
     expect(generator.generate).not.toHaveBeenCalled();
+  });
+
+  it('allows name-only edits on a trip with historical dates', () => {
+    const before = createMeEmilieTrip();
+    const { trip: after } = updateTripSharedDetails(before, { name: 'Renamed family trip' });
+
+    expect(after.name).toBe('Renamed family trip');
+    expect(after.startDate).toBe('2026-07-01');
+  });
+
+  it('rejects invalid date patches at the orchestration boundary', () => {
+    const before = createMeEmilieTrip();
+
+    expect(() =>
+      updateTripSharedDetails(before, { endDate: '2026-06-01' }),
+    ).toThrow(TripEditError);
+
+    try {
+      updateTripSharedDetails(before, { endDate: '2026-06-01' });
+    } catch (error) {
+      expect(error).toBeInstanceOf(TripEditError);
+      expect((error as TripEditError).code).toBe('INVALID_DATE_RANGE');
+      expect((error as TripEditError).message).toBe(EDIT_TRIP_END_BEFORE_START_MESSAGE);
+    }
+  });
+
+  it('rejects a partial start-only patch when merged dates are invalid (Oct 29 / Oct 18)', () => {
+    const before = {
+      ...createMeEmilieTrip(),
+      startDate: '2026-07-01',
+      endDate: '2026-10-18',
+    };
+
+    expect(() =>
+      updateTripSharedDetails(before, { startDate: '2026-10-29' }),
+    ).toThrow(TripEditError);
+  });
+
+  it('rejects the Oct 29 / Oct 18 range when both dates are in the patch', () => {
+    const before = createMeEmilieTrip();
+
+    expect(() =>
+      updateTripSharedDetails(before, {
+        startDate: '2026-10-29',
+        endDate: '2026-10-18',
+      }),
+    ).toThrow(TripEditError);
   });
 });
 

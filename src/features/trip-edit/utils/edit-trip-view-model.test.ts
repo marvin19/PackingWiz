@@ -1,3 +1,4 @@
+import { validateEditTripSharedDetailsDates } from '@/domain/edit-trip-date-validation';
 import { normalizeInsight } from '@/domain/insight';
 import type { TripDetailsSection } from '@/features/trip-edit/utils/trip-details-navigation';
 import type { TripEditFormState } from '@/features/trip-edit/utils/edit-trip-view-model';
@@ -11,7 +12,11 @@ import {
   createEditFormStateFromTrip,
   getEditTripPrimaryFooterLabel,
   getEditTripTravellerRows,
+  buildDestinationSectionPatchForSave,
+  canSaveDestinationSectionEdit,
+  getDestinationSectionSaveGate,
   getTripDetailsDoneLabel,
+  isEditDestinationSectionDateRangeValid,
   hasStagedSharedChanges,
   isEditTripPrimaryFooterEnabled,
   isProfileAlreadyOnTrip,
@@ -296,5 +301,80 @@ describe('edit trip view-model', () => {
 
   it('uses Done on Trip Details main screen', () => {
     expect(getTripDetailsDoneLabel()).toBe('Done');
+  });
+
+  it('allows destination-section save for historical dates when only the name changes', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      name: 'Renamed trip',
+    };
+
+    expect(isEditDestinationSectionDateRangeValid(form)).toBe(true);
+    expect(canSaveDestinationSectionEdit(form, trip, true)).toBe(true);
+    expect(getDestinationSectionSaveGate(form, trip).canPersist).toBe(true);
+  });
+
+  it('blocks destination-section save when return is before departure', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        endDate: '2026-06-01',
+      },
+    };
+
+    expect(isEditDestinationSectionDateRangeValid(form)).toBe(false);
+    expect(canSaveDestinationSectionEdit(form, trip, true)).toBe(false);
+    expect(canSaveDestinationSectionEdit(form, trip, false)).toBe(true);
+  });
+
+  it('blocks save for Oct 29 departure with Oct 18 return and persists both dates in the patch', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        startDate: '2026-10-29',
+        endDate: '2026-10-18',
+      },
+    };
+
+    const gate = getDestinationSectionSaveGate(form, trip);
+
+    expect(gate.canPersist).toBe(false);
+    expect(gate.sectionPatch.startDate).toBe('2026-10-29');
+    expect(gate.sectionPatch.endDate).toBe('2026-10-18');
+    expect(() => updateTripSharedDetails(trip, gate.sectionPatch)).toThrow();
+
+    const partialStylePatch = buildSharedDetailsPatch(form, trip);
+    expect(partialStylePatch.endDate).toBe('2026-10-18');
+    expect(buildDestinationSectionPatchForSave(form, trip).startDate).toBe('2026-10-29');
+  });
+
+  it('rejects a partial start-only patch when the staged form range is invalid', () => {
+    const trip = {
+      ...createMeEmilieTrip(),
+      startDate: '2026-07-01',
+      endDate: '2026-10-18',
+    };
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        startDate: '2026-10-29',
+        endDate: '2026-10-18',
+      },
+    };
+
+    const naivePatch = pickSharedDetailsPatchForSection(
+      'destination',
+      buildSharedDetailsPatch(form, trip),
+    );
+
+    expect(naivePatch).toEqual({ startDate: '2026-10-29' });
+    expect(validateEditTripSharedDetailsDates(trip, naivePatch).ok).toBe(false);
+    expect(getDestinationSectionSaveGate(form, trip).canPersist).toBe(false);
   });
 });
