@@ -187,6 +187,27 @@ export function canSaveDestinationSectionEdit(
   return getDestinationSectionSaveGate(form, trip).canPersist;
 }
 
+export function canSaveTripEditSection(
+  section: TripDetailsSection,
+  form: TripEditFormState,
+  trip: Trip,
+  hasSectionChanges: boolean,
+): boolean {
+  if (!hasSectionChanges) {
+    return true;
+  }
+
+  if (section === 'destination') {
+    if (!isEditDestinationSectionDateRangeValid(form)) {
+      return false;
+    }
+
+    return getDestinationSectionSaveGate(form, trip).canPersist;
+  }
+
+  return true;
+}
+
 export function resolveEditTripPrimaryFooterAction(hasStagedSharedChanges: boolean): 'save' | 'done' {
   return hasStagedSharedChanges ? 'save' : 'done';
 }
@@ -236,12 +257,12 @@ export function isProfileAlreadyOnTrip(trip: Trip, profile: Pick<PackingProfile,
   return tripHasPackingProfile(trip, profile);
 }
 
-export function buildPostSaveNotice(changes: TripPackingRelevantChanges): string | null {
-  if (!hasTripPackingRelevantChanges(changes)) {
-    return 'Trip details updated.';
-  }
+export const TRIP_EDIT_PACKING_NOTICE_TITLE = 'Trip updated';
+export const TRIP_EDIT_PACKING_NOTICE_BODY =
+  "Your packing lists haven't changed. They may need updating to match your new trip details.";
 
-  return 'Trip details updated. Your existing packing lists were kept.';
+export function shouldStageTripEditPackingNotice(changes: TripPackingRelevantChanges): boolean {
+  return hasTripPackingRelevantChanges(changes);
 }
 
 export function shouldDiscardStagedEdits(hasChanges: boolean, confirmedDiscard: boolean): boolean {

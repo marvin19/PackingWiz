@@ -33,14 +33,16 @@ import {
   parseEditTripReturnTo,
 } from '@/features/trip-edit/utils/edit-trip-navigation';
 import {
-  buildPostSaveNotice,
+  shouldStageTripEditPackingNotice,
   buildSharedDetailsPatch,
   buildTravellerAddedNotice,
   buildTravellerRemovedNotice,
   canRemoveTravellerFromTrip,
   createEditFormStateFromTrip,
   getEditTripTravellerRows,
+  canSaveTripEditSection,
   getDestinationSectionSaveGate,
+  isEditDestinationSectionDateRangeValid,
   getSectionSaveLabel,
   pickSharedDetailsPatchForSection,
   shouldDiscardStagedEdits,
@@ -53,6 +55,7 @@ import {
   getTripDetailsSectionScreenTitle,
   parseTripDetailsSection,
 } from '@/features/trip-edit/utils/trip-details-navigation';
+import { stageTripEditPackingNotice } from '@/features/trip-edit/utils/trip-edit-save-notice-handoff';
 import { AccommodationStep } from '@/features/trip-creation/components/steps/accommodation-step';
 import { BagsStep } from '@/features/trip-creation/components/steps/bags-step';
 import { DestinationStep } from '@/features/trip-creation/components/steps/destination-step';
@@ -135,17 +138,13 @@ export function TripSectionEditScreen() {
     return Object.keys(sectionPatch).length > 0;
   }, [activeTrip, form, section]);
 
-  const destinationSaveGate = useMemo(() => {
-    if (!form || !activeTrip || section !== 'destination') {
-      return null;
+  const canSaveSection = useMemo(() => {
+    if (!form || !activeTrip || !section || section === 'packing-for') {
+      return true;
     }
 
-    return getDestinationSectionSaveGate(form, activeTrip);
-  }, [activeTrip, form, section]);
-
-  const canSaveSection = destinationSaveGate
-    ? !destinationSaveGate.hasSectionChanges || destinationSaveGate.canPersist
-    : true;
+    return canSaveTripEditSection(section, form, activeTrip, hasChanges);
+  }, [activeTrip, form, hasChanges, section]);
 
   const travellerRows = useMemo(
     () => (activeTrip ? getEditTripTravellerRows(activeTrip) : []),
@@ -247,9 +246,15 @@ export function TripSectionEditScreen() {
     [form, patchDraft],
   );
 
-  const navigateToDetails = useCallback(() => {
-    router.replace(buildTripDetailsReturnHref(returnTo));
-  }, [returnTo, router]);
+  const navigateToDetails = useCallback(
+    (stagePackingNotice = false) => {
+      if (stagePackingNotice) {
+        stageTripEditPackingNotice();
+      }
+      router.replace(buildTripDetailsReturnHref(returnTo));
+    },
+    [returnTo, router],
+  );
 
   const handleAttemptClose = useCallback(() => {
     blurActiveElement();
@@ -290,8 +295,12 @@ export function TripSectionEditScreen() {
     }
 
     if (section === 'destination') {
+      if (!isEditDestinationSectionDateRangeValid(form)) {
+        return;
+      }
+
       const gate = getDestinationSectionSaveGate(form, activeTrip);
-      if (gate.hasSectionChanges && !gate.canPersist) {
+      if (!gate.canPersist) {
         return;
       }
     }
@@ -305,8 +314,7 @@ export function TripSectionEditScreen() {
         sectionPatch,
       );
       setStagedForm({ tripId: saved.id, form: createEditFormStateFromTrip(saved) });
-      setFeedbackNotice(buildPostSaveNotice(packingRelevantChanges));
-      navigateToDetails();
+      navigateToDetails(shouldStageTripEditPackingNotice(packingRelevantChanges));
     } catch {
       // repositoryError is set in TripsProvider; staged form is preserved.
     } finally {

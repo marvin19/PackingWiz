@@ -670,6 +670,29 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
   });
 
   describe('updateTripSharedDetails', () => {
+    it('does not persist Nov 26 departure after Nov 6 return was staged in the patch', async () => {
+      const fixture = {
+        ...createMultiListFixture(),
+        startDate: '2026-07-01',
+        endDate: '2026-07-10',
+      };
+      await mountTripsProvider([fixture]);
+      const beforeLists = tripListsSnapshot(getTrip());
+
+      await act(async () => {
+        await expect(
+          tripsContext!.updateTripSharedDetails(TRIP_ID, {
+            startDate: '2026-11-26',
+            endDate: '2026-11-06',
+          }),
+        ).rejects.toThrow();
+      });
+
+      expect(getTrip().startDate).toBe('2026-07-01');
+      expect(getTrip().endDate).toBe('2026-07-10');
+      expect(tripListsSnapshot(getTrip())).toEqual(beforeLists);
+    });
+
     it('does not persist invalid date patches or mutate the trip', async () => {
       const fixture = {
         ...createMultiListFixture(),

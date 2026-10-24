@@ -8,17 +8,21 @@ import { ScreenHeader } from '@/components/navigation/screen-header';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { TripEditPackingNoticeBanner } from '@/features/trip-edit/components/trip-edit-packing-notice-banner';
 import { TripSummaryDetailsContent } from '@/features/trip-creation/components/trip-summary-details-content';
 import {
   parseEditTripReturnTo,
   resolveEditTripReturnPath,
 } from '@/features/trip-edit/utils/edit-trip-navigation';
 import { getTripDetailsFactsFromTrip } from '@/features/trip-edit/utils/trip-details-facts';
+import { useTripEditPackingNotice } from '@/features/trip-edit/hooks/use-trip-edit-packing-notice';
 import {
   buildTripDetailsSectionHref,
   getTripSummaryDetailsScreenTitle,
 } from '@/features/trip-edit/utils/trip-details-navigation';
-import { getTripDetailsDoneLabel } from '@/features/trip-edit/utils/edit-trip-view-model';
+import {
+  getTripDetailsDoneLabel,
+} from '@/features/trip-edit/utils/edit-trip-view-model';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal, spacing } from '@/theme/spacing';
@@ -30,6 +34,7 @@ export function TripDetailsScreen() {
   const params = useLocalSearchParams<{ returnTo?: string }>();
   const returnTo = parseEditTripReturnTo(params.returnTo);
   const { activeTrip, activeTripId } = useTrips();
+  const showPackingNotice = useTripEditPackingNotice();
 
   const facts = useMemo(
     () => (activeTrip ? getTripDetailsFactsFromTrip(activeTrip) : null),
@@ -80,6 +85,7 @@ export function TripDetailsScreen() {
           { paddingBottom: Math.max(insets.bottom, 24) + 96 },
         ]}
         showsVerticalScrollIndicator={false}>
+        {showPackingNotice ? <TripEditPackingNoticeBanner /> : null}
         <TripSummaryDetailsContent
           mode="existing"
           facts={facts}

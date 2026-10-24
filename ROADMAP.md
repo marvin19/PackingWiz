@@ -806,6 +806,7 @@ Resolve small launch-facing UX issues that do not require new domain architectur
 - **Optional trip name on first creation step (Slice 3 / PW-003):** “Where are you going?” includes optional Trip name below destination; shares draft `name` / `isTripNameUserEdited` with Review trip editor via `createTripDraftNameInputPatch` and `TripNameField`; blank field keeps destination-driven default naming
 - **Trip Details hub identity (PW-004A):** existing `/trip/edit` hub uses `TripIdentityTitle` (name + secondary location) and a Trip name card; both name and destination edits open the existing **Destination & dates** section — no new save flow
 - **Edit-trip date validation (PW-004B):** `validateEditTripDateRange` allows historical starts; edit UI uses `dateValidationMode="edit-existing"`; Save blocked when invalid; `updateTripSharedDetails` rejects invalid date patches (`INVALID_DATE_RANGE`)
+- **Trip edit save feedback (PW-004C):** generic section saves need no success banner; after packing-relevant edits (destination, dates, trip context, etc.) Trip Details shows an accessible **Trip updated** notice that lists were not auto-regenerated — staged in memory on save, consumed on hub focus (no URL param)
 - Review Trip Summary 2×2 cards on narrow screens
 - Prefer 1×4 if it improves readability on small devices
 - Show number of nights where useful

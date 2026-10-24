@@ -14,6 +14,7 @@ import {
   getEditTripTravellerRows,
   buildDestinationSectionPatchForSave,
   canSaveDestinationSectionEdit,
+  canSaveTripEditSection,
   getDestinationSectionSaveGate,
   getTripDetailsDoneLabel,
   isEditDestinationSectionDateRangeValid,
@@ -351,6 +352,29 @@ describe('edit trip view-model', () => {
     const partialStylePatch = buildSharedDetailsPatch(form, trip);
     expect(partialStylePatch.endDate).toBe('2026-10-18');
     expect(buildDestinationSectionPatchForSave(form, trip).startDate).toBe('2026-10-29');
+  });
+
+  it('blocks save when return is set first then departure moves after it (Nov 6 then Nov 26)', () => {
+    const trip = createMeEmilieTrip();
+    let form = createEditFormStateFromTrip(trip);
+
+    form = {
+      ...form,
+      draft: { ...form.draft, endDate: '2026-11-06' },
+    };
+    expect(isEditDestinationSectionDateRangeValid(form)).toBe(true);
+    expect(canSaveTripEditSection('destination', form, trip, true)).toBe(true);
+
+    form = {
+      ...form,
+      draft: { ...form.draft, startDate: '2026-11-26' },
+    };
+    expect(isEditDestinationSectionDateRangeValid(form)).toBe(false);
+    expect(canSaveTripEditSection('destination', form, trip, true)).toBe(false);
+
+    const gate = getDestinationSectionSaveGate(form, trip);
+    expect(gate.canPersist).toBe(false);
+    expect(() => updateTripSharedDetails(trip, gate.sectionPatch)).toThrow();
   });
 
   it('rejects a partial start-only patch when the staged form range is invalid', () => {
