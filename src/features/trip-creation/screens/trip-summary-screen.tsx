@@ -8,6 +8,7 @@ import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destin
 import { resolveTripDraftName } from '@/domain/trip-draft-naming';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { SummaryImportantSection } from '@/features/trip-creation/components/summary-important-section';
+import { SummaryManualCreateErrorBanner } from '@/features/trip-creation/components/summary-manual-create-error-banner';
 import { SummaryFooter } from '@/features/trip-creation/components/summary-footer';
 import { TripSummaryDetailsContent } from '@/features/trip-creation/components/trip-summary-details-content';
 import { WeatherPreview } from '@/features/trip-creation/components/weather-preview';
@@ -33,6 +34,7 @@ export function TripSummaryScreen() {
   const { importantByProfileId } = useDraftImportant();
   const normalizedDraft = useMemo(() => normalizeTripDraft(draft), [draft]);
   const [manualCreateLoading, setManualCreateLoading] = useState(false);
+  const [manualCreateFailed, setManualCreateFailed] = useState(false);
 
   const destinationLabel = getDestinationLabel(normalizedDraft.destination);
   const countryLabel = getDestinationCountryLabel(normalizedDraft.destination);
@@ -69,13 +71,15 @@ export function TripSummaryScreen() {
     }
 
     blurActiveElement();
+    setManualCreateFailed(false);
     setManualCreateLoading(true);
 
     try {
       const saved = await commitDraftTrip('manual');
+      setManualCreateFailed(false);
       router.replace(resolvePostCreatePackHref(saved));
     } catch {
-      // Draft is preserved; repositoryError is set in TripsProvider.
+      setManualCreateFailed(true);
     } finally {
       setManualCreateLoading(false);
     }
@@ -131,6 +135,8 @@ export function TripSummaryScreen() {
           }
         />
       </ScrollView>
+
+      {manualCreateFailed ? <SummaryManualCreateErrorBanner /> : null}
 
       <SummaryFooter
         onGenerate={handleGenerate}
