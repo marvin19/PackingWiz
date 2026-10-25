@@ -3,20 +3,27 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
+import { formatImportantExamplesLine } from '@/domain/important-item-examples';
+import type { PackingProfile } from '@/domain/packing-profile';
 import { useTheme } from '@/hooks/use-theme';
 
 type ImportantItemsEmptyCardProps = {
   profileLabel?: string;
+  profile?: Pick<PackingProfile, 'isSelf' | 'age'>;
   onAdd: () => void;
   onDismiss: () => void;
 };
 
 export function ImportantItemsEmptyCard({
   profileLabel,
+  profile,
   onAdd,
   onDismiss,
 }: ImportantItemsEmptyCardProps) {
   const theme = useTheme();
+  const examplesLine = formatImportantExamplesLine(
+    profile ?? { isSelf: false, age: undefined },
+  );
 
   return (
     <View
@@ -43,7 +50,7 @@ export function ImportantItemsEmptyCard({
           : 'Anything you never want to forget? We\u2019ll remember these for future trips.'}
       </AppText>
       <AppText variant="caption" color="mutedForeground" style={styles.examples}>
-        e.g. important medication, house keys
+        {examplesLine}
       </AppText>
       <View style={styles.actions}>
         <PrimaryButton label="Add important items" onPress={onAdd} />

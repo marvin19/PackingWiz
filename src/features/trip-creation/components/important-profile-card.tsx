@@ -3,6 +3,10 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { AppTextInput } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
+import {
+  ADD_ANOTHER_IMPORTANT_ITEM_PLACEHOLDER,
+  importantItemFirstRowPlaceholder,
+} from '@/domain/important-item-examples';
 import { importantProfileCardMetadata } from '@/domain/important-profile-setup';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import type { PackingProfile } from '@/domain/packing-profile';
@@ -41,6 +45,7 @@ export function ImportantProfileCard({
   const hiddenPreviewCount = Math.max(previewNames.length - visiblePreviewNames.length, 0);
   const showOnboardingActions = !isConfigured && !isDismissed && !expanded;
   const showEditInHeader = (showCompactReview || previewNames.length > 0) && !expanded;
+  const firstRowPlaceholder = importantItemFirstRowPlaceholder(profile);
 
   const updateRow = (index: number, value: string) => {
     onChangeRows(stagedRows.map((row, rowIndex) => (rowIndex === index ? value : row)));
@@ -139,7 +144,9 @@ export function ImportantProfileCard({
                 <AppTextInput
                   value={row}
                   onChangeText={(value) => updateRow(index, value)}
-                  placeholder={index === 0 ? 'e.g. Teddy bear' : 'Add another item'}
+                  placeholder={
+                    index === 0 ? firstRowPlaceholder : ADD_ANOTHER_IMPORTANT_ITEM_PLACEHOLDER
+                  }
                   accessibilityLabel={`Important item ${index + 1} for ${profileLabel}`}
                   style={styles.input}
                 />

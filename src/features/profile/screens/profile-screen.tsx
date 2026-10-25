@@ -241,6 +241,7 @@ export function ProfileScreen() {
       <ImportantItemsSetupSheet
         visible={importantSetupVisible}
         profileLabel={editingProfileLabel}
+        profile={editingProfile ?? undefined}
         initialNames={editingImportantItems.map((item) => item.name)}
         isConfigured={editingIsConfigured}
         isEnabled={editingIsEnabled}

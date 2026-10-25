@@ -16,13 +16,19 @@ import { AppTextInput } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { formatImportantUpdatedAt } from '@/domain/dates';
+import {
+  ADD_ANOTHER_IMPORTANT_ITEM_PLACEHOLDER,
+  importantItemFirstRowPlaceholder,
+} from '@/domain/important-item-examples';
 import { dedupeImportantItemNames } from '@/domain/important-items-preferences';
+import type { PackingProfile } from '@/domain/packing-profile';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
 type ImportantItemsSetupSheetProps = {
   visible: boolean;
   profileLabel?: string;
+  profile?: Pick<PackingProfile, 'isSelf' | 'age'>;
   initialNames?: string[];
   isConfigured?: boolean;
   isEnabled?: boolean;
@@ -44,6 +50,7 @@ function draftRowsFromInitialNames(initialNames?: string[]): string[] {
 export function ImportantItemsSetupSheet({
   visible,
   profileLabel,
+  profile,
   initialNames,
   isConfigured = false,
   isEnabled = true,
@@ -60,6 +67,9 @@ export function ImportantItemsSetupSheet({
   const isEmptyConfigured = isConfigured && (initialNames?.length ?? 0) === 0;
   const showEnabledToggle = isConfigured && onEnabledChange;
   const editingDisabled = showEnabledToggle && !isEnabled;
+  const firstRowPlaceholder = importantItemFirstRowPlaceholder(
+    profile ?? { isSelf: true, age: undefined },
+  );
 
   const loadDraft = () => {
     setRows(draftRowsFromInitialNames(initialNames));
@@ -206,7 +216,9 @@ export function ImportantItemsSetupSheet({
                 <AppTextInput
                   value={row}
                   onChangeText={(value) => updateRow(index, value)}
-                  placeholder={index === 0 ? 'e.g. Insulin' : 'Add another item'}
+                  placeholder={
+                    index === 0 ? firstRowPlaceholder : ADD_ANOTHER_IMPORTANT_ITEM_PLACEHOLDER
+                  }
                   accessibilityLabel={`Important item ${index + 1}`}
                   editable={!editingDisabled}
                   style={[styles.input, editingDisabled && styles.inputDisabled]}
