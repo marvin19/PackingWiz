@@ -30,15 +30,10 @@ export function TripGeneratingScreen() {
     errorMessage,
     createdTrip,
     steps,
-    start,
     retry,
     isReadyToFinish,
     finishDelayMs,
   } = useTripGeneration();
-
-  useEffect(() => {
-    start();
-  }, [start]);
 
   useEffect(() => {
     if (!isReadyToFinish || !createdTrip) {

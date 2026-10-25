@@ -25,3 +25,15 @@ export function getGenerationStepStatus(
 export function getTotalGenerationDurationMs(): number {
   return GENERATION_STEP_DELAY_MS * GENERATION_STEPS.length + GENERATION_FINISH_DELAY_MS;
 }
+
+/** Step index after the last illustrative animation tick (all rows show done). */
+export function getGenerationAnimationCompleteStep(): number {
+  return GENERATION_STEPS.length;
+}
+
+export function isGenerationReadyToNavigate(
+  status: 'idle' | 'running' | 'success' | 'error',
+  activeStep: number,
+): boolean {
+  return status === 'success' && activeStep >= getGenerationAnimationCompleteStep();
+}

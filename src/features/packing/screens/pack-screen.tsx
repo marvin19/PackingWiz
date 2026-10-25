@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -43,6 +43,7 @@ import {
   groupItemsByCategory,
   type PackingFilter,
 } from '@/features/packing/utils/group-items';
+import { shouldRedirectPackTabToListPicker } from '@/features/packing/utils/pack-multi-list-redirect';
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
 import { TripIdentityTitle } from '@/features/trips/components/trip-identity-title';
@@ -61,8 +62,17 @@ export function PackScreen() {
   useAcknowledgePostCreateNavigation();
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const { activeTrip, activeTripId, activePackingList, activePackingListId, selectActivePackingList, togglePacked, markItemPurchased, syncImportantSnapshotForList } =
-    useTrips();
+  const {
+    activeTrip,
+    activeTripId,
+    activePackingList,
+    activePackingListId,
+    isCommitDraftInFlight,
+    selectActivePackingList,
+    togglePacked,
+    markItemPurchased,
+    syncImportantSnapshotForList,
+  } = useTrips();
   const {
     getImportantConfigForProfile,
     getEnabledImportantItemsForProfile,
@@ -109,11 +119,29 @@ export function PackScreen() {
     : '';
   const activeImportantUpdatedAt = activeImportantConfig?.updatedAt;
 
-  useEffect(() => {
-    if (activeTrip && hasMultipleLists && !activePackingListId) {
+  useFocusEffect(
+    useCallback(() => {
+      if (
+        !shouldRedirectPackTabToListPicker({
+          isPackFocused: true,
+          isCommitDraftInFlight,
+          hasActiveTrip: Boolean(activeTrip),
+          hasMultipleLists,
+          activePackingListId,
+        })
+      ) {
+        return;
+      }
+
       router.replace('/(tabs)/pack/select-list');
-    }
-  }, [activeTrip, activePackingListId, hasMultipleLists, router]);
+    }, [
+      activePackingListId,
+      activeTrip,
+      hasMultipleLists,
+      isCommitDraftInFlight,
+      router,
+    ]),
+  );
 
   const packingItems = useMemo(
     () => activePackingList?.items ?? [],
