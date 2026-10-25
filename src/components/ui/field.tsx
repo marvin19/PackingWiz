@@ -6,15 +6,28 @@ import { useTheme } from '@/hooks/use-theme';
 
 type FieldProps = {
   label: string;
+  required?: boolean;
   children: ReactNode;
 };
 
-export function Field({ label, children }: FieldProps) {
+export function Field({ label, required = false, children }: FieldProps) {
+  const theme = useTheme();
+
   return (
     <View style={styles.field}>
-      <AppText variant="bodySmall" style={styles.label}>
-        {label}
-      </AppText>
+      <View
+        accessible
+        accessibilityRole="text"
+        accessibilityLabel={required ? `${label}, required` : label}>
+        <AppText variant="bodySmall" style={styles.label}>
+          {label}
+          {required ? (
+            <AppText variant="bodySmall" style={{ color: theme.colors.destructive }}>
+              {' *'}
+            </AppText>
+          ) : null}
+        </AppText>
+      </View>
       {children}
     </View>
   );
@@ -22,19 +35,33 @@ export function Field({ label, children }: FieldProps) {
 
 export type AppTextInputProps = TextInputProps & {
   focused?: boolean;
+  /** When set, marks the input invalid and exposes the message as the accessibility hint. */
+  errorMessage?: string;
 };
 
-export function AppTextInput({ style, focused, ...rest }: AppTextInputProps) {
+export function AppTextInput({
+  style,
+  focused,
+  errorMessage,
+  accessibilityHint,
+  ...rest
+}: AppTextInputProps) {
   const theme = useTheme();
+  const hasError = Boolean(errorMessage);
 
   return (
     <TextInput
       placeholderTextColor={theme.colors.mutedForeground}
+      accessibilityHint={hasError ? errorMessage : accessibilityHint}
       style={[
         styles.input,
         {
           backgroundColor: theme.colors.card,
-          borderColor: focused ? theme.colors.primary : theme.colors.border,
+          borderColor: hasError
+            ? theme.colors.destructive
+            : focused
+              ? theme.colors.primary
+              : theme.colors.border,
           color: theme.colors.foreground,
           fontFamily: theme.fontFamilies.sans,
         },

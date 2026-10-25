@@ -28,6 +28,10 @@ export function formatPackingProfileLabel(profile: PackingProfile): string {
   return profile.name;
 }
 
+export const DRAFT_PROFILE_AGE_REQUIRED_MESSAGE = 'Age is required';
+
+export const DRAFT_PROFILE_AGE_INVALID_MESSAGE = 'Enter a whole number from 0 to 120';
+
 export function isValidDraftProfileAge(raw: string): boolean {
   const trimmed = raw.trim();
   if (!trimmed) {
@@ -40,6 +44,19 @@ export function isValidDraftProfileAge(raw: string): boolean {
 
   const age = Number.parseInt(trimmed, 10);
   return Number.isInteger(age) && age >= 0 && age <= 120;
+}
+
+/** User-facing age field error when value is missing or fails {@link isValidDraftProfileAge}. */
+export function getDraftProfileAgeValidationMessage(raw: string): string | null {
+  if (!raw.trim()) {
+    return DRAFT_PROFILE_AGE_REQUIRED_MESSAGE;
+  }
+
+  if (!isValidDraftProfileAge(raw)) {
+    return DRAFT_PROFILE_AGE_INVALID_MESSAGE;
+  }
+
+  return null;
 }
 
 export function parseDraftProfileAge(raw: string): number | null {

@@ -12,15 +12,23 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppTextInput } from '@/components/ui/field';
+import { AppTextInput, Field } from '@/components/ui/field';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import type { PackingProfile } from '@/domain/packing-profile';
 import {
+  getDraftProfileAgeValidationMessage,
   hasDuplicateDraftProfileName,
   isValidDraftProfileAge,
   parseDraftProfileAge,
 } from '@/domain/trip-draft-profiles';
+import {
+  ADD_PERSON_AGE_ACCESSIBILITY_LABEL,
+  ADD_PERSON_DUPLICATE_NAME_MESSAGE,
+  ADD_PERSON_NAME_ACCESSIBILITY_LABEL,
+  ADD_PERSON_NAME_REQUIRED_MESSAGE,
+  ADD_PERSON_REQUIRED_FIELDS_LEGEND,
+} from '@/features/trip-creation/components/add-packing-profile-sheet.copy';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
@@ -30,6 +38,10 @@ type AddPackingProfileSheetProps = {
   onAdd: (name: string, age: number, rememberForFutureTrips: boolean) => void;
   onClose: () => void;
 };
+
+function requiredInputAccessibilityLabel(label: string): string {
+  return `${label}, required`;
+}
 
 export function AddPackingProfileSheet({
   visible,
@@ -68,7 +80,14 @@ export function AddPackingProfileSheet({
 
   const showNameRequired = shouldValidateName && !trimmedName;
   const showDuplicateName = trimmedName.length > 0 && duplicateName;
-  const showAgeError = shouldValidateAge && !validAge;
+  const nameErrorMessage = showNameRequired
+    ? ADD_PERSON_NAME_REQUIRED_MESSAGE
+    : showDuplicateName
+      ? ADD_PERSON_DUPLICATE_NAME_MESSAGE
+      : undefined;
+
+  const ageErrorMessage =
+    shouldValidateAge && !validAge ? getDraftProfileAgeValidationMessage(ageText) : null;
 
   const canSubmit = useMemo(() => {
     return trimmedName.length > 0 && validAge && !duplicateName;
@@ -128,45 +147,52 @@ export function AddPackingProfileSheet({
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.form}>
+            <AppText variant="caption" color="mutedForeground" style={styles.requiredLegend}>
+              {ADD_PERSON_REQUIRED_FIELDS_LEGEND}
+            </AppText>
+
             <View style={styles.fieldBlock}>
-              <AppText variant="sectionLabel" color="mutedForeground">
-                Name
-              </AppText>
-              <AppTextInput
-                value={name}
-                onChangeText={setName}
-                onBlur={() => setNameTouched(true)}
-                placeholder="Name"
-                autoFocus
-                accessibilityLabel="Person name"
-              />
-              {showNameRequired ? (
-                <AppText variant="caption" style={{ color: theme.colors.destructive }}>
-                  Name is required
-                </AppText>
-              ) : null}
-              {showDuplicateName ? (
-                <AppText variant="caption" style={{ color: theme.colors.destructive }}>
-                  This person is already added.
+              <Field label="Name" required>
+                <AppTextInput
+                  value={name}
+                  onChangeText={setName}
+                  onBlur={() => setNameTouched(true)}
+                  placeholder="Name"
+                  autoFocus
+                  accessibilityLabel={requiredInputAccessibilityLabel(ADD_PERSON_NAME_ACCESSIBILITY_LABEL)}
+                  errorMessage={nameErrorMessage ?? undefined}
+                />
+              </Field>
+              {nameErrorMessage ? (
+                <AppText
+                  variant="caption"
+                  style={{ color: theme.colors.destructive }}
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite">
+                  {nameErrorMessage}
                 </AppText>
               ) : null}
             </View>
 
             <View style={styles.fieldBlock}>
-              <AppText variant="sectionLabel" color="mutedForeground">
-                Age
-              </AppText>
-              <AppTextInput
-                value={ageText}
-                onChangeText={setAgeText}
-                onBlur={() => setAgeTouched(true)}
-                placeholder="Age (years)"
-                keyboardType="number-pad"
-                accessibilityLabel="Age in whole years"
-              />
-              {showAgeError ? (
-                <AppText variant="caption" style={{ color: theme.colors.destructive }}>
-                  Invalid age
+              <Field label="Age" required>
+                <AppTextInput
+                  value={ageText}
+                  onChangeText={setAgeText}
+                  onBlur={() => setAgeTouched(true)}
+                  placeholder="Age (years)"
+                  keyboardType="number-pad"
+                  accessibilityLabel={requiredInputAccessibilityLabel(ADD_PERSON_AGE_ACCESSIBILITY_LABEL)}
+                  errorMessage={ageErrorMessage ?? undefined}
+                />
+              </Field>
+              {ageErrorMessage ? (
+                <AppText
+                  variant="caption"
+                  style={{ color: theme.colors.destructive }}
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite">
+                  {ageErrorMessage}
                 </AppText>
               ) : null}
             </View>
@@ -231,6 +257,10 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
     paddingBottom: 8,
+  },
+  requiredLegend: {
+    paddingHorizontal: 4,
+    marginTop: -4,
   },
   fieldBlock: {
     gap: 8,
