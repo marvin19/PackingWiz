@@ -11,7 +11,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppTextInput } from '@/components/ui/field';
+import { AppTextInput, Field } from '@/components/ui/field';
+import {
+  PACKING_ITEM_NAME_REQUIRED_MESSAGE,
+  packingItemNameInputAccessibilityLabel,
+} from '@/features/packing/components/packing-item-name-field.copy';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SELECTABLE_PACKING_CATEGORIES, type PackingCategory } from '@/domain/packing-item';
@@ -35,6 +39,12 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
   const [quantity, setQuantity] = useState(1);
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
   const [focused, setFocused] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const trimmedName = name.trim();
+  const showNameRequired = (nameTouched || submitted) && !trimmedName;
+  const nameErrorMessage = showNameRequired ? PACKING_ITEM_NAME_REQUIRED_MESSAGE : undefined;
 
   const travelers = activeTrip?.travelers ?? [];
   const showAssign = shouldShowLegacyItemAssignmentControls(activeTrip, travelers.length);
@@ -45,6 +55,8 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
     setNeedToBuy(false);
     setQuantity(1);
     setAssignedTo(null);
+    setNameTouched(false);
+    setSubmitted(false);
   };
 
   const handleClose = () => {
@@ -53,13 +65,15 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
   };
 
   const handleSubmit = () => {
-    const trimmed = name.trim();
-    if (!trimmed) {
+    setSubmitted(true);
+    setNameTouched(true);
+
+    if (!trimmedName) {
       return;
     }
 
     addPackingItem({
-      name: trimmed,
+      name: trimmedName,
       category,
       quantity,
       needToBuy,
@@ -95,17 +109,32 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
             </Pressable>
           </View>
 
-          <AppTextInput
-            value={name}
-            onChangeText={setName}
-            placeholder="e.g. Reusable water bottle"
-            autoFocus
-            focused={focused}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            returnKeyType="done"
-            onSubmitEditing={handleSubmit}
-          />
+          <View style={styles.nameFieldBlock}>
+            <Field label="Item name" required>
+              <AppTextInput
+                value={name}
+                onChangeText={setName}
+                onBlur={() => setNameTouched(true)}
+                placeholder="e.g. Reusable water bottle"
+                autoFocus
+                focused={focused}
+                onFocus={() => setFocused(true)}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                accessibilityLabel={packingItemNameInputAccessibilityLabel()}
+                errorMessage={nameErrorMessage}
+              />
+            </Field>
+            {nameErrorMessage ? (
+              <AppText
+                variant="caption"
+                color="destructive"
+                accessibilityRole="alert"
+                accessibilityLiveRegion="polite">
+                {nameErrorMessage}
+              </AppText>
+            ) : null}
+          </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryRow}>
             {SELECTABLE_PACKING_CATEGORIES.map((entry) => {
@@ -242,7 +271,7 @@ export function AddItemSheet({ visible, onClose }: AddItemSheetProps) {
             </AppText>
           </Pressable>
 
-          <PrimaryButton label="Add to list" disabled={!name.trim()} onPress={handleSubmit} />
+          <PrimaryButton label="Add to list" disabled={!trimmedName} onPress={handleSubmit} />
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -268,6 +297,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  nameFieldBlock: {
+    gap: 8,
   },
   closeButton: {
     width: 28,

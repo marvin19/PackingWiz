@@ -12,7 +12,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AppTextInput } from '@/components/ui/field';
+import { AppTextInput, Field } from '@/components/ui/field';
+import {
+  PACKING_ITEM_NAME_REQUIRED_MESSAGE,
+  packingItemNameInputAccessibilityLabel,
+} from '@/features/packing/components/packing-item-name-field.copy';
 import { AppText } from '@/components/ui/app-text';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
@@ -72,6 +76,7 @@ function PackingItemSettingsSheetBody({
   const [category, setCategory] = useState<PackingCategory>(item.category);
   const [nameFocused, setNameFocused] = useState(false);
   const [noteFocused, setNoteFocused] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
 
   const isImportant = isImportantPackingItem(item);
   const showAssign = shouldShowLegacyItemAssignmentControls(activeTrip, travelers.length);
@@ -91,6 +96,9 @@ function PackingItemSettingsSheetBody({
 
   const hasChanges = hasPackingItemSettingsChanges(item, stagedSettings);
   const canUpdate = canSavePackingItemSettings(item, stagedSettings);
+  const showNameRequired =
+    !isImportant && nameTouched && stagedSettings.name.length === 0;
+  const nameErrorMessage = showNameRequired ? PACKING_ITEM_NAME_REQUIRED_MESSAGE : undefined;
 
   const handleClose = () => {
     onClose();
@@ -98,6 +106,9 @@ function PackingItemSettingsSheetBody({
 
   const handleUpdate = () => {
     if (!canUpdate) {
+      if (!isImportant && stagedSettings.name.length === 0) {
+        setNameTouched(true);
+      }
       return;
     }
 
@@ -151,11 +162,11 @@ function PackingItemSettingsSheetBody({
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}>
           <View style={styles.fieldBlock}>
-            <AppText variant="sectionLabel" color="mutedForeground">
-              Name
-            </AppText>
             {isImportant ? (
               <>
+                <AppText variant="sectionLabel" color="mutedForeground">
+                  Name
+                </AppText>
                 <AppText variant="bodySmall" style={{ fontFamily: theme.fontFamilies.sansMedium }}>
                   {item.name}
                 </AppText>
@@ -164,16 +175,34 @@ function PackingItemSettingsSheetBody({
                 </AppText>
               </>
             ) : (
-              <AppTextInput
-                value={name}
-                onChangeText={setName}
-                placeholder="Item name"
-                focused={nameFocused}
-                onFocus={() => setNameFocused(true)}
-                onBlur={() => setNameFocused(false)}
-                returnKeyType="done"
-                onSubmitEditing={() => Keyboard.dismiss()}
-              />
+              <>
+                <Field label="Item name" required>
+                  <AppTextInput
+                    value={name}
+                    onChangeText={setName}
+                    onBlur={() => {
+                      setNameTouched(true);
+                      setNameFocused(false);
+                    }}
+                    placeholder="Item name"
+                    focused={nameFocused}
+                    onFocus={() => setNameFocused(true)}
+                    returnKeyType="done"
+                    onSubmitEditing={() => Keyboard.dismiss()}
+                    accessibilityLabel={packingItemNameInputAccessibilityLabel()}
+                    errorMessage={nameErrorMessage}
+                  />
+                </Field>
+                {nameErrorMessage ? (
+                  <AppText
+                    variant="caption"
+                    color="destructive"
+                    accessibilityRole="alert"
+                    accessibilityLiveRegion="polite">
+                    {nameErrorMessage}
+                  </AppText>
+                ) : null}
+              </>
             )}
           </View>
 

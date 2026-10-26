@@ -3,6 +3,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 
 import { SELECTABLE_PACKING_CATEGORIES } from '@/domain/packing-item';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
+import { PACKING_ITEM_NAME_REQUIRED_MESSAGE } from '@/features/packing/components/packing-item-name-field.copy';
 import { useTrips } from '@/hooks/use-trips';
 
 const mockUseTrips = useTrips as jest.MockedFunction<typeof useTrips>;
@@ -43,6 +44,44 @@ describe('AddItemSheet', () => {
     expect(SELECTABLE_PACKING_CATEGORIES).toContain('Shoes');
   });
 
+  it('shows a required item name label and accessible name', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(<AddItemSheet visible onClose={jest.fn()} />);
+    });
+
+    expect(tree!.root.findAllByProps({ accessibilityLabel: 'Item name, required' }).length).toBeGreaterThan(0);
+    expect(
+      tree!.root.findByProps({
+        accessibilityLabel: 'Item name, required',
+        placeholder: 'e.g. Reusable water bottle',
+      }),
+    ).toBeTruthy();
+  });
+
+  it('shows required feedback after blur when name is empty', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(<AddItemSheet visible onClose={jest.fn()} />);
+    });
+
+    const textInput = tree!.root.findByProps({
+      accessibilityLabel: 'Item name, required',
+      placeholder: 'e.g. Reusable water bottle',
+    });
+
+    act(() => {
+      textInput.props.onBlur();
+    });
+
+    expect(tree!.root.findByProps({ children: PACKING_ITEM_NAME_REQUIRED_MESSAGE })).toBeTruthy();
+    expect(
+      tree!.root.findByProps({ accessibilityHint: PACKING_ITEM_NAME_REQUIRED_MESSAGE }),
+    ).toBeTruthy();
+  });
+
   it('adds manual items as Uncategorized when category is not changed', () => {
     let tree: TestRenderer.ReactTestRenderer | undefined;
 
@@ -50,12 +89,17 @@ describe('AddItemSheet', () => {
       tree = TestRenderer.create(<AddItemSheet visible onClose={jest.fn()} />);
     });
 
-    const textInput = tree!.root.findByProps({ placeholder: 'e.g. Reusable water bottle' });
+    const textInput = tree!.root.findByProps({
+      accessibilityLabel: 'Item name, required',
+      placeholder: 'e.g. Reusable water bottle',
+    });
     act(() => {
       textInput.props.onChangeText('Joggesko');
     });
 
     const addButton = tree!.root.findByProps({ accessibilityLabel: 'Add to list' });
+    expect(addButton.props.disabled).toBe(false);
+
     act(() => {
       addButton.props.onPress();
     });
@@ -66,5 +110,22 @@ describe('AddItemSheet', () => {
         category: 'Uncategorized',
       }),
     );
+  });
+
+  it('does not add an item when the name is empty', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(<AddItemSheet visible onClose={jest.fn()} />);
+    });
+
+    const addButton = tree!.root.findByProps({ accessibilityLabel: 'Add to list' });
+    expect(addButton.props.disabled).toBe(true);
+
+    act(() => {
+      addButton.props.onPress();
+    });
+
+    expect(mockAddPackingItem).not.toHaveBeenCalled();
   });
 });
