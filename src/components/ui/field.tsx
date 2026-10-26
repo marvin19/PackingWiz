@@ -4,6 +4,9 @@ import { StyleSheet, TextInput, type TextInputProps, View } from 'react-native';
 import { AppText } from '@/components/ui/app-text';
 import { useTheme } from '@/hooks/use-theme';
 
+/** Shared legend for forms that mark required fields with an asterisk (D5-1 convention). */
+export const REQUIRED_FIELDS_LEGEND = '* Required fields';
+
 type FieldProps = {
   label: string;
   required?: boolean;

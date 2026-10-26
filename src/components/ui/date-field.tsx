@@ -20,7 +20,37 @@ type DateFieldProps = {
   onChange: (iso: string) => void;
   minimumDate?: Date;
   maximumDate?: Date;
+  required?: boolean;
 };
+
+function dateFieldControlAccessibilityLabel(
+  label: string,
+  value: string,
+  required: boolean,
+): string {
+  const dateLabel = formatDisplayDate(value);
+  return required ? `${label}, required, ${dateLabel}` : `${label}, ${dateLabel}`;
+}
+
+function DateFieldLabel({ label, required = false }: Pick<DateFieldProps, 'label' | 'required'>) {
+  const theme = useTheme();
+
+  return (
+    <View
+      accessible
+      accessibilityRole="text"
+      accessibilityLabel={required ? `${label}, required` : label}>
+      <AppText variant="bodySmall" style={styles.label}>
+        {label}
+        {required ? (
+          <AppText variant="bodySmall" style={{ color: theme.colors.destructive }}>
+            {' *'}
+          </AppText>
+        ) : null}
+      </AppText>
+    </View>
+  );
+}
 
 export function DateField(props: DateFieldProps) {
   if (Platform.OS === 'web') {
@@ -34,7 +64,7 @@ export function DateField(props: DateFieldProps) {
   return <AndroidDateField {...props} />;
 }
 
-function WebDateField({ label, value, onChange, minimumDate, maximumDate }: DateFieldProps) {
+function WebDateField({ label, value, onChange, minimumDate, maximumDate, required = false }: DateFieldProps) {
   const theme = useTheme();
   const onChangeRef = useRef(onChange);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -97,10 +127,8 @@ function WebDateField({ label, value, onChange, minimumDate, maximumDate }: Date
 
   return (
     <View style={styles.wrap}>
-      <AppText variant="bodySmall" style={styles.label}>
-        {label}
-      </AppText>
-      <View ref={attachInput} style={styles.webInputHost} />
+      <DateFieldLabel label={label} required={required} />
+      <View ref={attachInput} style={styles.webInputHost} accessibilityLabel={dateFieldControlAccessibilityLabel(label, value, required)} />
     </View>
   );
 }
@@ -123,7 +151,7 @@ function applyWebInputTheme(input: HTMLInputElement, colors: Record<ColorToken, 
   } as Partial<CSSStyleDeclaration>);
 }
 
-function IosDateField({ label, value, onChange, minimumDate, maximumDate }: DateFieldProps) {
+function IosDateField({ label, value, onChange, minimumDate, maximumDate, required = false }: DateFieldProps) {
   const theme = useTheme();
   const pickerValue = useMemo(
     () => (value ? parseDate(value) : new Date()),
@@ -132,10 +160,9 @@ function IosDateField({ label, value, onChange, minimumDate, maximumDate }: Date
 
   return (
     <View style={styles.wrap}>
-      <AppText variant="bodySmall" style={styles.label}>
-        {label}
-      </AppText>
+      <DateFieldLabel label={label} required={required} />
       <View
+        accessibilityLabel={dateFieldControlAccessibilityLabel(label, value, required)}
         style={[
           styles.iosPickerShell,
           {
@@ -159,7 +186,7 @@ function IosDateField({ label, value, onChange, minimumDate, maximumDate }: Date
   );
 }
 
-function AndroidDateField({ label, value, onChange, minimumDate, maximumDate }: DateFieldProps) {
+function AndroidDateField({ label, value, onChange, minimumDate, maximumDate, required = false }: DateFieldProps) {
   const theme = useTheme();
 
   const pickerValue = useMemo(
@@ -181,12 +208,10 @@ function AndroidDateField({ label, value, onChange, minimumDate, maximumDate }: 
 
   return (
     <View style={styles.wrap}>
-      <AppText variant="bodySmall" style={styles.label}>
-        {label}
-      </AppText>
+      <DateFieldLabel label={label} required={required} />
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${label}, ${formatDisplayDate(value)}`}
+        accessibilityLabel={dateFieldControlAccessibilityLabel(label, value, required)}
         onPress={openPicker}
         style={({ pressed }) => [
           styles.button,

@@ -11,6 +11,8 @@ export type NewTripDateValidationResult =
 
 export const NEW_TRIP_START_DATE_PAST_MESSAGE = "Start date can't be in the past.";
 
+export const NEW_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE = 'Choose departure and return dates.';
+
 export function startOfLocalCalendarDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }

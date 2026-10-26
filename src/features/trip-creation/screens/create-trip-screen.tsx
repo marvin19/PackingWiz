@@ -39,6 +39,7 @@ import {
   parseWizardReturnToParam,
   parseWizardStepKeyParam,
 } from '@/features/trip-creation/utils/wizard-navigation';
+import { getWizardStepContinueBlockReason } from '@/features/trip-creation/utils/wizard-continue-hint';
 import {
   canProceedFromStepId,
   wizardContinueLabel,
@@ -81,6 +82,10 @@ export function CreateTripScreen() {
   const continueLabel = wizardContinueLabel(stepIndex, activeSteps.length, {
     returnToSummary: isEditingFromSummary,
   });
+  const continueHint = useMemo(
+    () => getWizardStepContinueBlockReason(currentStepId, normalizedDraft),
+    [currentStepId, normalizedDraft],
+  );
 
   useEffect(() => {
     if (!requestedStepKey) {
@@ -409,7 +414,12 @@ export function CreateTripScreen() {
           {renderStep(currentStepId)}
         </ScrollView>
 
-        <WizardFooter label={continueLabel} disabled={!canContinue} onPress={handleContinue} />
+        <WizardFooter
+          label={continueLabel}
+          disabled={!canContinue}
+          continueHint={continueHint}
+          onPress={handleContinue}
+        />
       </KeyboardAvoidingView>
     </AppScreen>
   );

@@ -15,11 +15,46 @@ jest.mock('@/hooks/use-theme', () => {
   return { useTheme: () => theme };
 });
 
-jest.mock('@/components/ui/date-field', () => ({
-  DateField: 'DateField',
-}));
+jest.mock('@/components/ui/date-field', () => {
+  const React = jest.requireActual<typeof import('react')>('react');
+  const { View } = jest.requireActual<typeof import('react-native')>('react-native');
+  const { AppText } = jest.requireActual<typeof import('@/components/ui/app-text')>(
+    '@/components/ui/app-text',
+  );
+
+  return {
+    DateField: ({ label, required }: { label: string; required?: boolean }) =>
+      React.createElement(
+        View,
+        { accessibilityLabel: required ? `${label}, required` : label },
+        React.createElement(AppText, null, label),
+      ),
+  };
+});
 
 describe('DestinationStep', () => {
+  it('marks destination and dates as required in the creation wizard', () => {
+    const draft = applyTripDraftPatch(createEmptyTripDraft('draft-1'), {
+      destination: createDestinationFromText('Oslo', 'Norway'),
+    });
+
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(
+        <DestinationStep draft={draft} onChange={jest.fn()} onChangeName={jest.fn()} />,
+      );
+    });
+
+    expect(tree!.root.findAllByProps({ accessibilityLabel: 'Destination, required' }).length).toBeGreaterThan(0);
+    expect(tree!.root.findAllByProps({ children: '* Required fields' })).toHaveLength(0);
+    expect(tree!.root.findByProps({ accessibilityLabel: 'Departure, required' })).toBeTruthy();
+    expect(tree!.root.findByProps({ accessibilityLabel: 'Return, required' })).toBeTruthy();
+    expect(
+      tree!.root.findByProps({ accessibilityLabel: 'Destination, required', placeholder: 'Search a city or country' }),
+    ).toBeTruthy();
+  });
+
   it('includes optional trip name between destination and dates', () => {
     let draft = applyTripDraftPatch(createEmptyTripDraft('draft-1'), {
       destination: createDestinationFromText('Oslo', 'Norway'),

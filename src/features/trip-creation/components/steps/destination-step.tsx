@@ -60,7 +60,7 @@ export function DestinationStep({
 
   return (
     <View style={styles.container}>
-      <Field label="Destination">
+      <Field label="Destination" required>
         <View>
           <Feather
             name="search"
@@ -83,7 +83,7 @@ export function DestinationStep({
             onFocus={() => setDestinationFocused(true)}
             onBlur={() => setDestinationFocused(false)}
             style={styles.destinationInput}
-            accessibilityLabel="Destination"
+            accessibilityLabel="Destination, required"
           />
         </View>
         <View style={styles.suggestions}>
@@ -128,11 +128,13 @@ export function DestinationStep({
           value={draft.startDate}
           onChange={(startDate) => onChange({ startDate })}
           minimumDate={minimumStartDate}
+          required
         />
         <DateField
           label="Return"
           value={draft.endDate}
           onChange={(endDate) => onChange({ endDate })}
+          required
           minimumDate={
             draft.startDate
               ? parseDate(draft.startDate)
