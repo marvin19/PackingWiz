@@ -1,7 +1,7 @@
 import type { PackingProfile } from '@/domain/packing-profile';
 import type { TripDraft } from '@/domain/trip-draft';
 import type { Trip } from '@/domain/trip';
-import { getTripName } from '@/domain/trip-name';
+import { tripNameEditState } from '@/domain/trip-name-ownership';
 
 function profileFromListSnapshot(
   snapshot: Trip['packingLists'][number]['profileSnapshot'],
@@ -29,9 +29,11 @@ function profileFromListSnapshot(
  * it is intentionally not injected here.
  */
 export function tripToTripDraft(trip: Trip): TripDraft {
+  const nameState = tripNameEditState(trip);
   return {
     id: trip.id,
-    name: getTripName(trip),
+    name: nameState.customName,
+    isTripNameUserEdited: nameState.isTripNameUserEdited,
     destination: { ...trip.destination },
     startDate: trip.startDate,
     endDate: trip.endDate,

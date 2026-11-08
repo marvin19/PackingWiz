@@ -7,7 +7,7 @@ import type { TripDraft } from '@/domain/trip-draft';
 export const TRIP_NAME_FIELD_HELPER_TEXT = 'e.g. Hyttetur. Leave blank to use destination.';
 
 type TripNameFieldProps = {
-  draft: TripDraft;
+  draft: Pick<TripDraft, 'name' | 'isTripNameUserEdited'>;
   onChangeName: (name: string) => void;
   label?: string;
   /** When omitted, uses {@link TRIP_NAME_FIELD_HELPER_TEXT}. Pass `null` to hide helper copy. */

@@ -15,7 +15,7 @@ import {
   isEditTripDestinationLabelValid,
   isEditTripTripContextValid,
 } from '@/domain/edit-trip-shared-details-validation';
-import { resolveCommittedTripNameFromDraft } from '@/domain/trip-draft-naming';
+import { tripNameEditState } from '@/domain/trip-name-ownership';
 import type { PackingProfile } from '@/domain/packing-profile';
 import {
   formatPackingListProfileName,
@@ -30,10 +30,10 @@ import {
 } from '@/domain/trip-edit';
 import { tripToTripDraft } from '@/domain/trip-to-draft';
 import type { Trip } from '@/domain/trip';
-import { getTripName } from '@/domain/trip-name';
 
 export type TripEditFormState = {
   name: string;
+  isTripNameUserEdited: boolean;
   draft: TripDraft;
 };
 
@@ -48,9 +48,12 @@ export type EditTripTravellerRow = {
 export type EditTripReturnTo = 'overview' | 'pack';
 
 export function createEditFormStateFromTrip(trip: Trip): TripEditFormState {
+  const nameState = tripNameEditState(trip);
+  const draft = tripToTripDraft(trip);
   return {
-    name: getTripName(trip),
-    draft: tripToTripDraft(trip),
+    name: nameState.customName,
+    isTripNameUserEdited: nameState.isTripNameUserEdited,
+    draft,
   };
 }
 
@@ -77,33 +80,27 @@ function bagsEqual(left: Bag[], right: Bag[]): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-function resolveEditTripPersistedName(
-  form: Pick<TripEditFormState, 'name' | 'draft'>,
-): string {
-  return resolveCommittedTripNameFromDraft({
-    name: form.name,
-    destination: form.draft.destination,
-  });
-}
-
-function resolveEditTripBaselineName(trip: Trip): string {
-  return resolveCommittedTripNameFromDraft({
-    name: getTripName(trip),
-    destination: trip.destination,
-  });
-}
-
 /** Build a user-editable patch from staged form state vs the persisted trip baseline. */
 export function buildSharedDetailsPatch(
   form: TripEditFormState,
   trip: Trip,
 ): TripSharedDetailsUserEdit {
   const patch: TripSharedDetailsUserEdit = {};
-  const resolvedName = resolveEditTripPersistedName(form);
-  const baselineName = resolveEditTripBaselineName(trip);
+  const baseline = tripNameEditState(trip);
+  const nextCustomName = form.isTripNameUserEdited ? form.name.trim() : '';
+  const nextIsUserEdited = form.isTripNameUserEdited && nextCustomName.length > 0;
 
-  if (resolvedName !== baselineName) {
-    patch.name = resolvedName;
+  if (nextIsUserEdited !== baseline.isTripNameUserEdited) {
+    patch.isTripNameUserEdited = nextIsUserEdited;
+  }
+
+  if (nextIsUserEdited) {
+    if (nextCustomName !== baseline.customName) {
+      patch.name = nextCustomName;
+    }
+  } else if (baseline.isTripNameUserEdited || baseline.customName) {
+    patch.isTripNameUserEdited = false;
+    patch.name = '';
   }
 
   const normalizedDraftDestination = normalizeDestinationForPersist(form.draft.destination);
@@ -348,7 +345,7 @@ export function availableSavedProfilesForTrip(
 }
 
 const SECTION_PATCH_KEYS: Record<TripDetailsSection, (keyof TripSharedDetailsUserEdit)[]> = {
-  destination: ['name', 'destination', 'startDate', 'endDate'],
+  destination: ['name', 'destination', 'startDate', 'endDate', 'isTripNameUserEdited'],
   'trip-context': ['tripContext'],
   accommodation: ['accommodation', 'laundry'],
   'packing-for': [],

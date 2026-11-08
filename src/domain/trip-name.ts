@@ -1,6 +1,7 @@
 import type { Destination } from '@/domain/destination';
-import { getDestinationLabel } from '@/domain/destination';
+import { emptyDestination, getDestinationLabel } from '@/domain/destination';
 import type { Trip } from '@/domain/trip';
+import { resolveTripDisplayName } from '@/domain/trip-name-ownership';
 
 /**
  * User-facing trip label (e.g. "Hyttetur") — distinct from the destination place
@@ -8,14 +9,17 @@ import type { Trip } from '@/domain/trip';
  */
 export type TripName = string;
 
-/** Read the trip's display name. Prefers trimmed `name`; falls back to trimmed legacy `title`. */
-export function getTripName(trip: Pick<Trip, 'name' | 'title'>): string {
-  const name = trip.name?.trim();
-  if (name) {
-    return name;
-  }
+type TripNameInput = Pick<Trip, 'name' | 'title'> &
+  Partial<Pick<Trip, 'destination' | 'isTripNameUserEdited'>>;
 
-  return trip.title?.trim() ?? '';
+/** Resolved user-facing trip label (custom or destination-owned). */
+export function getTripName(trip: TripNameInput): string {
+  return resolveTripDisplayName({
+    name: trip.name ?? '',
+    title: trip.title ?? '',
+    destination: trip.destination ?? emptyDestination(),
+    isTripNameUserEdited: trip.isTripNameUserEdited,
+  });
 }
 
 /**

@@ -12,7 +12,11 @@ import {
   primaryPackingProfileId,
 } from '@/domain/trip-compatibility-primary';
 import { isLegacyTripIngress } from '@/domain/trip-ingress';
-import { suggestDefaultTripNameFromDestination } from '@/domain/trip-name';
+import {
+  coalesceTripNameOwnership,
+  resolveTripCanonicalStoredName,
+  resolveTripDisplayName,
+} from '@/domain/trip-name-ownership';
 
 export {
   isCompatibilityPrimaryList,
@@ -95,13 +99,14 @@ function clonePackingList(list: PackingList): PackingList {
   };
 }
 
-function resolveTripName(trip: TripLike): string {
-  const explicitName = trip.name?.trim() || trip.title?.trim();
-  if (explicitName) {
-    return explicitName;
-  }
-
-  return suggestDefaultTripNameFromDestination(trip.destination);
+function syncTripNameFields<T extends Trip>(trip: T): T {
+  const withOwnership = coalesceTripNameOwnership(trip);
+  const displayName = resolveTripDisplayName(withOwnership);
+  return {
+    ...withOwnership,
+    name: resolveTripCanonicalStoredName(withOwnership),
+    title: displayName,
+  };
 }
 
 /**
@@ -133,28 +138,24 @@ export function resolveCompatibilityPrimaryPackingList(trip: Trip): PackingList 
  * left unchanged — canonical multi-list runtime must not assume packingLists[0] is primary.
  */
 export function syncLegacyTripMirrors(trip: Trip): Trip {
-  const name = resolveTripName(trip);
-  const mirrorList = resolveCompatibilityPrimaryPackingList(trip);
+  const namedTrip = syncTripNameFields(trip);
+  const mirrorList = resolveCompatibilityPrimaryPackingList(namedTrip);
 
   if (!mirrorList) {
     return {
-      ...trip,
-      name,
-      title: name,
-      insights: normalizeInsights(trip.insights),
-      status: normalizeTripStatus(trip),
+      ...namedTrip,
+      insights: normalizeInsights(namedTrip.insights),
+      status: normalizeTripStatus(namedTrip),
     };
   }
 
   return {
-    ...trip,
-    name,
-    title: name,
+    ...namedTrip,
     items: mirrorList.items.map(cloneItem),
     packingMode: mirrorList.packingMode,
     generated: mirrorList.packingMode === 'generated',
-    insights: normalizeInsights(trip.insights),
-    status: normalizeTripStatus(trip),
+    insights: normalizeInsights(namedTrip.insights),
+    status: normalizeTripStatus(namedTrip),
   };
 }
 
@@ -198,15 +199,11 @@ function migrateLegacyTripIngress(trip: TripLike): Trip {
     ];
   }
 
-  const name = resolveTripName(trip);
-
-  return {
+  return syncTripNameFields({
     ...(trip as Trip),
-    name,
-    title: name,
     packingLists,
     travelers: trip.travelers.map((traveler) => ({ ...traveler })),
-  };
+  });
 }
 
 /**
@@ -222,15 +219,13 @@ export function normalizeTrip(trip: TripLike): Trip {
     return syncLegacyTripMirrors(migrateLegacyTripIngress(trip));
   }
 
-  const name = resolveTripName(trip);
-
-  return normalizeCanonicalTrip({
-    ...(trip as Trip),
-    name,
-    title: name,
-    packingLists: (trip.packingLists ?? []).map(clonePackingList),
-    travelers: trip.travelers.map((traveler) => ({ ...traveler })),
-  });
+  return normalizeCanonicalTrip(
+    syncTripNameFields({
+      ...(trip as Trip),
+      packingLists: (trip.packingLists ?? []).map(clonePackingList),
+      travelers: trip.travelers.map((traveler) => ({ ...traveler })),
+    }),
+  );
 }
 
 /** Maps legacy archived/missing status to date-derived buckets; preserves stored upcoming/past. */
@@ -239,10 +234,11 @@ function normalizeTripStatus(trip: TripLike, referenceDate: Date = new Date()): 
     return trip.status;
   }
 
+  const displayName = resolveTripDisplayName(trip as Trip);
   const withDates = {
     ...trip,
-    name: resolveTripName(trip),
-    title: resolveTripName(trip),
+    name: trip.name ?? '',
+    title: displayName,
     packingLists: trip.packingLists ?? [],
     items: trip.items ?? [],
     insights: normalizeInsights(trip.insights),

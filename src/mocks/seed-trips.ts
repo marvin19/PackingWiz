@@ -85,6 +85,7 @@ const mockTokyoTripInput = finalizeSeedTrip({
   id: 'tokyo-kyoto',
   name: 'Tokyo & Kyoto',
   title: 'Tokyo & Kyoto',
+  isTripNameUserEdited: true,
   destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
   startDate: '2026-10-12',
   endDate: '2026-10-26',

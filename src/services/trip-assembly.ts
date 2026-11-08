@@ -128,11 +128,14 @@ export async function assembleTripFromDraft(
   }
 
   const primaryList = packingLists[0];
-  const tripName = resolveCommittedTripNameFromDraft(draft);
+  const isTripNameUserEdited = draft.isTripNameUserEdited ?? false;
+  const displayName = resolveCommittedTripNameFromDraft(draft);
 
   const legacyTrip: TripLike = {
     id: tripId,
-    title: tripName,
+    name: isTripNameUserEdited ? displayName : '',
+    title: displayName,
+    isTripNameUserEdited,
     destination: draft.destination,
     startDate: draft.startDate,
     endDate: draft.endDate,

@@ -69,7 +69,9 @@ describe('assembleTripFromDraft regression after per-profile extraction', () => 
     expect(trip.weather.summary).toBe('Sunny');
     expect(trip.insights.some((insight) => insight.id === 'insight-laundry-available')).toBe(true);
     expect(trip.insights.filter((insight) => insight.category === 'trip-context')).toHaveLength(0);
-    expect(trip.name).toBe('Oslo');
+    expect(trip.isTripNameUserEdited).toBe(false);
+    expect(trip.name).toBe('');
+    expect(trip.title).toBe('Oslo');
   });
 
   it('commits a user-edited draft trip name on assembly', async () => {
@@ -99,6 +101,7 @@ describe('assembleTripFromDraft regression after per-profile extraction', () => 
       { packingMode: 'manual' },
     );
 
+    expect(trip.isTripNameUserEdited).toBe(true);
     expect(trip.name).toBe('Family week in Oslo');
     expect(trip.title).toBe('Family week in Oslo');
   });

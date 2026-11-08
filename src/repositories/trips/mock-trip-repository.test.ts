@@ -1,5 +1,6 @@
 import { createDestinationFromText } from '@/domain/destination';
 import { normalizeTrip, primaryPackingListId, type TripLike } from '@/domain/trip-compatibility';
+import { getTripName } from '@/domain/trip-name';
 import { seedLisbonWeather } from '@/mocks/seed-weather';
 import { MockTripRepository } from '@/repositories/trips/mock-trip-repository';
 
@@ -39,6 +40,32 @@ function createMinimalTrip(id: string) {
 
   return normalizeTrip(legacy);
 }
+
+describe('MockTripRepository trip name ownership', () => {
+  it('round-trips isTripNameUserEdited through save and reload', async () => {
+    const custom = createMinimalTrip('trip-custom');
+    custom.isTripNameUserEdited = true;
+    custom.name = 'Hyttetur';
+    custom.title = 'Hyttetur';
+
+    const automatic = createMinimalTrip('trip-auto');
+    automatic.isTripNameUserEdited = false;
+    automatic.name = '';
+    automatic.title = 'Oslo';
+
+    const repository = new MockTripRepository([]);
+    await repository.save(custom);
+    await repository.save(automatic);
+
+    const reloadedCustom = (await repository.getById('trip-custom'))!;
+    expect(reloadedCustom.isTripNameUserEdited).toBe(true);
+    expect(getTripName(reloadedCustom)).toBe('Hyttetur');
+
+    const reloadedAutomatic = (await repository.getById('trip-auto'))!;
+    expect(reloadedAutomatic.isTripNameUserEdited).toBe(false);
+    expect(getTripName(reloadedAutomatic)).toBe('Oslo');
+  });
+});
 
 describe('MockTripRepository session semantics', () => {
   it('does not survive repository reinstantiation (matches browser refresh in mock mode)', async () => {

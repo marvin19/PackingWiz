@@ -7,7 +7,7 @@ import {
   normalizeCanonicalTrip,
   resolveCompatibilityPrimaryPackingList,
 } from '@/domain/trip-compatibility';
-import { getTripName } from '@/domain/trip-name';
+import { resolveTripPersistenceTitle } from '@/domain/trip-name-ownership';
 import { ensureTripUuid } from '@/lib/id';
 import { profileSnapshotToJson } from '@/repositories/trips/mappers/supabase-canonical-mapper';
 
@@ -81,7 +81,7 @@ export function tripToCanonicalRpcPayload(trip: Trip): Record<string, unknown> {
 
   return {
     id: ensureTripUuid(normalized.id),
-    title: getTripName(normalized),
+    title: resolveTripPersistenceTitle(normalized),
     destination: getDestinationLabel(normalized.destination),
     country: getDestinationCountryLabel(normalized.destination),
     startDate: normalized.startDate,

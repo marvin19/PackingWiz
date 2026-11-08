@@ -318,8 +318,9 @@ describe('detectTripPackingRelevantChanges', () => {
   it('clears a stale legacy title when the user removes a custom trip name', () => {
     const before = normalizeTrip({
       ...baseTripFields(SINGLE_TRIP_ID),
-      name: '',
+      name: 'Old custom title',
       title: 'Old custom title',
+      isTripNameUserEdited: true,
       travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],
       packingLists: [
         createSeedPrimaryPackingList(SINGLE_TRIP_ID, richPrimaryItems(), 'generated'),
@@ -329,9 +330,13 @@ describe('detectTripPackingRelevantChanges', () => {
       generated: true,
     });
 
-    const after = applyTripSharedDetailsEdit(before, { name: '' });
+    const after = applyTripSharedDetailsEdit(before, {
+      isTripNameUserEdited: false,
+      name: '',
+    });
 
-    expect(after.name).toBe('Barcelona');
+    expect(after.isTripNameUserEdited).toBe(false);
+    expect(after.name).toBe('');
     expect(after.title).toBe('Barcelona');
   });
 });

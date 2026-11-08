@@ -31,6 +31,7 @@ import { updateTripSharedDetails } from '@/services/trip-edit-orchestration';
 import type { Trip } from '@/domain/trip';
 import { normalizeTrip, primaryPackingListId, type TripLike } from '@/domain/trip-compatibility';
 import { createDestinationFromText } from '@/domain/destination';
+import { getTripName } from '@/domain/trip-name';
 import {
   appendTravellerPackingListToTrip,
   buildEmptyTravellerPackingListForTrip,
@@ -44,6 +45,7 @@ function createMeEmilieTrip(): Trip {
     id: tripId,
     name: 'Family trip',
     title: 'Family trip',
+    isTripNameUserEdited: true,
     destination: createDestinationFromText('Oslo', 'Norway'),
     startDate: '2026-07-01',
     endDate: '2026-07-10',
@@ -310,6 +312,7 @@ describe('edit trip view-model', () => {
     const form: TripEditFormState = {
       ...createEditFormStateFromTrip(trip),
       name: 'Renamed trip',
+      isTripNameUserEdited: true,
     };
 
     expect(isEditDestinationSectionDateRangeValid(form)).toBe(true);
@@ -450,28 +453,62 @@ describe('edit trip view-model', () => {
     const { trip: saved } = updateTripSharedDetails(trip, buildSharedDetailsPatch(form, trip));
     expect(saved.destination.displayName).toBe('Bergen');
     expect(saved.startDate).toBe('2026-07-01');
+    expect(getTripName(saved)).toBe('Family trip');
   });
 
-  it('clears a custom trip name to the destination fallback without stale title', () => {
+  it('updates automatic display title when only destination changes', () => {
+    const trip = updateTripSharedDetails(createMeEmilieTrip(), {
+      isTripNameUserEdited: false,
+      name: '',
+    }).trip;
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        destination: createDestinationFromText('Bergen', 'Norway'),
+      },
+    };
+
+    const { trip: saved } = updateTripSharedDetails(trip, buildSharedDetailsPatch(form, trip));
+    expect(getTripName(saved)).toBe('Bergen');
+    expect(saved.isTripNameUserEdited).toBe(false);
+    expect(saved.name).toBe('');
+  });
+
+  it('clears a custom trip name to automatic destination-based naming', () => {
     const trip = createMeEmilieTrip();
     const form: TripEditFormState = {
       ...createEditFormStateFromTrip(trip),
       name: '',
+      isTripNameUserEdited: false,
     };
 
     const patch = buildSharedDetailsPatch(form, trip);
-    expect(patch.name).toBe('Oslo');
+    expect(patch).toEqual({ isTripNameUserEdited: false, name: '' });
 
     const { trip: saved } = updateTripSharedDetails(trip, patch);
-    expect(saved.name).toBe('Oslo');
-    expect(saved.title).toBe('Oslo');
-    expect(createEditFormStateFromTrip(saved).name).toBe('Oslo');
+    expect(saved.isTripNameUserEdited).toBe(false);
+    expect(saved.name).toBe('');
+    expect(getTripName(saved)).toBe('Oslo');
+    expect(createEditFormStateFromTrip(saved)).toEqual({
+      name: '',
+      isTripNameUserEdited: false,
+      draft: expect.objectContaining({
+        name: '',
+        isTripNameUserEdited: false,
+      }),
+    });
   });
 
   it('keeps a custom trip name when only the destination changes', () => {
-    const trip = updateTripSharedDetails(createMeEmilieTrip(), { name: 'Hyttetur' }).trip;
-    const form: TripEditFormState = {
+    const trip = updateTripSharedDetails(createMeEmilieTrip(), {
       name: 'Hyttetur',
+      isTripNameUserEdited: true,
+    }).trip;
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      name: 'Hyttetur',
+      isTripNameUserEdited: true,
       draft: {
         ...createEditFormStateFromTrip(trip).draft,
         destination: createDestinationFromText('Bergen', 'Norway'),
@@ -484,6 +521,7 @@ describe('edit trip view-model', () => {
 
     const { trip: saved } = updateTripSharedDetails(trip, patch);
     expect(saved.name).toBe('Hyttetur');
+    expect(getTripName(saved)).toBe('Hyttetur');
     expect(saved.destination.displayName).toBe('Bergen');
   });
 

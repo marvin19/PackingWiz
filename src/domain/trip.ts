@@ -25,6 +25,12 @@ export interface Trip {
   id: string;
   /** User-facing trip name — distinct from destination place name. */
   name: string;
+  /**
+   * When false, `name` is not authoritative — display follows `destination`.
+   * When true, the user chose a custom label. Persisted on committed trips (mock);
+   * Supabase has no column yet — inferred on load only.
+   */
+  isTripNameUserEdited?: boolean;
   destination: Destination;
   startDate: string;
   endDate: string;

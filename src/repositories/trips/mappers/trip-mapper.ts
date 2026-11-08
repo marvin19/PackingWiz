@@ -14,7 +14,7 @@ import {
   primaryPackingListId,
   type TripLike,
 } from '@/domain/trip-compatibility';
-import { getTripName } from '@/domain/trip-name';
+import { resolveTripPersistenceTitle } from '@/domain/trip-name-ownership';
 import type {
   AccommodationId,
   LaundryOption,
@@ -235,7 +235,7 @@ export function tripToCreatePayload(trip: Trip): Record<string, unknown> {
 
   return {
     id: normalized.id,
-    title: getTripName(normalized),
+    title: resolveTripPersistenceTitle(normalized),
     destination: getDestinationLabel(normalized.destination),
     country: getDestinationCountryLabel(normalized.destination),
     startDate: normalized.startDate,

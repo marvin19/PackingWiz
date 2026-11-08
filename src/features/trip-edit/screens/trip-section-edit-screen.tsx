@@ -17,7 +17,8 @@ import { ScreenHeader } from '@/components/navigation/screen-header';
 import { shouldPersistRememberedTripProfile } from '@/domain/remembered-packing-profile';
 import { AppScreen } from '@/components/ui/app-screen';
 import { AppText } from '@/components/ui/app-text';
-import { AppTextInput, Field } from '@/components/ui/field';
+import { TripNameField } from '@/features/trip-creation/components/trip-name-field';
+import { createTripDraftNameInputPatch } from '@/domain/trip-draft-naming';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { BAG_TYPES } from '@/domain/catalog';
 import type { Bag, BagType } from '@/domain/bag';
@@ -460,14 +461,21 @@ export function TripSectionEditScreen() {
       case 'destination':
         return (
           <>
-            <Field label="Trip name">
-              <AppTextInput
-                value={form.name}
-                onChangeText={(name) => setForm((current) => ({ ...current, name }))}
-                placeholder="Trip name"
-                accessibilityLabel="Trip name"
-              />
-            </Field>
+            <TripNameField
+              draft={{
+                name: form.name,
+                isTripNameUserEdited: form.isTripNameUserEdited,
+              }}
+              onChangeName={(name) => {
+                const namePatch = createTripDraftNameInputPatch(name);
+                setForm((current) => ({
+                  ...current,
+                  name: namePatch.isTripNameUserEdited ? namePatch.name : '',
+                  isTripNameUserEdited: namePatch.isTripNameUserEdited ?? false,
+                }));
+              }}
+              label="Trip name (optional)"
+            />
             <DestinationStep
               draft={form.draft}
               onChange={patchDraft}

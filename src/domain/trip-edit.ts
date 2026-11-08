@@ -5,7 +5,10 @@ import {
   getDestinationLabel,
   normalizeDestinationForPersist,
 } from '@/domain/destination';
-import { resolveCommittedTripNameFromDraft } from '@/domain/trip-draft-naming';
+import {
+  coalesceTripNameOwnership,
+  resolveTripNameCustomText,
+} from '@/domain/trip-name-ownership';
 import type { PackingItem } from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile, PackingProfileSnapshot } from '@/domain/packing-profile';
@@ -34,6 +37,7 @@ export type TripSharedDetailsUserEdit = Partial<
     | 'accommodation'
     | 'laundry'
     | 'note'
+    | 'isTripNameUserEdited'
   >
 > & {
   destination?: Destination;
@@ -214,15 +218,26 @@ export function applyTripSharedDetailsEdit(trip: Trip, patch: TripSharedDetailsP
     ? normalizeDestinationForPersist(patch.destination)
     : { ...trip.destination };
 
-  const nextName =
-    patch.name !== undefined
-      ? resolveCommittedTripNameFromDraft({ name: patch.name, destination: nextDestination })
-      : trip.name;
+  const baseOwnership = coalesceTripNameOwnership(trip);
+  let nextIsUserEdited = patch.isTripNameUserEdited ?? baseOwnership.isTripNameUserEdited;
+  let nextStoredName = resolveTripNameCustomText(baseOwnership);
+
+  if (patch.isTripNameUserEdited !== undefined) {
+    nextIsUserEdited = patch.isTripNameUserEdited;
+    if (!nextIsUserEdited) {
+      nextStoredName = '';
+    } else if (patch.name !== undefined) {
+      nextStoredName = patch.name.trim();
+    }
+  } else if (patch.name !== undefined) {
+    nextStoredName = patch.name.trim();
+    nextIsUserEdited = nextStoredName.length > 0;
+  }
 
   const nextTrip: TripLike = {
     ...trip,
-    name: patch.name !== undefined ? nextName : trip.name,
-    title: patch.name !== undefined ? nextName : trip.title,
+    isTripNameUserEdited: nextIsUserEdited,
+    name: nextIsUserEdited ? nextStoredName : '',
     startDate: patch.startDate ?? trip.startDate,
     endDate: patch.endDate ?? trip.endDate,
     tripContext: patch.tripContext ? [...patch.tripContext] : [...trip.tripContext],

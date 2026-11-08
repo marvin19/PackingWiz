@@ -97,7 +97,15 @@ function verifySeedTrips(): void {
       getTripPackingMode(trip) === trip.packingMode,
       `${trip.id}: legacy packingMode mirror`,
     );
-    assert(trip.name === trip.title, `${trip.id}: name/title mirror`);
+    if (trip.isTripNameUserEdited) {
+      assert(trip.name === trip.title, `${trip.id}: custom name/title mirror`);
+    } else {
+      assert(trip.name === '', `${trip.id}: automatic trips keep empty stored name`);
+      assert(
+        trip.title === getTripName(trip),
+        `${trip.id}: title mirrors resolved display`,
+      );
+    }
   }
 }
 
