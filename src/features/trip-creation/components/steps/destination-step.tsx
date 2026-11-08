@@ -9,6 +9,7 @@ import {
   createDestinationFromText,
   getDestinationLabel,
 } from '@/domain/destination';
+import { EDIT_TRIP_DESTINATION_REQUIRED_MESSAGE } from '@/domain/edit-trip-shared-details-validation';
 import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, parseDate } from '@/domain/dates';
 import {
@@ -57,6 +58,10 @@ export function DestinationStep({
     : getNewTripDateValidationMessage(
         validateNewTripDateRange(draft.startDate, draft.endDate),
       );
+  const destinationError =
+    isEditExisting && getDestinationLabel(draft.destination) === ''
+      ? EDIT_TRIP_DESTINATION_REQUIRED_MESSAGE
+      : null;
 
   return (
     <View style={styles.container}>
@@ -84,8 +89,16 @@ export function DestinationStep({
             onBlur={() => setDestinationFocused(false)}
             style={styles.destinationInput}
             accessibilityLabel="Destination, required"
+            accessibilityHint={
+              destinationError ? `${destinationError} Save is unavailable until fixed.` : undefined
+            }
           />
         </View>
+        {destinationError ? (
+          <AppText variant="bodySmall" color="destructive" style={styles.dateError}>
+            {destinationError}
+          </AppText>
+        ) : null}
         <View style={styles.suggestions}>
           {DESTINATION_SUGGESTIONS.map((suggestion) => (
             <Pressable

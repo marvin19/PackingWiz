@@ -14,9 +14,15 @@ type TripContextStepProps = {
   draft: TripDraft;
   onToggleTag: (tag: string) => void;
   onAddTag: (tag: string) => void;
+  validationMessage?: string | null;
 };
 
-export function TripContextStep({ draft, onToggleTag, onAddTag }: TripContextStepProps) {
+export function TripContextStep({
+  draft,
+  onToggleTag,
+  onAddTag,
+  validationMessage = null,
+}: TripContextStepProps) {
   const theme = useTheme();
   const [addTagsVisible, setAddTagsVisible] = useState(false);
   const extraTags = getExtraTripContextTags(draft.tripContext);
@@ -67,6 +73,16 @@ export function TripContextStep({ draft, onToggleTag, onAddTag }: TripContextSte
         onToggleTag={onToggleTag}
         onAddCustomTag={onAddTag}
       />
+
+      {validationMessage ? (
+        <AppText
+          variant="bodySmall"
+          color="destructive"
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite">
+          {validationMessage}
+        </AppText>
+      ) : null}
     </View>
   );
 }

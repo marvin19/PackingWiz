@@ -314,6 +314,26 @@ describe('detectTripPackingRelevantChanges', () => {
 
     expect(hasTripPackingRelevantChanges(noPackingChanges)).toBe(false);
   });
+
+  it('clears a stale legacy title when the user removes a custom trip name', () => {
+    const before = normalizeTrip({
+      ...baseTripFields(SINGLE_TRIP_ID),
+      name: '',
+      title: 'Old custom title',
+      travelers: [{ id: 't-you', name: 'You', role: 'Adult' }],
+      packingLists: [
+        createSeedPrimaryPackingList(SINGLE_TRIP_ID, richPrimaryItems(), 'generated'),
+      ],
+      items: richPrimaryItems(),
+      packingMode: 'generated',
+      generated: true,
+    });
+
+    const after = applyTripSharedDetailsEdit(before, { name: '' });
+
+    expect(after.name).toBe('Barcelona');
+    expect(after.title).toBe('Barcelona');
+  });
 });
 
 describe('legacy travelers[] mirror on add/remove', () => {

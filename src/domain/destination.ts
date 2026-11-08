@@ -26,6 +26,12 @@ export function getDestinationLabel(destination: Destination): string {
   return destination.displayName.trim();
 }
 
+/** Trim label whitespace so whitespace-only destinations cannot persist as raw displayName. */
+export function normalizeDestinationForPersist(destination: Destination): Destination {
+  const label = getDestinationLabel(destination);
+  return createDestinationFromText(label, destination.countryName);
+}
+
 export function getDestinationCountryLabel(destination: Destination): string {
   return destination.countryName?.trim() ?? '';
 }

@@ -1,10 +1,21 @@
 import type { TripDetailsSection } from '@/features/trip-edit/utils/trip-details-navigation';
 import type { Bag } from '@/domain/bag';
-import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import {
+  getDestinationCountryLabel,
+  getDestinationLabel,
+  normalizeDestinationForPersist,
+} from '@/domain/destination';
 import {
   validateEditTripDateRange,
   validateEditTripSharedDetailsDates,
 } from '@/domain/edit-trip-date-validation';
+import {
+  EDIT_TRIP_DESTINATION_REQUIRED_MESSAGE,
+  EDIT_TRIP_TRIP_CONTEXT_REQUIRED_MESSAGE,
+  isEditTripDestinationLabelValid,
+  isEditTripTripContextValid,
+} from '@/domain/edit-trip-shared-details-validation';
+import { resolveCommittedTripNameFromDraft } from '@/domain/trip-draft-naming';
 import type { PackingProfile } from '@/domain/packing-profile';
 import {
   formatPackingListProfileName,
@@ -66,20 +77,38 @@ function bagsEqual(left: Bag[], right: Bag[]): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function resolveEditTripPersistedName(
+  form: Pick<TripEditFormState, 'name' | 'draft'>,
+): string {
+  return resolveCommittedTripNameFromDraft({
+    name: form.name,
+    destination: form.draft.destination,
+  });
+}
+
+function resolveEditTripBaselineName(trip: Trip): string {
+  return resolveCommittedTripNameFromDraft({
+    name: getTripName(trip),
+    destination: trip.destination,
+  });
+}
+
 /** Build a user-editable patch from staged form state vs the persisted trip baseline. */
 export function buildSharedDetailsPatch(
   form: TripEditFormState,
   trip: Trip,
 ): TripSharedDetailsUserEdit {
   const patch: TripSharedDetailsUserEdit = {};
-  const trimmedName = form.name.trim();
+  const resolvedName = resolveEditTripPersistedName(form);
+  const baselineName = resolveEditTripBaselineName(trip);
 
-  if (trimmedName !== getTripName(trip)) {
-    patch.name = trimmedName;
+  if (resolvedName !== baselineName) {
+    patch.name = resolvedName;
   }
 
-  if (!destinationEqual(form.draft.destination, trip.destination)) {
-    patch.destination = { ...form.draft.destination };
+  const normalizedDraftDestination = normalizeDestinationForPersist(form.draft.destination);
+  if (!destinationEqual(normalizedDraftDestination, trip.destination)) {
+    patch.destination = normalizedDraftDestination;
   }
 
   if (form.draft.startDate !== trip.startDate) {
@@ -123,6 +152,30 @@ export function isEditDestinationSectionDateRangeValid(form: TripEditFormState):
   return validateEditTripDateRange(form.draft.startDate, form.draft.endDate).ok;
 }
 
+export function isEditDestinationSectionLabelValid(form: TripEditFormState): boolean {
+  return isEditTripDestinationLabelValid(form.draft.destination);
+}
+
+export function getEditDestinationSectionLabelValidationMessage(
+  form: TripEditFormState,
+): string | null {
+  return isEditDestinationSectionLabelValid(form)
+    ? null
+    : EDIT_TRIP_DESTINATION_REQUIRED_MESSAGE;
+}
+
+export function isEditTripContextSectionValid(form: TripEditFormState): boolean {
+  return isEditTripTripContextValid(form.draft.tripContext);
+}
+
+export function getEditTripContextSectionValidationMessage(
+  form: TripEditFormState,
+): string | null {
+  return isEditTripContextSectionValid(form)
+    ? null
+    : EDIT_TRIP_TRIP_CONTEXT_REQUIRED_MESSAGE;
+}
+
 export type DestinationSectionSaveGate = {
   sectionPatch: TripSharedDetailsUserEdit;
   hasSectionChanges: boolean;
@@ -146,11 +199,12 @@ export function getDestinationSectionSaveGate(
 
   const formDatesOk = isEditDestinationSectionDateRangeValid(form);
   const mergedDatesOk = validateEditTripSharedDetailsDates(trip, sectionPatch).ok;
+  const destinationLabelOk = isEditDestinationSectionLabelValid(form);
 
   return {
     sectionPatch,
     hasSectionChanges,
-    canPersist: formDatesOk && mergedDatesOk,
+    canPersist: formDatesOk && mergedDatesOk && destinationLabelOk,
   };
 }
 
@@ -202,7 +256,15 @@ export function canSaveTripEditSection(
       return false;
     }
 
+    if (!isEditDestinationSectionLabelValid(form)) {
+      return false;
+    }
+
     return getDestinationSectionSaveGate(form, trip).canPersist;
+  }
+
+  if (section === 'trip-context') {
+    return isEditTripContextSectionValid(form);
   }
 
   return true;

@@ -35,6 +35,7 @@ import {
   appendTravellerPackingListToTrip,
   buildEmptyTravellerPackingListForTrip,
   detectTripPackingRelevantChanges,
+  snapshotPackingListsState,
 } from '@/domain/trip-edit';
 
 function createMeEmilieTrip(): Trip {
@@ -400,5 +401,123 @@ describe('edit trip view-model', () => {
     expect(naivePatch).toEqual({ startDate: '2026-10-29' });
     expect(validateEditTripSharedDetailsDates(trip, naivePatch).ok).toBe(false);
     expect(getDestinationSectionSaveGate(form, trip).canPersist).toBe(false);
+  });
+
+  it('blocks destination-section save when destination is empty', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        destination: createDestinationFromText(''),
+      },
+    };
+
+    expect(canSaveTripEditSection('destination', form, trip, true)).toBe(false);
+    expect(getDestinationSectionSaveGate(form, trip).canPersist).toBe(false);
+    expect(() =>
+      updateTripSharedDetails(trip, { destination: createDestinationFromText('') }),
+    ).toThrow();
+  });
+
+  it('blocks destination-section save for whitespace-only destination', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        destination: createDestinationFromText('   '),
+      },
+    };
+
+    expect(canSaveTripEditSection('destination', form, trip, true)).toBe(false);
+    const patch = buildSharedDetailsPatch(form, trip);
+    expect(patch.destination?.displayName).toBe('');
+    expect(() => updateTripSharedDetails(trip, patch)).toThrow();
+  });
+
+  it('allows saving a valid destination change with historical dates unchanged', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        destination: createDestinationFromText('Bergen', 'Norway'),
+      },
+    };
+
+    expect(canSaveTripEditSection('destination', form, trip, true)).toBe(true);
+    const { trip: saved } = updateTripSharedDetails(trip, buildSharedDetailsPatch(form, trip));
+    expect(saved.destination.displayName).toBe('Bergen');
+    expect(saved.startDate).toBe('2026-07-01');
+  });
+
+  it('clears a custom trip name to the destination fallback without stale title', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      name: '',
+    };
+
+    const patch = buildSharedDetailsPatch(form, trip);
+    expect(patch.name).toBe('Oslo');
+
+    const { trip: saved } = updateTripSharedDetails(trip, patch);
+    expect(saved.name).toBe('Oslo');
+    expect(saved.title).toBe('Oslo');
+    expect(createEditFormStateFromTrip(saved).name).toBe('Oslo');
+  });
+
+  it('keeps a custom trip name when only the destination changes', () => {
+    const trip = updateTripSharedDetails(createMeEmilieTrip(), { name: 'Hyttetur' }).trip;
+    const form: TripEditFormState = {
+      name: 'Hyttetur',
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        destination: createDestinationFromText('Bergen', 'Norway'),
+      },
+    };
+
+    const patch = buildSharedDetailsPatch(form, trip);
+    expect(patch.destination?.displayName).toBe('Bergen');
+    expect(patch.name).toBeUndefined();
+
+    const { trip: saved } = updateTripSharedDetails(trip, patch);
+    expect(saved.name).toBe('Hyttetur');
+    expect(saved.destination.displayName).toBe('Bergen');
+  });
+
+  it('blocks trip-context save when all tags are removed', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        tripContext: [],
+      },
+    };
+
+    expect(canSaveTripEditSection('trip-context', form, trip, true)).toBe(false);
+    expect(() => updateTripSharedDetails(trip, { tripContext: [] })).toThrow();
+  });
+
+  it('allows trip-context save when at least one tag remains', () => {
+    const trip = createMeEmilieTrip();
+    const form: TripEditFormState = {
+      ...createEditFormStateFromTrip(trip),
+      draft: {
+        ...createEditFormStateFromTrip(trip).draft,
+        tripContext: ['Beach'],
+      },
+    };
+
+    expect(canSaveTripEditSection('trip-context', form, trip, true)).toBe(true);
+    const { trip: saved, packingRelevantChanges } = updateTripSharedDetails(
+      trip,
+      buildSharedDetailsPatch(form, trip),
+    );
+    expect(saved.tripContext).toEqual(['Beach']);
+    expect(packingRelevantChanges.tripContext).toBe(true);
+    expect(snapshotPackingListsState(saved)).toEqual(snapshotPackingListsState(trip));
   });
 });

@@ -42,6 +42,7 @@ import {
   getEditTripTravellerRows,
   canSaveTripEditSection,
   getDestinationSectionSaveGate,
+  getEditTripContextSectionValidationMessage,
   isEditDestinationSectionDateRangeValid,
   getSectionSaveLabel,
   pickSharedDetailsPatchForSection,
@@ -145,6 +146,14 @@ export function TripSectionEditScreen() {
 
     return canSaveTripEditSection(section, form, activeTrip, hasChanges);
   }, [activeTrip, form, hasChanges, section]);
+
+  const tripContextValidationMessage = useMemo(() => {
+    if (!form || section !== 'trip-context' || !hasChanges) {
+      return null;
+    }
+
+    return getEditTripContextSectionValidationMessage(form);
+  }, [form, hasChanges, section]);
 
   const travellerRows = useMemo(
     () => (activeTrip ? getEditTripTravellerRows(activeTrip) : []),
@@ -303,6 +312,10 @@ export function TripSectionEditScreen() {
       if (!gate.canPersist) {
         return;
       }
+    }
+
+    if (!canSaveTripEditSection(section, form, activeTrip, hasChanges)) {
+      return;
     }
 
     setSaveLoading(true);
@@ -468,6 +481,7 @@ export function TripSectionEditScreen() {
             draft={form.draft}
             onToggleTag={toggleTripContextTag}
             onAddTag={addTripContextTag}
+            validationMessage={tripContextValidationMessage}
           />
         );
       case 'accommodation':

@@ -223,6 +223,39 @@ describe('updateTripSharedDetails orchestration', () => {
       }),
     ).toThrow(TripEditError);
   });
+
+  it('rejects an empty destination patch at the orchestration boundary', () => {
+    const before = createMeEmilieTrip();
+    const beforeLists = snapshotPackingListsState(before);
+
+    expect(() =>
+      updateTripSharedDetails(before, {
+        destination: createDestinationFromText(''),
+      }),
+    ).toThrow(TripEditError);
+
+    try {
+      updateTripSharedDetails(before, { destination: createDestinationFromText('') });
+    } catch (error) {
+      expect(error).toBeInstanceOf(TripEditError);
+      expect((error as TripEditError).code).toBe('INVALID_DESTINATION');
+    }
+
+    expect(snapshotPackingListsState(before)).toEqual(beforeLists);
+  });
+
+  it('rejects an empty trip context patch at the orchestration boundary', () => {
+    const before = createMeEmilieTrip();
+
+    expect(() => updateTripSharedDetails(before, { tripContext: [] })).toThrow(TripEditError);
+
+    try {
+      updateTripSharedDetails(before, { tripContext: [] });
+    } catch (error) {
+      expect(error).toBeInstanceOf(TripEditError);
+      expect((error as TripEditError).code).toBe('INVALID_TRIP_CONTEXT');
+    }
+  });
 });
 
 describe('addTravellerToTrip orchestration', () => {

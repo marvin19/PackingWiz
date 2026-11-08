@@ -3,6 +3,10 @@ import {
   getEditTripDateValidationMessage,
   validateEditTripSharedDetailsDates,
 } from '@/domain/edit-trip-date-validation';
+import {
+  validateEditTripDestinationInPatch,
+  validateEditTripTripContextInPatch,
+} from '@/domain/edit-trip-shared-details-validation';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile } from '@/domain/packing-profile';
 import type { ImportantItemsByProfileId } from '@/domain/profile-important-items';
@@ -52,6 +56,16 @@ export function updateTripSharedDetails(
       getEditTripDateValidationMessage(dateValidation) ?? 'Invalid trip dates.',
       'INVALID_DATE_RANGE',
     );
+  }
+
+  const destinationValidation = validateEditTripDestinationInPatch(trip, patch);
+  if (!destinationValidation.ok) {
+    throw new TripEditError(destinationValidation.message, 'INVALID_DESTINATION');
+  }
+
+  const tripContextValidation = validateEditTripTripContextInPatch(patch);
+  if (!tripContextValidation.ok) {
+    throw new TripEditError(tripContextValidation.message, 'INVALID_TRIP_CONTEXT');
   }
 
   const updatedTrip = applyTripSharedDetailsEdit(trip, patch);

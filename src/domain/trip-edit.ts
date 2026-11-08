@@ -1,6 +1,11 @@
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
-import { getDestinationCountryLabel, getDestinationLabel } from '@/domain/destination';
+import {
+  getDestinationCountryLabel,
+  getDestinationLabel,
+  normalizeDestinationForPersist,
+} from '@/domain/destination';
+import { resolveCommittedTripNameFromDraft } from '@/domain/trip-draft-naming';
 import type { PackingItem } from '@/domain/packing-item';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile, PackingProfileSnapshot } from '@/domain/packing-profile';
@@ -50,7 +55,9 @@ export type TripEditErrorCode =
   | 'DUPLICATE_PACKING_LIST'
   | 'PACKING_LIST_NOT_FOUND'
   | 'CANNOT_REMOVE_ONLY_LIST'
-  | 'INVALID_DATE_RANGE';
+  | 'INVALID_DATE_RANGE'
+  | 'INVALID_DESTINATION'
+  | 'INVALID_TRIP_CONTEXT';
 
 export class TripEditError extends Error {
   readonly code: TripEditErrorCode;
@@ -203,10 +210,19 @@ export function tripHasPackingProfile(
  */
 export function applyTripSharedDetailsEdit(trip: Trip, patch: TripSharedDetailsPatch): Trip {
   const preservedLists = trip.packingLists.map(clonePackingList);
+  const nextDestination = patch.destination
+    ? normalizeDestinationForPersist(patch.destination)
+    : { ...trip.destination };
+
+  const nextName =
+    patch.name !== undefined
+      ? resolveCommittedTripNameFromDraft({ name: patch.name, destination: nextDestination })
+      : trip.name;
 
   const nextTrip: TripLike = {
     ...trip,
-    name: patch.name ?? trip.name,
+    name: patch.name !== undefined ? nextName : trip.name,
+    title: patch.name !== undefined ? nextName : trip.title,
     startDate: patch.startDate ?? trip.startDate,
     endDate: patch.endDate ?? trip.endDate,
     tripContext: patch.tripContext ? [...patch.tripContext] : [...trip.tripContext],
@@ -215,7 +231,7 @@ export function applyTripSharedDetailsEdit(trip: Trip, patch: TripSharedDetailsP
     note: patch.note ?? trip.note,
     status: patch.status ?? trip.status,
     image: patch.image ?? trip.image,
-    destination: patch.destination ? { ...patch.destination } : { ...trip.destination },
+    destination: nextDestination,
     bags: patch.bags ? patch.bags.map(cloneBag) : trip.bags.map(cloneBag),
     weather: patch.weather ? cloneWeather(patch.weather) : cloneWeather(trip.weather),
     packingLists: preservedLists,
