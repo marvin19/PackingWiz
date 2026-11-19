@@ -91,6 +91,14 @@ describe('trip lifecycle classification', () => {
     const trip = createTestTrip({ id: 'today', endDate: '2026-09-02' });
     expect(deriveTripDateBucket(trip, ref)).toBe('upcoming');
   });
+
+  it('does not classify invalid or missing end dates as past', () => {
+    const missing = createTestTrip({ id: 'no-end', endDate: '' });
+    const invalid = createTestTrip({ id: 'bad-end', endDate: 'invalid' });
+    expect(deriveTripDateBucket(missing, ref)).toBe('upcoming');
+    expect(deriveTripDateBucket(invalid, ref)).toBe('upcoming');
+    expect(isPreviousTrip(missing, ref)).toBe(false);
+  });
 });
 
 describe('active trip reconciliation', () => {

@@ -70,8 +70,8 @@ function createMeEmilieTrip(overrides: Partial<TripLike> = {}): Trip {
     name: 'Family trip',
     title: 'Family trip',
     destination: createDestinationFromText('Oslo', 'Norway'),
-    startDate: '2026-07-01',
-    endDate: '2026-07-10',
+    startDate: '2027-07-01',
+    endDate: '2027-07-10',
     tripContext: ['City'],
     accommodation: 'hotel',
     laundry: 'yes',
@@ -177,12 +177,13 @@ describe('updateTripSharedDetails orchestration', () => {
     expect(generator.generate).not.toHaveBeenCalled();
   });
 
-  it('allows name-only edits on a trip with historical dates', () => {
+  it('allows name-only edits without changing stored trip dates', () => {
     const before = createMeEmilieTrip();
     const { trip: after } = updateTripSharedDetails(before, { name: 'Renamed family trip' });
 
     expect(after.name).toBe('Renamed family trip');
-    expect(after.startDate).toBe('2026-07-01');
+    expect(after.startDate).toBe('2027-07-01');
+    expect(after.endDate).toBe('2027-07-10');
   });
 
   it('rejects invalid date patches at the orchestration boundary', () => {
@@ -437,6 +438,40 @@ describe('removeTravellerFromTrip orchestration', () => {
     expect(() =>
       removeTravellerFromTrip(singleListTrip, { packingListId: singleListTrip.packingLists[0].id }),
     ).toThrow(/only packing list/);
+  });
+});
+
+describe('completed trip read-only guards (PW-004E-A)', () => {
+  function createPastTrip(): Trip {
+    return normalizeTrip({
+      ...createMeEmilieTrip(),
+      endDate: '2020-01-01',
+      startDate: '2019-12-20',
+      status: 'upcoming',
+    } as TripLike);
+  }
+
+  it('rejects shared-details updates on completed trips', () => {
+    const trip = createPastTrip();
+    expect(() => updateTripSharedDetails(trip, { note: 'Nope' })).toThrow(
+      expect.objectContaining({ code: 'TRIP_READ_ONLY' }),
+    );
+  });
+
+  it('rejects traveller add/remove on completed trips', async () => {
+    const trip = createPastTrip();
+    const { generator } = createTrackingGenerator();
+
+    await expect(
+      addTravellerToTrip(
+        { trip, profile: jonasProfile, packingMode: 'manual' },
+        { packingGenerator: generator },
+      ),
+    ).rejects.toMatchObject({ code: 'TRIP_READ_ONLY' });
+
+    expect(() =>
+      removeTravellerFromTrip(trip, { packingListId: trip.packingLists[1]!.id }),
+    ).toThrow(expect.objectContaining({ code: 'TRIP_READ_ONLY' }));
   });
 });
 

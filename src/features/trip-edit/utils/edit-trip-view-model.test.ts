@@ -47,8 +47,8 @@ function createMeEmilieTrip(): Trip {
     title: 'Family trip',
     isTripNameUserEdited: true,
     destination: createDestinationFromText('Oslo', 'Norway'),
-    startDate: '2026-07-01',
-    endDate: '2026-07-10',
+    startDate: '2027-07-01',
+    endDate: '2027-07-10',
     tripContext: ['City'],
     accommodation: 'hotel',
     laundry: 'yes',
@@ -114,7 +114,7 @@ describe('edit trip view-model', () => {
   it('B. shows Save changes when shared details are staged', () => {
     const trip = createMeEmilieTrip();
     const form = createEditFormStateFromTrip(trip);
-    form.draft.endDate = '2026-07-20';
+    form.draft.endDate = '2027-07-20';
 
     expect(hasStagedSharedChanges(form, trip)).toBe(true);
     expect(getEditTripPrimaryFooterLabel(true)).toBe('Save changes');
@@ -148,7 +148,7 @@ describe('edit trip view-model', () => {
   it('E. keeps Save changes when staged dates remain after add traveller', () => {
     const before = createMeEmilieTrip();
     const form = createEditFormStateFromTrip(before);
-    form.draft.endDate = '2026-07-20';
+    form.draft.endDate = '2027-07-20';
     const after = createTripWithJonas();
 
     expect(hasStagedSharedChanges(form, after)).toBe(true);
@@ -176,7 +176,7 @@ describe('edit trip view-model', () => {
       draft: {
         ...createEditFormStateFromTrip(trip).draft,
         destination: createDestinationFromText('Bergen', 'Norway'),
-        endDate: '2026-07-15',
+        endDate: '2027-07-15',
         note: 'Updated note',
       },
     };
@@ -185,7 +185,7 @@ describe('edit trip view-model', () => {
 
     expect(patch.name).toBe('Renamed trip');
     expect(patch.destination?.displayName).toBe('Bergen');
-    expect(patch.endDate).toBe('2026-07-15');
+    expect(patch.endDate).toBe('2027-07-15');
     expect(patch.note).toBe('Updated note');
     expect(hasStagedSharedChanges(form, trip)).toBe(true);
 
@@ -364,14 +364,14 @@ describe('edit trip view-model', () => {
 
     form = {
       ...form,
-      draft: { ...form.draft, endDate: '2026-11-06' },
+      draft: { ...form.draft, endDate: '2027-11-06' },
     };
     expect(isEditDestinationSectionDateRangeValid(form)).toBe(true);
     expect(canSaveTripEditSection('destination', form, trip, true)).toBe(true);
 
     form = {
       ...form,
-      draft: { ...form.draft, startDate: '2026-11-26' },
+      draft: { ...form.draft, startDate: '2027-11-26' },
     };
     expect(isEditDestinationSectionDateRangeValid(form)).toBe(false);
     expect(canSaveTripEditSection('destination', form, trip, true)).toBe(false);
@@ -384,15 +384,15 @@ describe('edit trip view-model', () => {
   it('rejects a partial start-only patch when the staged form range is invalid', () => {
     const trip = {
       ...createMeEmilieTrip(),
-      startDate: '2026-07-01',
-      endDate: '2026-10-18',
+      startDate: '2027-07-01',
+      endDate: '2027-10-18',
     };
     const form: TripEditFormState = {
       ...createEditFormStateFromTrip(trip),
       draft: {
         ...createEditFormStateFromTrip(trip).draft,
-        startDate: '2026-10-29',
-        endDate: '2026-10-18',
+        startDate: '2027-10-29',
+        endDate: '2027-10-18',
       },
     };
 
@@ -401,7 +401,7 @@ describe('edit trip view-model', () => {
       buildSharedDetailsPatch(form, trip),
     );
 
-    expect(naivePatch).toEqual({ startDate: '2026-10-29' });
+    expect(naivePatch).toEqual({ startDate: '2027-10-29' });
     expect(validateEditTripSharedDetailsDates(trip, naivePatch).ok).toBe(false);
     expect(getDestinationSectionSaveGate(form, trip).canPersist).toBe(false);
   });
@@ -452,7 +452,7 @@ describe('edit trip view-model', () => {
     expect(canSaveTripEditSection('destination', form, trip, true)).toBe(true);
     const { trip: saved } = updateTripSharedDetails(trip, buildSharedDetailsPatch(form, trip));
     expect(saved.destination.displayName).toBe('Bergen');
-    expect(saved.startDate).toBe('2026-07-01');
+    expect(saved.startDate).toBe('2027-07-01');
     expect(getTripName(saved)).toBe('Family trip');
   });
 

@@ -52,6 +52,8 @@ function createMultiListFixture(): Trip {
     id: TRIP_A_ID,
     name: 'Runtime test trip',
     title: 'Runtime test trip',
+    startDate: '2027-06-01',
+    endDate: '2027-06-10',
     packingLists: [
       {
         id: ME_LIST_ID,
@@ -125,6 +127,8 @@ function createOtherTrip(): Trip {
     id: TRIP_B_ID,
     name: 'Other trip',
     title: 'Other trip',
+    startDate: '2027-08-01',
+    endDate: '2027-08-10',
     packingLists: [
       {
         id: `${TRIP_B_ID}-list-other`,

@@ -61,7 +61,8 @@ export type TripEditErrorCode =
   | 'CANNOT_REMOVE_ONLY_LIST'
   | 'INVALID_DATE_RANGE'
   | 'INVALID_DESTINATION'
-  | 'INVALID_TRIP_CONTEXT';
+  | 'INVALID_TRIP_CONTEXT'
+  | 'TRIP_READ_ONLY';
 
 export class TripEditError extends Error {
   readonly code: TripEditErrorCode;

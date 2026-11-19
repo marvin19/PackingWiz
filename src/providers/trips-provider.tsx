@@ -19,6 +19,7 @@ import {
 import {
   reconcileActiveTripAfterLifecycleChange,
 } from '@/domain/trip-lifecycle';
+import { isTripReadOnly } from '@/domain/trip-mutation-policy';
 import { isImportantPackingItem } from '@/domain/important-snapshot';
 import type { ImportantItem } from '@/domain/important-item';
 import type { ImportantItemsConfig } from '@/domain/important-items-config';
@@ -51,10 +52,11 @@ import {
 } from '@/domain/trip-drafts-state';
 import type { PackingList } from '@/domain/packing-list';
 import type { PackingProfile } from '@/domain/packing-profile';
-import type {
-  RemoveTravellerFromTripInput,
-  TripPackingRelevantChanges,
-  TripSharedDetailsUserEdit,
+import {
+  TripEditError,
+  type RemoveTravellerFromTripInput,
+  type TripPackingRelevantChanges,
+  type TripSharedDetailsUserEdit,
 } from '@/domain/trip-edit';
 import type { PackingMode, Trip } from '@/domain/trip';
 import {
@@ -91,6 +93,26 @@ import {
 import { reuseTrip as orchestrateReuseTrip, type ReuseTripInput } from '@/services/trip-reuse-orchestration';
 import { mergeImportantItems } from '@/services/packing/merge-important-items';
 import { syncTripImportantSnapshot } from '@/services/packing/sync-important-snapshot';
+
+/**
+ * PW-004E-A: packing and Important mutators silently no-op on completed trips so UI actions
+ * exposed before phase B do not throw or partially update state. Trip-edit APIs throw TripEditError.
+ */
+function tripAllowsPackingMutation(trip: Trip | undefined): trip is Trip {
+  return Boolean(trip && !isTripReadOnly(trip));
+}
+
+function assertTripAllowsProviderEdit(trip: Trip | undefined): asserts trip is Trip {
+  if (!trip) {
+    throw new Error('Trip not found');
+  }
+  if (isTripReadOnly(trip)) {
+    throw new TripEditError(
+      'This trip has ended and can no longer be edited.',
+      'TRIP_READ_ONLY',
+    );
+  }
+}
 
 function applyDraftsStateUpdate(
   ref: MutableRefObject<TripDraftsState>,
@@ -776,9 +798,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
   const updateTripSharedDetails = useCallback(
     async (tripId: string, patch: TripSharedDetailsUserEdit) => {
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
-      if (!trip) {
-        throw new Error('Trip not found');
-      }
+      assertTripAllowsProviderEdit(trip);
 
       const previousTrips = tripsRef.current;
       const { trip: updatedTrip, packingRelevantChanges } = orchestrateTripSharedDetailsUpdate(
@@ -805,9 +825,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
   const addTravellerToTrip = useCallback(
     async (tripId: string, profile: PackingProfile, packingMode: PackingMode) => {
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
-      if (!trip) {
-        throw new Error('Trip not found');
-      }
+      assertTripAllowsProviderEdit(trip);
 
       const previousTrips = tripsRef.current;
       const result = await orchestrateAddTravellerToTrip(
@@ -834,9 +852,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
   const removeTravellerFromTrip = useCallback(
     async (tripId: string, input: RemoveTravellerFromTripInput) => {
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
-      if (!trip) {
-        throw new Error('Trip not found');
-      }
+      assertTripAllowsProviderEdit(trip);
 
       const removedListId =
         input.packingListId ??
@@ -889,7 +905,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item) {
+      if (!tripAllowsPackingMutation(trip) || !item) {
         return;
       }
 
@@ -925,7 +941,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item) {
+      if (!tripAllowsPackingMutation(trip) || !item) {
         return;
       }
 
@@ -967,7 +983,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item || isImportantPackingItem(item)) {
+      if (!tripAllowsPackingMutation(trip) || !item || isImportantPackingItem(item)) {
         return;
       }
 
@@ -1007,7 +1023,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item || isImportantPackingItem(item)) {
+      if (!tripAllowsPackingMutation(trip) || !item || isImportantPackingItem(item)) {
         return;
       }
 
@@ -1049,7 +1065,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item) {
+      if (!tripAllowsPackingMutation(trip) || !item) {
         return false;
       }
 
@@ -1105,7 +1121,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item) {
+      if (!tripAllowsPackingMutation(trip) || !item) {
         return;
       }
 
@@ -1141,7 +1157,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item || !item.needToBuy) {
+      if (!tripAllowsPackingMutation(trip) || !item || !item.needToBuy) {
         return;
       }
 
@@ -1175,7 +1191,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trip = tripsRef.current.find((entry) => entry.id === tripId);
       const item = trip ? findPackingItemInList(trip, listId, itemId) : undefined;
-      if (!trip || !item) {
+      if (!tripAllowsPackingMutation(trip) || !item) {
         return;
       }
 
@@ -1213,7 +1229,7 @@ export function TripsProvider({ children }: { children: ReactNode }) {
       const items = trip ? getPackingListItems(trip, listId) : [];
       const originalIndex = items.findIndex((entry) => entry.id === itemId);
       const item = originalIndex >= 0 ? items[originalIndex] : undefined;
-      if (!trip || !item || isImportantPackingItem(item)) {
+      if (!tripAllowsPackingMutation(trip) || !item || isImportantPackingItem(item)) {
         return;
       }
 
@@ -1258,6 +1274,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
       const trimmed = input.name.trim();
       if (!trimmed) {
+        return;
+      }
+
+      const trip = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!tripAllowsPackingMutation(trip)) {
         return;
       }
 
@@ -1319,6 +1340,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const tripForGuard = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!tripAllowsPackingMutation(tripForGuard)) {
+        return;
+      }
+
       let previousItems: PackingItem[] | null = null;
       let nextItems: PackingItem[] | null = null;
 
@@ -1356,6 +1382,11 @@ export function TripsProvider({ children }: { children: ReactNode }) {
 
   const syncImportantSnapshotForList = useCallback(
     (tripId: string, listId: string, importantItems: ImportantItem[]) => {
+      const tripForGuard = tripsRef.current.find((entry) => entry.id === tripId);
+      if (!tripAllowsPackingMutation(tripForGuard)) {
+        return;
+      }
+
       let previousItems: PackingItem[] | null = null;
       let nextItems: PackingItem[] | null = null;
 

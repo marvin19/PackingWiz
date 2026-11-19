@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import TestRenderer, { act } from 'react-test-renderer';
 
+import type { ImportantItem } from '@/domain/important-item';
 import type { PackingItem } from '@/domain/packing-item';
 import type { Trip } from '@/domain/trip';
+import { TripEditError } from '@/domain/trip-edit';
 import { normalizeTrip, type TripLike } from '@/domain/trip-compatibility';
 import { cloneTrip } from '@/lib/clone-trip';
 import { mockLisbonTrip } from '@/mocks/seed-trips';
@@ -48,6 +50,8 @@ function createMultiListFixture(): Trip {
     id: TRIP_ID,
     name: 'Provider test trip',
     title: 'Provider test trip',
+    startDate: '2027-06-01',
+    endDate: '2027-06-10',
     packingLists: [
       {
         id: ME_LIST_ID,
@@ -123,6 +127,8 @@ function createOtherTrip(): Trip {
     id: OTHER_TRIP_ID,
     name: 'Other trip',
     title: 'Other trip',
+    startDate: '2027-08-01',
+    endDate: '2027-08-10',
     note: 'Other note',
     insights: ['Keep this insight'],
     packingLists: [
@@ -673,8 +679,8 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
     it('does not persist Nov 26 departure after Nov 6 return was staged in the patch', async () => {
       const fixture = {
         ...createMultiListFixture(),
-        startDate: '2026-07-01',
-        endDate: '2026-07-10',
+        startDate: '2027-06-01',
+        endDate: '2027-06-10',
       };
       await mountTripsProvider([fixture]);
       const beforeLists = tripListsSnapshot(getTrip());
@@ -682,22 +688,22 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
       await act(async () => {
         await expect(
           tripsContext!.updateTripSharedDetails(TRIP_ID, {
-            startDate: '2026-11-26',
-            endDate: '2026-11-06',
+            startDate: '2027-11-26',
+            endDate: '2027-11-06',
           }),
         ).rejects.toThrow();
       });
 
-      expect(getTrip().startDate).toBe('2026-07-01');
-      expect(getTrip().endDate).toBe('2026-07-10');
+      expect(getTrip().startDate).toBe('2027-06-01');
+      expect(getTrip().endDate).toBe('2027-06-10');
       expect(tripListsSnapshot(getTrip())).toEqual(beforeLists);
     });
 
     it('does not persist invalid date patches or mutate the trip', async () => {
       const fixture = {
         ...createMultiListFixture(),
-        startDate: '2026-07-01',
-        endDate: '2026-07-10',
+        startDate: '2027-06-01',
+        endDate: '2027-06-10',
       };
       await mountTripsProvider([fixture]);
       const beforeStart = getTrip().startDate;
@@ -741,6 +747,124 @@ describe('TripsProvider optimistic mutations (VH2-B)', () => {
       expect(getTrip().note).toBe(beforeNote);
       expect(getTrip().insights).toEqual(beforeInsights);
       expect(tripListsSnapshot(getTrip())).toEqual(beforeLists);
+    });
+  });
+
+  describe('completed trip mutation guards (PW-004E-A)', () => {
+    function createPastMultiListFixture(): Trip {
+      return normalizeTrip({
+        ...createMultiListFixture(),
+        startDate: '2019-12-20',
+        endDate: '2020-01-01',
+        status: 'upcoming',
+      } as TripLike);
+    }
+
+    beforeEach(async () => {
+      await mountTripsProvider([createPastMultiListFixture(), createOtherTrip()]);
+      await activateEmilieList();
+    });
+
+    it('no-ops packing mutations without optimistic updates or repository writes', async () => {
+      const before = tripListsSnapshot(getTrip());
+      const saveCallsBefore = mockTripRepository.save.mock.calls.length;
+
+      await runProviderMutation(() => {
+        tripsContext!.togglePacked('item-emilie');
+        tripsContext!.setItemQuantity('item-emilie', 5);
+        tripsContext!.renamePackingItem('item-emilie', 'Renamed');
+        tripsContext!.toggleNeedToBuy('item-emilie');
+        tripsContext!.markItemPurchased('item-emilie');
+        tripsContext!.assignItem('item-emilie', 'profile-emilie');
+        tripsContext!.addPackingItem({ name: 'New item', category: 'Clothing' });
+        tripsContext!.deletePackingItem('item-emilie');
+      });
+
+      expect(tripListsSnapshot(getTrip())).toEqual(before);
+      expect(mockTripRepository.updatePackingItem).not.toHaveBeenCalled();
+      expect(mockTripRepository.addPackingItem).not.toHaveBeenCalled();
+      expect(mockTripRepository.deletePackingItem).not.toHaveBeenCalled();
+      expect(mockTripRepository.updateTripPackingItems).not.toHaveBeenCalled();
+      expect(mockTripRepository.save.mock.calls.length).toBe(saveCallsBefore);
+    });
+
+    it('rejects trip shared-details edit without repository save', async () => {
+      const before = tripListsSnapshot(getTrip());
+      const saveCallsBefore = mockTripRepository.save.mock.calls.length;
+
+      await act(async () => {
+        await expect(
+          tripsContext!.updateTripSharedDetails(TRIP_ID, { note: 'Should not save' }),
+        ).rejects.toBeInstanceOf(TripEditError);
+      });
+
+      expect(tripListsSnapshot(getTrip())).toEqual(before);
+      expect(mockTripRepository.save.mock.calls.length).toBe(saveCallsBefore);
+    });
+
+    it('skips Important snapshot sync and injection on completed trips', async () => {
+      const before = tripListsSnapshot(getTrip());
+      const importantItems: ImportantItem[] = [
+        { id: 'imp-1', name: 'Passport', enabled: true, quantity: 1 },
+      ];
+
+      await runProviderMutation(() => {
+        tripsContext!.syncImportantSnapshotForList(TRIP_ID, EMILIE_LIST_ID, importantItems);
+        tripsContext!.injectImportantItemsIntoList(TRIP_ID, EMILIE_LIST_ID, importantItems);
+      });
+
+      expect(tripListsSnapshot(getTrip())).toEqual(before);
+      expect(mockTripRepository.updateTripPackingItems).not.toHaveBeenCalled();
+    });
+
+    it('still allows list switching for inspection', async () => {
+      await runProviderMutation(() => {
+        tripsContext!.selectActivePackingList(ME_LIST_ID);
+      });
+
+      expect(tripsContext!.activePackingListId).toBe(ME_LIST_ID);
+    });
+
+    it('still allows permanent delete on a completed trip', async () => {
+      await runProviderMutation(() => {
+        tripsContext!.beginTripPackEntry(TRIP_ID, EMILIE_LIST_ID);
+      });
+
+      await act(async () => {
+        await tripsContext!.deleteTripPermanently(TRIP_ID);
+      });
+
+      expect(tripsContext!.trips.some((trip) => trip.id === TRIP_ID)).toBe(false);
+      expect(mockTripRepository.delete).toHaveBeenCalledWith(TRIP_ID);
+    });
+
+    it('allows packing mutations on a different editable trip while a completed trip remains loaded', async () => {
+      mockTripRepository.updatePackingItem.mockResolvedValueOnce({
+        id: 'other-item',
+        name: 'Other item',
+        quantity: 1,
+        category: 'Clothing',
+        packed: true,
+        needToBuy: false,
+        assignedTo: null,
+      });
+
+      await runProviderMutation(() => {
+        tripsContext!.beginTripPackEntry(OTHER_TRIP_ID, `${OTHER_TRIP_ID}-list-other`);
+      });
+
+      await runProviderMutation(() => {
+        tripsContext!.togglePacked('other-item');
+      });
+
+      expect(getTrip(OTHER_TRIP_ID).packingLists[0]!.items[0]?.packed).toBe(true);
+      expect(mockTripRepository.updatePackingItem).toHaveBeenCalledWith(
+        OTHER_TRIP_ID,
+        'other-item',
+        { packed: true },
+        `${OTHER_TRIP_ID}-list-other`,
+      );
+      expect(getTrip(TRIP_ID).packingLists[1]!.items[0]?.packed).toBe(false);
     });
   });
 

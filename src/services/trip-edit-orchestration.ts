@@ -23,6 +23,7 @@ import {
   type TripPackingRelevantChanges,
   type TripSharedDetailsUserEdit,
 } from '@/domain/trip-edit';
+import { assertTripAllowsMutation } from '@/domain/trip-mutation-policy';
 import { tripToTripDraft } from '@/domain/trip-to-draft';
 import { normalizeTrip } from '@/domain/trip-compatibility';
 import type { TripRepository } from '@/repositories/trips/trip-repository';
@@ -50,6 +51,8 @@ export function updateTripSharedDetails(
   trip: Trip,
   patch: TripSharedDetailsUserEdit,
 ): UpdateTripSharedDetailsResult {
+  assertTripAllowsMutation(trip);
+
   const dateValidation = validateEditTripSharedDetailsDates(trip, patch);
   if (!dateValidation.ok) {
     throw new TripEditError(
@@ -83,6 +86,8 @@ export async function addTravellerToTrip(
 ): Promise<AddTravellerToTripResult> {
   const { trip, profile, packingMode, importantByProfileId } = input;
 
+  assertTripAllowsMutation(trip);
+
   if (tripHasPackingProfile(trip, profile)) {
     throw new TripEditError(
       `Profile already has a packing list on trip ${trip.id}`,
@@ -106,6 +111,8 @@ export async function addTravellerToTrip(
 }
 
 export function removeTravellerFromTrip(trip: Trip, input: RemoveTravellerFromTripInput): Trip {
+  assertTripAllowsMutation(trip);
+
   return removeTravellerPackingListFromTrip(trip, input);
 }
 

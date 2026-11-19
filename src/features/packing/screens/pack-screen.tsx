@@ -11,6 +11,7 @@ import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { profileNeedsImportantFirstTimeSetup } from '@/domain/important-profile-setup';
 import { formatRange } from '@/domain/dates';
+import { isTripReadOnly } from '@/domain/trip-mutation-policy';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import {
   isImportantSnapshotStale,
@@ -253,7 +254,7 @@ export function PackScreen() {
   }, [activeImportantProfileId, requestOpenImportantEditor, router]);
 
   const handleUpdateImportantSnapshot = useCallback(() => {
-    if (!activeTrip || !activePackingListId) {
+    if (!activeTrip || !activePackingListId || isTripReadOnly(activeTrip)) {
       return;
     }
 

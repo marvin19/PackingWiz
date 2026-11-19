@@ -1,6 +1,26 @@
 import { parseDate, toIsoDate } from '@/domain/dates';
 import type { Trip, TripStatus } from '@/domain/trip';
 
+/** Trips without a parseable calendar end date are not classified as past/completed. */
+export function hasValidTripEndDateForLifecycle(trip: Pick<Trip, 'endDate'>): boolean {
+  const endDate = trip.endDate?.trim();
+  if (!endDate) {
+    return false;
+  }
+
+  const parsed = parseDate(endDate);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+
+  const [y, m, d] = endDate.split('-').map(Number);
+  return (
+    parsed.getFullYear() === y &&
+    parsed.getMonth() === m - 1 &&
+    parsed.getDate() === d
+  );
+}
+
 /** Date-derived lifecycle bucket for committed trips (drafts excluded). */
 export type TripLifecycleBucket = 'upcoming' | 'past';
 
@@ -21,6 +41,10 @@ function startOfLocalDay(date: Date): Date {
  * - endDate on or after the reference day → Upcoming (includes trips ending today)
  */
 export function deriveTripDateBucket(trip: Trip, referenceDate: Date): TripStatus {
+  if (!hasValidTripEndDateForLifecycle(trip)) {
+    return 'upcoming';
+  }
+
   const referenceDay = startOfLocalDay(referenceDate).getTime();
   const endDay = startOfLocalDay(parseDate(trip.endDate)).getTime();
   return endDay < referenceDay ? 'past' : 'upcoming';
