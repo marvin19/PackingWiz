@@ -1,4 +1,8 @@
 import { createDestinationFromText } from '@/domain/destination';
+import {
+  applyTripDraftPatch,
+  createUserEditedTripDraftNamePatch,
+} from '@/domain/trip-draft-naming';
 import { createEmptyTripDraft } from '@/domain/trip-draft';
 import {
   addStoredDraft,
@@ -21,11 +25,39 @@ import {
 } from '@/features/trips/utils/draft-home-display';
 
 describe('draft home display labels', () => {
-  it('prefers destination as the draft title', () => {
+  it('shows a custom trip name when the user has edited the name', () => {
+    let draft = createEmptyTripDraft();
+    draft = applyTripDraftPatch(draft, {
+      destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
+    });
+    draft = applyTripDraftPatch(draft, createUserEditedTripDraftNamePatch('Hyttetur'));
+
+    expect(getDraftDisplayTitle(draft)).toBe('Hyttetur');
+  });
+
+  it('shows destination when the trip name has not been user-edited', () => {
     const draft = createEmptyTripDraft();
     draft.destination = createDestinationFromText('Tokyo & Kyoto');
 
     expect(getDraftDisplayTitle(draft)).toBe('Tokyo & Kyoto');
+  });
+
+  it('ignores stale draft name text when the trip name is not user-edited', () => {
+    const draft = createEmptyTripDraft();
+    draft.destination = createDestinationFromText('Lisbon', 'Portugal');
+    draft.name = 'Old stale label';
+    draft.isTripNameUserEdited = false;
+
+    expect(getDraftDisplayTitle(draft)).toBe('Lisbon');
+  });
+
+  it('keeps an explicit custom name that matches the destination', () => {
+    const draft = createEmptyTripDraft();
+    draft.destination = createDestinationFromText('Barcelona', 'Spain');
+    draft.name = 'Barcelona';
+    draft.isTripNameUserEdited = true;
+
+    expect(getDraftDisplayTitle(draft)).toBe('Barcelona');
   });
 
   it('falls back to New trip when destination is empty', () => {
@@ -67,7 +99,7 @@ describe('draft wizard metadata', () => {
     expect(getDraftWizardProgressLabel(stored)).toBe('Review trip');
   });
 
-  it('builds accessibility labels from destination and metadata', () => {
+  it('builds accessibility labels from resolved title and metadata', () => {
     const stored = createStoredTripDraft({
       destination: createDestinationFromText('Tokyo'),
     });
@@ -78,6 +110,21 @@ describe('draft wizard metadata', () => {
       'Continue planning Tokyo, Sep 12–18 · 1 person',
     );
     expect(buildDraftDeleteAccessibilityLabel(stored)).toBe('Delete Tokyo draft');
+  });
+
+  it('builds accessibility labels from a custom trip name when set', () => {
+    const stored = createStoredTripDraft({
+      destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
+    });
+    stored.draft = applyTripDraftPatch(
+      stored.draft,
+      createUserEditedTripDraftNamePatch('Hyttetur'),
+    );
+
+    expect(buildDraftCardAccessibilityLabel(stored)).toBe(
+      'Continue planning Hyttetur, Dates not added · 1 person',
+    );
+    expect(buildDraftDeleteAccessibilityLabel(stored)).toBe('Delete Hyttetur draft');
   });
 });
 

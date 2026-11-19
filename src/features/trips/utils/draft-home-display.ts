@@ -1,7 +1,7 @@
 import { formatRange } from '@/domain/dates';
-import { getDestinationLabel } from '@/domain/destination';
 import { formatTripPeopleCount } from '@/domain/packing-list-display';
 import type { TripDraft } from '@/domain/trip-draft';
+import { resolveTripDraftDisplayTitle } from '@/domain/trip-draft-naming';
 import type { StoredTripDraft } from '@/domain/trip-drafts-state';
 import {
   buildActiveWizardSteps,
@@ -13,8 +13,9 @@ export const DRAFT_HOME_FALLBACK_TITLE = 'New trip';
 export const DRAFT_HOME_DATES_NOT_ADDED = 'Dates not added';
 
 export function getDraftDisplayTitle(draft: TripDraft): string {
-  const destination = getDestinationLabel(draft.destination).trim();
-  return destination.length > 0 ? destination : DRAFT_HOME_FALLBACK_TITLE;
+  return resolveTripDraftDisplayTitle(draft, {
+    emptyFallback: DRAFT_HOME_FALLBACK_TITLE,
+  });
 }
 
 export function getDraftDateRangeLabel(draft: TripDraft): string {

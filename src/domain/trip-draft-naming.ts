@@ -7,6 +7,31 @@ export function defaultTripDraftNameFromDestination(destination: Destination): s
   return suggestDefaultTripNameFromDestination(destination);
 }
 
+/**
+ * Home / browse draft card title — respects explicit user naming; ignores stale `name`
+ * when the user has not edited the trip name field.
+ */
+export function resolveTripDraftDisplayTitle(
+  draft: Pick<TripDraft, 'name' | 'destination' | 'isTripNameUserEdited'>,
+  options: { emptyFallback?: string } = {},
+): string {
+  const emptyFallback = options.emptyFallback ?? 'New trip';
+
+  if (draft.isTripNameUserEdited) {
+    const custom = draft.name?.trim();
+    if (custom) {
+      return custom;
+    }
+  }
+
+  const destinationLabel = getDestinationLabel(draft.destination).trim();
+  if (destinationLabel) {
+    return destinationLabel;
+  }
+
+  return emptyFallback;
+}
+
 /** Resolved display/commit name for an in-progress creation draft. */
 export function resolveTripDraftName(draft: Pick<TripDraft, 'name' | 'destination'>): string {
   const trimmed = draft.name?.trim();

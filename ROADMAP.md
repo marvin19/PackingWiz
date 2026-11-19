@@ -458,7 +458,7 @@ Replace the current single-draft assumption.
 ### MP5B-B — Home / Trips multi-draft UI — COMPLETE (session/mock)
 
 - Home **Continue planning** shows up to **2** most recently touched in-progress drafts; **View all drafts (N)** opens `/trip/browse?filter=drafts`
-- Draft cards: destination or **New trip**, dates/people metadata (no wizard step on card); resume via explicit `resumeDraft(id)`; delete with confirmation sheet
+- Draft cards: user-edited trip name, else destination label, else **New trip**; dates/people metadata (no wizard step on card); resume via explicit `resumeDraft(id)`; delete with confirmation sheet
 - Trip Summary: **Save and close** (X) preserves draft + `reachedSummary`; resume returns to Summary
 - **Plan new trip** calls `createNewDraft()` then navigates — never overwrites existing drafts
 - Stale `/trip/create` or `/trip/summary` without valid `activeDraftId` redirects to Trips/Home; successful commit clears draft but `isCommitDraftInFlight` prevents guard from stealing Pack navigation

@@ -5,6 +5,7 @@ import {
   createTripDraftNameInputPatch,
   createUserEditedTripDraftNamePatch,
   resolveCommittedTripNameFromDraft,
+  resolveTripDraftDisplayTitle,
   resolveTripDraftName,
 } from '@/domain/trip-draft-naming';
 import {
@@ -154,6 +155,30 @@ describe('trip name typing and commit normalization', () => {
     };
 
     expect(resolveCommittedTripNameFromDraft(draft)).toBe('Barcelona');
+  });
+});
+
+describe('resolveTripDraftDisplayTitle', () => {
+  it('shows custom name when user-edited', () => {
+    const draft = {
+      ...createEmptyTripDraft('draft-1'),
+      destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
+      name: 'Hyttetur',
+      isTripNameUserEdited: true,
+    };
+
+    expect(resolveTripDraftDisplayTitle(draft)).toBe('Hyttetur');
+  });
+
+  it('shows destination when not user-edited even if name field has stale text', () => {
+    const draft = {
+      ...createEmptyTripDraft('draft-1'),
+      destination: createDestinationFromText('Lisbon', 'Portugal'),
+      name: 'Stale custom',
+      isTripNameUserEdited: false,
+    };
+
+    expect(resolveTripDraftDisplayTitle(draft)).toBe('Lisbon');
   });
 });
 
