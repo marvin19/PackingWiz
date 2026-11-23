@@ -17,6 +17,7 @@ type PackingCategoryItemListProps = {
   items: PackingItem[];
   travelers: Traveler[];
   checkboxIntent: PackingCheckboxIntent;
+  readOnly?: boolean;
   onCheckboxPress: (itemId: string) => void;
   onOpenSettings: (itemId: string) => void;
 };
@@ -26,6 +27,7 @@ export function PackingCategoryItemList({
   items,
   travelers,
   checkboxIntent,
+  readOnly = false,
   onCheckboxPress,
   onOpenSettings,
 }: PackingCategoryItemListProps) {
@@ -47,6 +49,7 @@ export function PackingCategoryItemList({
             item={item}
             travelers={travelers}
             checkboxIntent={checkboxIntent}
+            readOnly={readOnly}
             onCheckboxPress={onCheckboxPress}
             onOpenSettings={onOpenSettings}
           />

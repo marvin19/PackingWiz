@@ -16,14 +16,24 @@ type PackingItemRowProps = {
   item: PackingItem;
   travelers: Traveler[];
   checkboxIntent: PackingCheckboxIntent;
+  readOnly?: boolean;
   onCheckboxPress: (itemId: string) => void;
   onOpenSettings: (itemId: string) => void;
 };
+
+function buildReadOnlyStatusLabel(item: PackingItem, checkboxIntent: PackingCheckboxIntent): string {
+  if (checkboxIntent === 'purchased') {
+    return `${item.name}, to buy`;
+  }
+
+  return item.packed ? `${item.name}, packed` : `${item.name}, not packed`;
+}
 
 export function PackingItemRow({
   item,
   travelers,
   checkboxIntent,
+  readOnly = false,
   onCheckboxPress,
   onOpenSettings,
 }: PackingItemRowProps) {
@@ -39,12 +49,34 @@ export function PackingItemRow({
     : item.packed
       ? `Mark ${item.name} as not packed`
       : `Mark ${item.name} as packed`;
+  const readOnlyStatusLabel = buildReadOnlyStatusLabel(item, checkboxIntent);
   const personalNote = item.note?.trim();
   const hasSecondaryContent =
     Boolean(personalNote) ||
     item.source === 'important' ||
     item.needToBuy ||
     Boolean(assigned);
+
+  const statusIndicator = (
+    <View
+      accessible={readOnly}
+      accessibilityRole={readOnly ? 'text' : undefined}
+      accessibilityLabel={readOnly ? readOnlyStatusLabel : undefined}
+      style={[
+        styles.checkButton,
+        !hasSecondaryContent && styles.checkButtonSingleLine,
+        {
+          borderColor: checkboxChecked ? theme.colors.success : theme.colors.border,
+          backgroundColor: checkboxChecked ? theme.colors.success : theme.colors.card,
+        },
+      ]}>
+      {checkboxChecked ? (
+        <Feather name="check" size={16} color={theme.colors.primaryForeground} />
+      ) : isPurchasedIntent && readOnly ? (
+        <Feather name="shopping-bag" size={14} color={theme.colors.buyForeground} />
+      ) : null}
+    </View>
+  );
 
   return (
     <View
@@ -62,33 +94,37 @@ export function PackingItemRow({
           styles.mainRow,
           !hasSecondaryContent && styles.mainRowSingleLine,
         ]}>
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityLabel={checkboxLabel}
-          accessibilityState={{ checked: checkboxChecked }}
-          onPress={() => onCheckboxPress(item.id)}
-          style={[
-            styles.checkButton,
-            !hasSecondaryContent && styles.checkButtonSingleLine,
-            {
-              borderColor: checkboxChecked
-                ? theme.colors.success
-                : theme.colors.border,
-              backgroundColor: checkboxChecked
-                ? theme.colors.success
-                : theme.colors.card,
-            },
-          ]}>
-          {checkboxChecked ? (
-            <Feather
-              name="check"
-              size={16}
-              color={theme.colors.primaryForeground}
-            />
-          ) : null}
-        </Pressable>
+        {readOnly ? (
+          statusIndicator
+        ) : (
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityLabel={checkboxLabel}
+            accessibilityState={{ checked: checkboxChecked }}
+            onPress={() => onCheckboxPress(item.id)}
+            style={[
+              styles.checkButton,
+              !hasSecondaryContent && styles.checkButtonSingleLine,
+              {
+                borderColor: checkboxChecked
+                  ? theme.colors.success
+                  : theme.colors.border,
+                backgroundColor: checkboxChecked
+                  ? theme.colors.success
+                  : theme.colors.card,
+              },
+            ]}>
+            {checkboxChecked ? (
+              <Feather
+                name="check"
+                size={16}
+                color={theme.colors.primaryForeground}
+              />
+            ) : null}
+          </Pressable>
+        )}
 
-        <View style={styles.nameBlock}>
+        <View style={styles.nameBlock} importantForAccessibility={readOnly ? 'no-hide-descendants' : 'auto'}>
           <AppText
             variant="bodySmall"
             style={[
@@ -201,23 +237,25 @@ export function PackingItemRow({
           ) : null}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Packing item settings for ${item.name}`}
-          onPress={() => onOpenSettings(item.id)}
-          style={({ pressed }) => [
-            styles.iconButton,
-            {
-              backgroundColor: theme.colors.muted,
-              opacity: pressed ? 0.85 : 1,
-            },
-          ]}>
-          <Feather
-            name="more-horizontal"
-            size={18}
-            color={theme.colors.foreground}
-          />
-        </Pressable>
+        {!readOnly ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Packing item settings for ${item.name}`}
+            onPress={() => onOpenSettings(item.id)}
+            style={({ pressed }) => [
+              styles.iconButton,
+              {
+                backgroundColor: theme.colors.muted,
+                opacity: pressed ? 0.85 : 1,
+              },
+            ]}>
+            <Feather
+              name="more-horizontal"
+              size={18}
+              color={theme.colors.foreground}
+            />
+          </Pressable>
+        ) : null}
       </View>
     </View>
   );

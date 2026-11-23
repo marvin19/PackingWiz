@@ -46,6 +46,7 @@ export function PackTripMenuButton({ onPress }: PackTripMenuButtonProps) {
 type PackTripMenuSheetProps = {
   visible: boolean;
   activeFilter: PackingFilter;
+  allowEditTrip?: boolean;
   onSelect: (action: PackTripMenuAction) => void;
   onClose: () => void;
 };
@@ -69,6 +70,7 @@ type MenuRow = {
 export function PackTripMenuSheet({
   visible,
   activeFilter,
+  allowEditTrip = true,
   onSelect,
   onClose,
 }: PackTripMenuSheetProps) {
@@ -76,7 +78,7 @@ export function PackTripMenuSheet({
   const insets = useSafeAreaInsets();
   const filterIndicator = packFilterMenuIndicator(activeFilter);
 
-  const rows: MenuRow[] = [
+  const allRows: MenuRow[] = [
     {
       action: 'back-to-trips',
       label: 'Back to all trips',
@@ -106,6 +108,10 @@ export function PackTripMenuSheet({
       icon: <Feather name="edit-2" size={18} color={theme.colors.primary} />,
     },
   ];
+
+  const rows = allowEditTrip
+    ? allRows
+    : allRows.filter((row) => row.action !== 'edit-trip');
 
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>

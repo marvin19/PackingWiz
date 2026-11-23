@@ -11,7 +11,6 @@ import { ProgressRing, ProgressRingLabel } from '@/components/ui/progress-ring';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { profileNeedsImportantFirstTimeSetup } from '@/domain/important-profile-setup';
 import { formatRange } from '@/domain/dates';
-import { isTripReadOnly } from '@/domain/trip-mutation-policy';
 import { formatPackingListProfileName } from '@/domain/packing-list-display';
 import {
   isImportantSnapshotStale,
@@ -28,6 +27,7 @@ import {
   type PackTripMenuAction,
 } from '@/features/packing/components/pack-trip-menu-sheet';
 import { ImportantNotConfiguredNotice } from '@/features/packing/components/important-not-configured-notice';
+import { TripReadOnlyBanner } from '@/features/packing/components/trip-read-only-banner';
 import { ImportantSnapshotNotice } from '@/features/packing/components/important-snapshot-notice';
 import { PackingListPickerSheet } from '@/features/packing/components/packing-list-picker-sheet';
 import { buildEditTripHref } from '@/features/trip-edit/utils/edit-trip-navigation';
@@ -48,6 +48,7 @@ import { shouldRedirectPackTabToListPicker } from '@/features/packing/utils/pack
 import { useProfile } from '@/hooks/use-profile';
 import { useTrips } from '@/hooks/use-trips';
 import { TripIdentityTitle } from '@/features/trips/components/trip-identity-title';
+import { useActiveTripReadOnly } from '@/features/trips/hooks/use-active-trip-read-only';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 import { fabShadow } from '@/theme/shadows';
@@ -96,6 +97,7 @@ export function PackScreen() {
   const [tripMenuVisible, setTripMenuVisible] = useState(false);
 
   const hasMultipleLists = (activeTrip?.packingLists.length ?? 0) > 1;
+  const tripReadOnly = useActiveTripReadOnly(activeTrip);
 
   const activeImportantProfileId = activePackingList
     ? resolveImportantProfileId(activePackingList.profileSnapshot)
@@ -170,6 +172,7 @@ export function PackScreen() {
   const importantNoticeDismissed = importantNoticeDismissedByKey[importantNoticeKey] ?? false;
 
   const showImportantNotConfiguredNotice =
+    !tripReadOnly &&
     Boolean(activeTrip) &&
     Boolean(activeImportantProfileId) &&
     activeImportantConfig !== null &&
@@ -186,7 +189,7 @@ export function PackScreen() {
   }, [activeTrip, activeEnabledImportantItems, activeIsImportantFeatureActive, packingItems]);
 
   const showImportantStaleNotice = useMemo(() => {
-    if (!activeTrip || !activePackingListId || !importantSnapshotStale) {
+    if (tripReadOnly || !activeTrip || !activePackingListId || !importantSnapshotStale) {
       return false;
     }
 
@@ -201,6 +204,7 @@ export function PackScreen() {
     activeTrip,
     importantSnapshotStale,
     isImportantStaleNoticeDismissed,
+    tripReadOnly,
   ]);
 
   const grouped = useMemo(() => {
@@ -234,6 +238,10 @@ export function PackScreen() {
 
   const handleCheckboxPress = useCallback(
     (itemId: string) => {
+      if (tripReadOnly) {
+        return;
+      }
+
       if (filter === 'buy') {
         markItemPurchased(itemId);
         return;
@@ -241,7 +249,7 @@ export function PackScreen() {
 
       togglePacked(itemId);
     },
-    [filter, markItemPurchased, togglePacked],
+    [filter, markItemPurchased, togglePacked, tripReadOnly],
   );
 
   const handleOpenProfileImportant = useCallback(() => {
@@ -254,12 +262,12 @@ export function PackScreen() {
   }, [activeImportantProfileId, requestOpenImportantEditor, router]);
 
   const handleUpdateImportantSnapshot = useCallback(() => {
-    if (!activeTrip || !activePackingListId || isTripReadOnly(activeTrip)) {
+    if (tripReadOnly || !activeTrip || !activePackingListId) {
       return;
     }
 
     syncImportantSnapshotForList(activeTrip.id, activePackingListId, activeImportantItems);
-  }, [activeImportantItems, activePackingListId, activeTrip, syncImportantSnapshotForList]);
+  }, [activeImportantItems, activePackingListId, activeTrip, syncImportantSnapshotForList, tripReadOnly]);
 
   const handleKeepImportantSnapshot = useCallback(() => {
     if (!activeTrip || !activePackingListId) {
@@ -276,6 +284,10 @@ export function PackScreen() {
 
   const handleOpenItemSettings = useCallback(
     (itemId: string) => {
+      if (tripReadOnly) {
+        return;
+      }
+
       const item = packingItems.find((entry) => entry.id === itemId);
       if (!item) {
         return;
@@ -283,7 +295,7 @@ export function PackScreen() {
 
       setSettingsItemId(itemId);
     },
-    [packingItems],
+    [packingItems, tripReadOnly],
   );
 
   const handleCloseItemSettings = useCallback(() => {
@@ -311,11 +323,13 @@ export function PackScreen() {
           router.push('/(tabs)/pack/overview');
           return;
         case 'edit-trip':
-          router.push(buildEditTripHref('pack'));
+          if (!tripReadOnly) {
+            router.push(buildEditTripHref('pack'));
+          }
           return;
       }
     },
-    [router],
+    [router, tripReadOnly],
   );
 
   if (!activeTrip) {
@@ -423,6 +437,7 @@ export function PackScreen() {
         ]}
         ListHeaderComponent={
           <>
+            <TripReadOnlyBanner visible={tripReadOnly} />
             {showImportantNotConfiguredNotice && activeProfileLabel ? (
               <ImportantNotConfiguredNotice
                 profileLabel={activeProfileLabel}
@@ -459,12 +474,16 @@ export function PackScreen() {
             {packingItems.length === 0 ? (
               <>
                 <AppText variant="bodySemiBold" style={styles.emptyTitle}>
-                  Your packing list is empty
+                  {tripReadOnly ? 'This packing list is empty' : 'Your packing list is empty'}
                 </AppText>
                 <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
-                  Add your first item to start packing.
+                  {tripReadOnly
+                    ? 'There are no items on this list.'
+                    : 'Add your first item to start packing.'}
                 </AppText>
-                <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
+                {!tripReadOnly ? (
+                  <PrimaryButton label="Add item" onPress={() => setAdding(true)} />
+                ) : null}
               </>
             ) : (
               <AppText variant="bodySmall" color="mutedForeground" style={styles.emptyCopy}>
@@ -501,6 +520,7 @@ export function PackScreen() {
             items={item.items}
             travelers={activeTrip.travelers}
             checkboxIntent={checkboxIntent}
+            readOnly={tripReadOnly}
             onCheckboxPress={handleCheckboxPress}
             onOpenSettings={handleOpenItemSettings}
           />
@@ -508,23 +528,25 @@ export function PackScreen() {
         SectionSeparatorComponent={() => <View style={styles.sectionGap} />}
       />
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Add item"
-        onPress={() => setAdding(true)}
-        style={[
-          styles.fab,
-          {
-            backgroundColor: theme.colors.primary,
-            bottom: Math.max(insets.bottom, 16) + 8,
-          },
-          fabShadow(),
-        ]}>
-        <Feather name="plus" size={24} color={theme.colors.primaryForeground} />
-      </Pressable>
+      {!tripReadOnly ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add item"
+          onPress={() => setAdding(true)}
+          style={[
+            styles.fab,
+            {
+              backgroundColor: theme.colors.primary,
+              bottom: Math.max(insets.bottom, 16) + 8,
+            },
+            fabShadow(),
+          ]}>
+          <Feather name="plus" size={24} color={theme.colors.primaryForeground} />
+        </Pressable>
+      ) : null}
 
-      <AddItemSheet visible={adding} onClose={() => setAdding(false)} />
-      {settingsItem ? (
+      {!tripReadOnly ? <AddItemSheet visible={adding} onClose={() => setAdding(false)} /> : null}
+      {!tripReadOnly && settingsItem ? (
         <PackingItemSettingsSheet
           key={settingsItem.id}
           item={settingsItem}
@@ -556,6 +578,7 @@ export function PackScreen() {
       <PackTripMenuSheet
         visible={tripMenuVisible}
         activeFilter={filter}
+        allowEditTrip={!tripReadOnly}
         onSelect={handleTripMenuAction}
         onClose={() => setTripMenuVisible(false)}
       />

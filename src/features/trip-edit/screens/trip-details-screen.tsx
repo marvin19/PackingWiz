@@ -23,6 +23,7 @@ import {
 import {
   getTripDetailsDoneLabel,
 } from '@/features/trip-edit/utils/edit-trip-view-model';
+import { useActiveTripReadOnly } from '@/features/trips/hooks/use-active-trip-read-only';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal, spacing } from '@/theme/spacing';
@@ -34,6 +35,7 @@ export function TripDetailsScreen() {
   const params = useLocalSearchParams<{ returnTo?: string }>();
   const returnTo = parseEditTripReturnTo(params.returnTo);
   const { activeTrip, activeTripId } = useTrips();
+  const tripReadOnly = useActiveTripReadOnly(activeTrip);
   const showPackingNotice = useTripEditPackingNotice();
 
   const facts = useMemo(
@@ -43,9 +45,29 @@ export function TripDetailsScreen() {
 
   const openSection = useCallback(
     (section: Parameters<typeof buildTripDetailsSectionHref>[0]) => {
+      if (tripReadOnly) {
+        return;
+      }
+
       router.push(buildTripDetailsSectionHref(section, returnTo));
     },
-    [returnTo, router],
+    [returnTo, router, tripReadOnly],
+  );
+
+  const editHandlers = useMemo(
+    () =>
+      tripReadOnly
+        ? {}
+        : {
+            onEditTripName: () => openSection('destination'),
+            onEditDestination: () => openSection('destination'),
+            onEditTripContext: () => openSection('trip-context'),
+            onEditStayingIn: () => openSection('accommodation'),
+            onEditPackingFor: () => openSection('packing-for'),
+            onEditPackingIn: () => openSection('bags'),
+            onEditNote: () => openSection('note'),
+          },
+    [openSection, tripReadOnly],
   );
 
   const handleDone = useCallback(() => {
@@ -76,7 +98,7 @@ export function TripDetailsScreen() {
       <ScreenHeader
         title={getTripSummaryDetailsScreenTitle('existing')}
         onClose={handleDone}
-        closeAccessibilityLabel="Done editing trip details"
+        closeAccessibilityLabel={tripReadOnly ? 'Close trip details' : 'Done editing trip details'}
       />
 
       <ScrollView
@@ -86,19 +108,7 @@ export function TripDetailsScreen() {
         ]}
         showsVerticalScrollIndicator={false}>
         {showPackingNotice ? <TripEditPackingNoticeBanner /> : null}
-        <TripSummaryDetailsContent
-          mode="existing"
-          facts={facts}
-          editHandlers={{
-            onEditTripName: () => openSection('destination'),
-            onEditDestination: () => openSection('destination'),
-            onEditTripContext: () => openSection('trip-context'),
-            onEditStayingIn: () => openSection('accommodation'),
-            onEditPackingFor: () => openSection('packing-for'),
-            onEditPackingIn: () => openSection('bags'),
-            onEditNote: () => openSection('note'),
-          }}
-        />
+        <TripSummaryDetailsContent mode="existing" facts={facts} editHandlers={editHandlers} />
       </ScrollView>
 
       <View

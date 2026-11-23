@@ -17,6 +17,7 @@ import { SummarySection } from '@/features/trip-creation/components/summary-sect
 import { WeatherCard } from '@/features/trip-creation/components/weather-card';
 import { TripIdentityTitle } from '@/features/trips/components/trip-identity-title';
 import { buildEditTripHref } from '@/features/trip-edit/utils/edit-trip-navigation';
+import { useActiveTripReadOnly } from '@/features/trips/hooks/use-active-trip-read-only';
 import { useTrips } from '@/hooks/use-trips';
 import { useTheme } from '@/hooks/use-theme';
 import { goBackOrReplace } from '@/lib/safe-navigation';
@@ -27,6 +28,7 @@ export function TripOverviewScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const { activeTrip, activeTripId } = useTrips();
+  const tripReadOnly = useActiveTripReadOnly(activeTrip);
 
   const stats = useMemo(() => packingStatsForTrip(activeTrip), [activeTrip]);
   const listBreakdown = useMemo(
@@ -85,23 +87,25 @@ export function TripOverviewScreen() {
                 {days > 0 ? ` · ${formatTripDurationDays(days)}` : ''}
               </AppText>
             </View>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Edit trip"
-              onPress={handleEditTrip}
-              style={({ pressed }) => [
-                styles.editTripAction,
-                {
-                  backgroundColor: theme.colors.muted,
-                  borderColor: theme.colors.border,
-                  opacity: pressed ? 0.9 : 1,
-                },
-              ]}>
-              <Feather name="edit-2" size={14} color={theme.colors.primary} />
-              <AppText variant="caption" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-                Edit trip
-              </AppText>
-            </Pressable>
+            {!tripReadOnly ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Edit trip"
+                onPress={handleEditTrip}
+                style={({ pressed }) => [
+                  styles.editTripAction,
+                  {
+                    backgroundColor: theme.colors.muted,
+                    borderColor: theme.colors.border,
+                    opacity: pressed ? 0.9 : 1,
+                  },
+                ]}>
+                <Feather name="edit-2" size={14} color={theme.colors.primary} />
+                <AppText variant="caption" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
+                  Edit trip
+                </AppText>
+              </Pressable>
+            ) : null}
           </View>
         </View>
 

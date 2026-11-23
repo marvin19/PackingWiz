@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -57,6 +57,7 @@ import {
   getTripDetailsSectionScreenTitle,
   parseTripDetailsSection,
 } from '@/features/trip-edit/utils/trip-details-navigation';
+import { useActiveTripReadOnly } from '@/features/trips/hooks/use-active-trip-read-only';
 import { stageTripEditPackingNotice } from '@/features/trip-edit/utils/trip-edit-save-notice-handoff';
 import { AccommodationStep } from '@/features/trip-creation/components/steps/accommodation-step';
 import { BagsStep } from '@/features/trip-creation/components/steps/bags-step';
@@ -89,6 +90,7 @@ export function TripSectionEditScreen() {
   } = useTrips();
   const { savedPackingProfiles, rememberPackingProfile, importantByProfileId } = useProfile();
   const { profileRepository } = useServices();
+  const tripReadOnly = useActiveTripReadOnly(activeTrip);
 
   const [stagedForm, setStagedForm] = useState<{ tripId: string; form: TripEditFormState } | null>(
     null,
@@ -265,6 +267,12 @@ export function TripSectionEditScreen() {
     },
     [returnTo, router],
   );
+
+  useEffect(() => {
+    if (tripReadOnly && activeTrip && section) {
+      navigateToDetails();
+    }
+  }, [tripReadOnly, activeTrip, section, navigateToDetails]);
 
   const handleAttemptClose = useCallback(() => {
     blurActiveElement();
@@ -452,6 +460,14 @@ export function TripSectionEditScreen() {
           </AppText>
           <PrimaryButton label="Go to Trips" onPress={() => router.navigate('/(tabs)')} />
         </View>
+      </AppScreen>
+    );
+  }
+
+  if (tripReadOnly) {
+    return (
+      <AppScreen style={styles.emptyScreen}>
+        <ScreenHeader title={getTripDetailsSectionScreenTitle(section)} onClose={navigateToDetails} />
       </AppScreen>
     );
   }

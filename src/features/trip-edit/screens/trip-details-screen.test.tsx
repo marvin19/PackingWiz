@@ -75,9 +75,37 @@ jest.mock('@/hooks/use-trips', () => ({
   }),
 }));
 
+const mockUseActiveTripReadOnly = jest.fn(() => false);
+
+jest.mock('@/features/trips/hooks/use-active-trip-read-only', () => ({
+  useActiveTripReadOnly: () => mockUseActiveTripReadOnly(),
+}));
+
+describe('TripDetailsScreen read-only (PW-004E-B)', () => {
+  beforeEach(() => {
+    mockUseActiveTripReadOnly.mockReturnValue(true);
+  });
+
+  it('hides section edit affordances when the active trip is read-only', async () => {
+    let tree!: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      tree = TestRenderer.create(<TripDetailsScreen />);
+      await Promise.resolve();
+    });
+
+    const editButtons = tree.root.findAll(
+      (node) =>
+        typeof node.props.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.startsWith('Edit '),
+    );
+    expect(editButtons).toHaveLength(0);
+  });
+});
+
 describe('TripDetailsScreen packing notice', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockUseActiveTripReadOnly.mockReturnValue(false);
     resetTripEditSaveNoticeHandoffForTests();
   });
 
