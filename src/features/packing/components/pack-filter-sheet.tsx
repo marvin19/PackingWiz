@@ -3,6 +3,10 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import {
+  packHeaderChipButtonHitSlop,
+  packHeaderChipButtonStyles,
+} from '@/features/packing/components/pack-header-chip-button.styles';
 import type { PackingFilter } from '@/features/packing/utils/group-items';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
@@ -21,6 +25,50 @@ type FilterOption = {
   label: string;
   detail?: string;
 };
+
+export function PackFilterButton({
+  activeFilter,
+  onPress,
+}: {
+  activeFilter: PackingFilter;
+  onPress: () => void;
+}) {
+  const theme = useTheme();
+  const isDefault = activeFilter === 'all';
+  const label = isDefault ? 'Filter' : 'Filter · 1';
+  const iconColor = isDefault ? theme.colors.mutedForeground : theme.colors.primary;
+  const labelColor = isDefault ? theme.colors.mutedForeground : theme.colors.primary;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={
+        isDefault
+          ? 'Filter packing list'
+          : `Filter packing list, ${activeFilter === 'todo' ? 'To pack' : 'Shopping'} active`
+      }
+      hitSlop={packHeaderChipButtonHitSlop}
+      onPress={onPress}
+      style={({ pressed }) => [
+        packHeaderChipButtonStyles.base,
+        {
+          backgroundColor: isDefault ? theme.colors.muted : `${theme.colors.primary}14`,
+          borderColor: isDefault ? theme.colors.border : theme.colors.primary,
+          opacity: pressed ? 0.9 : 1,
+        },
+      ]}>
+      <Feather name="sliders" size={16} color={iconColor} />
+      <AppText
+        variant="caption"
+        style={{
+          fontFamily: theme.fontFamilies.sansSemiBold,
+          color: labelColor,
+        }}>
+        {label}
+      </AppText>
+    </Pressable>
+  );
+}
 
 export function PackFilterSheet({
   visible,

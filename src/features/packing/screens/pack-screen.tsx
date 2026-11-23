@@ -20,7 +20,7 @@ import type { PackingCategory, PackingItem } from '@/domain/packing-item';
 import { packingStatsForList } from '@/domain/packing-stats';
 import { useAcknowledgePostCreateNavigation } from '@/features/trip-creation/hooks/use-acknowledge-post-create-navigation';
 import { AddItemSheet } from '@/features/packing/components/add-item-sheet';
-import { PackFilterSheet } from '@/features/packing/components/pack-filter-sheet';
+import { PackFilterButton, PackFilterSheet } from '@/features/packing/components/pack-filter-sheet';
 import {
   PackTripMenuButton,
   PackTripMenuSheet,
@@ -316,9 +316,6 @@ export function PackScreen() {
         case 'back-to-trips':
           router.navigate('/(tabs)');
           return;
-        case 'filter':
-          setFilterVisible(true);
-          return;
         case 'insights':
           router.push('/(tabs)/pack/overview');
           return;
@@ -421,7 +418,10 @@ export function PackScreen() {
             </Pressable>
           ) : null}
 
-          <PackTripMenuButton onPress={() => setTripMenuVisible(true)} />
+          <View style={styles.headerToolbarActions}>
+            <PackFilterButton activeFilter={filter} onPress={() => setFilterVisible(true)} />
+            <PackTripMenuButton onPress={() => setTripMenuVisible(true)} />
+          </View>
         </View>
       </View>
 
@@ -577,7 +577,6 @@ export function PackScreen() {
 
       <PackTripMenuSheet
         visible={tripMenuVisible}
-        activeFilter={filter}
         allowEditTrip={!tripReadOnly}
         onSelect={handleTripMenuAction}
         onClose={() => setTripMenuVisible(false)}
@@ -628,6 +627,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 6,
     rowGap: 6,
+  },
+  headerToolbarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+    marginLeft: 'auto',
   },
   listSwitcher: {
     flexDirection: 'row',

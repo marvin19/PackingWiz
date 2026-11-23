@@ -4,11 +4,14 @@ import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
-import type { PackingFilter } from '@/features/packing/utils/group-items';
+import {
+  packHeaderChipButtonHitSlop,
+  packHeaderChipButtonStyles,
+} from '@/features/packing/components/pack-header-chip-button.styles';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
 
-export type PackTripMenuAction = 'back-to-trips' | 'filter' | 'insights' | 'edit-trip';
+export type PackTripMenuAction = 'back-to-trips' | 'insights' | 'edit-trip';
 
 type PackTripMenuButtonProps = {
   onPress: () => void;
@@ -21,9 +24,10 @@ export function PackTripMenuButton({ onPress }: PackTripMenuButtonProps) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Trip menu"
+      hitSlop={packHeaderChipButtonHitSlop}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.menuButton,
+        packHeaderChipButtonStyles.base,
         {
           backgroundColor: theme.colors.muted,
           borderColor: theme.colors.border,
@@ -45,38 +49,26 @@ export function PackTripMenuButton({ onPress }: PackTripMenuButtonProps) {
 
 type PackTripMenuSheetProps = {
   visible: boolean;
-  activeFilter: PackingFilter;
   allowEditTrip?: boolean;
   onSelect: (action: PackTripMenuAction) => void;
   onClose: () => void;
 };
-
-function packFilterMenuIndicator(activeFilter: PackingFilter): string | null {
-  if (activeFilter === 'all') {
-    return null;
-  }
-
-  return '· 1';
-}
 
 type MenuRow = {
   action: PackTripMenuAction;
   label: string;
   accessibilityLabel: string;
   icon: ReactNode;
-  trailing?: string | null;
 };
 
 export function PackTripMenuSheet({
   visible,
-  activeFilter,
   allowEditTrip = true,
   onSelect,
   onClose,
 }: PackTripMenuSheetProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const filterIndicator = packFilterMenuIndicator(activeFilter);
 
   const allRows: MenuRow[] = [
     {
@@ -84,16 +76,6 @@ export function PackTripMenuSheet({
       label: 'Back to all trips',
       accessibilityLabel: 'Back to all trips',
       icon: <Feather name="briefcase" size={18} color={theme.colors.primary} />,
-    },
-    {
-      action: 'filter',
-      label: 'Filter',
-      accessibilityLabel:
-        activeFilter === 'all'
-          ? 'Filter'
-          : `Filter, ${activeFilter === 'todo' ? 'To pack' : 'Shopping'} active`,
-      icon: <Feather name="sliders" size={18} color={theme.colors.primary} />,
-      trailing: filterIndicator,
     },
     {
       action: 'insights',
@@ -159,11 +141,6 @@ export function PackTripMenuSheet({
               <AppText variant="bodySmall" style={{ flex: 1, fontFamily: theme.fontFamilies.sansSemiBold }}>
                 {row.label}
               </AppText>
-              {row.trailing ? (
-                <AppText variant="caption" color="primary" style={{ fontFamily: theme.fontFamilies.sansSemiBold }}>
-                  {row.trailing}
-                </AppText>
-              ) : null}
               <Feather name="chevron-right" size={16} color={theme.colors.mutedForeground} accessibilityElementsHidden />
             </Pressable>
           ))}
@@ -184,18 +161,6 @@ export function PackTripMenuSheet({
 }
 
 const styles = StyleSheet.create({
-  menuButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 9999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    minHeight: 32,
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',

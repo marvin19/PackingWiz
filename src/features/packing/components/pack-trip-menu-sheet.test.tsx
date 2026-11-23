@@ -17,15 +17,14 @@ jest.mock('@/hooks/use-theme', () => {
   return { useTheme: () => theme };
 });
 
-describe('PackTripMenuSheet (PW-004E-B)', () => {
-  it('omits Edit trip when allowEditTrip is false', async () => {
+describe('PackTripMenuSheet', () => {
+  it('omits Edit trip when allowEditTrip is false (PW-004E-B)', async () => {
     let tree: TestRenderer.ReactTestRenderer;
 
     await act(async () => {
       tree = TestRenderer.create(
         <PackTripMenuSheet
           visible
-          activeFilter="all"
           allowEditTrip={false}
           onSelect={jest.fn()}
           onClose={jest.fn()}
@@ -42,5 +41,28 @@ describe('PackTripMenuSheet (PW-004E-B)', () => {
       (node) => node.props.accessibilityLabel === 'Insights',
     );
     expect(insightRows.length).toBeGreaterThan(0);
+  });
+
+  it('does not include Filter (PW-004D-A)', async () => {
+    let tree: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      tree = TestRenderer.create(
+        <PackTripMenuSheet visible allowEditTrip onSelect={jest.fn()} onClose={jest.fn()} />,
+      );
+    });
+
+    const filterRows = tree!.root.findAll(
+      (node) =>
+        node.props.accessibilityLabel === 'Filter' ||
+        (typeof node.props.accessibilityLabel === 'string' &&
+          node.props.accessibilityLabel.startsWith('Filter,')),
+    );
+    expect(filterRows).toHaveLength(0);
+
+    const backRows = tree!.root.findAll(
+      (node) => node.props.accessibilityLabel === 'Back to all trips',
+    );
+    expect(backRows.length).toBeGreaterThan(0);
   });
 });

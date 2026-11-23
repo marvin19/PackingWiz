@@ -150,5 +150,10 @@ describe('PackScreen read-only (PW-004E-B)', () => {
       (node) => node.props.accessibilityLabel === 'Trip menu',
     );
     expect(menuNodes.length).toBeGreaterThan(0);
+
+    const filterNodes = tree!.root.findAll(
+      (node) => node.props.accessibilityLabel === 'Filter packing list',
+    );
+    expect(filterNodes.length).toBeGreaterThan(0);
   });
 });
