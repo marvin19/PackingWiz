@@ -60,6 +60,36 @@ describe('PackingItemRow read-only (PW-004E-B)', () => {
     expect(settingsNodes).toHaveLength(0);
   });
 
+  it('applies historical row surface when readOnly', async () => {
+    let tree: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      tree = TestRenderer.create(
+        <PackingItemRow
+          item={{ ...baseItem, packed: false }}
+          travelers={[]}
+          checkboxIntent="packed"
+          readOnly
+          onCheckboxPress={jest.fn()}
+          onOpenSettings={jest.fn()}
+        />,
+      );
+    });
+
+    const rowViews = tree!.root.findAll(
+      (node) =>
+        node.props.style &&
+        [node.props.style].flat().some(
+          (entry) =>
+            entry &&
+            typeof entry === 'object' &&
+            'backgroundColor' in entry &&
+            entry.backgroundColor != null,
+        ),
+    );
+    expect(rowViews.length).toBeGreaterThan(0);
+  });
+
   it('keeps interactive checkbox when not readOnly', async () => {
     let tree: TestRenderer.ReactTestRenderer;
 

@@ -50,6 +50,8 @@ export function PackingItemRow({
       ? `Mark ${item.name} as not packed`
       : `Mark ${item.name} as packed`;
   const readOnlyStatusLabel = buildReadOnlyStatusLabel(item, checkboxIntent);
+  const historicalTitleColor =
+    readOnly || item.packed ? theme.colors.mutedForeground : theme.colors.foreground;
   const personalNote = item.note?.trim();
   const hasSecondaryContent =
     Boolean(personalNote) ||
@@ -78,17 +80,17 @@ export function PackingItemRow({
     </View>
   );
 
+  const rowSurfaceStyle = readOnly
+    ? { backgroundColor: theme.colors.muted }
+    : item.packed
+      ? {
+          backgroundColor: theme.colors.muted,
+          opacity: 0.92,
+        }
+      : null;
+
   return (
-    <View
-      style={[
-        styles.row,
-        item.packed
-          ? {
-              backgroundColor: theme.colors.muted,
-              opacity: 0.92,
-            }
-          : null,
-      ]}>
+    <View style={[styles.row, rowSurfaceStyle]}>
       <View
         style={[
           styles.mainRow,
@@ -131,9 +133,7 @@ export function PackingItemRow({
               styles.titleText,
               {
                 fontFamily: theme.fontFamilies.sansMedium,
-                color: item.packed
-                  ? theme.colors.mutedForeground
-                  : theme.colors.foreground,
+                color: historicalTitleColor,
                 textDecorationLine: item.packed ? 'line-through' : 'none',
               },
             ]}>
