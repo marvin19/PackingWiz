@@ -134,6 +134,10 @@ When implementing changes:
 
 For Multi-person Packing work: keep MP sub-phases (**MP1**–**MP5**) as separate, reviewable commits.
 
+### Node.js (Expo SDK 58)
+
+Use **Node.js 22.23.2** (see `.nvmrc`; minimum for SDK 58 tooling is **22.13.x**). With [nvm](https://github.com/nvm-sh/nvm): `nvm use` in the repo root. Install dependencies with `npm ci` when the lockfile is current, or `npm install` after `package.json` changes.
+
 ---
 
 ## Validation
