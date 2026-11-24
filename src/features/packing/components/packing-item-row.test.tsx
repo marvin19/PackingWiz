@@ -3,6 +3,7 @@ import TestRenderer, { act } from 'react-test-renderer';
 
 import type { PackingItem } from '@/domain/packing-item';
 import { PackingItemRow } from '@/features/packing/components/packing-item-row';
+import { hitSlopToMinTouchTarget } from '@/lib/compact-touch-target';
 
 jest.mock('@expo/vector-icons', () => ({
   Feather: 'Feather',
@@ -109,5 +110,41 @@ describe('PackingItemRow read-only (PW-004E-B)', () => {
       (node) => node.props.accessibilityRole === 'checkbox',
     );
     expect(checkboxNodes.length).toBeGreaterThan(0);
+  });
+});
+
+describe('PackingItemRow touch targets (PW-005A-B1)', () => {
+  it('expands checkbox and settings hit areas without changing handlers', async () => {
+    const onCheckboxPress = jest.fn();
+    const onOpenSettings = jest.fn();
+    let tree: TestRenderer.ReactTestRenderer;
+
+    await act(async () => {
+      tree = TestRenderer.create(
+        <PackingItemRow
+          item={{ ...baseItem, packed: false }}
+          travelers={[]}
+          checkboxIntent="packed"
+          onCheckboxPress={onCheckboxPress}
+          onOpenSettings={onOpenSettings}
+        />,
+      );
+    });
+
+    const checkbox = tree!.root.find((node) => node.props.accessibilityRole === 'checkbox');
+    const settings = tree!.root.find(
+      (node) => node.props.accessibilityLabel === 'Packing item settings for Rain jacket',
+    );
+
+    expect(checkbox.props.hitSlop).toEqual(hitSlopToMinTouchTarget(28));
+    expect(settings.props.hitSlop).toEqual(hitSlopToMinTouchTarget(32));
+
+    await act(async () => {
+      checkbox.props.onPress();
+      settings.props.onPress();
+    });
+
+    expect(onCheckboxPress).toHaveBeenCalledWith('item-1');
+    expect(onOpenSettings).toHaveBeenCalledWith('item-1');
   });
 });

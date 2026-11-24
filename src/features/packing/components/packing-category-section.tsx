@@ -14,7 +14,10 @@ import {
 } from '@/features/packing/components/packing-list-layout';
 import { getCategoryIcon } from '@/features/packing/utils/category-icons';
 import { useTrips } from '@/hooks/use-trips';
+import { hitSlopToMinTouchTarget } from '@/lib/compact-touch-target';
 import { useTheme } from '@/hooks/use-theme';
+
+const packingCategoryChevronHitSlop = hitSlopToMinTouchTarget(PACKING_ITEM_ACTION_SIZE);
 
 type PackingCategorySectionProps = {
   category: PackingCategory;
@@ -96,6 +99,7 @@ export function PackingCategoryHeader({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={collapsed ? `Expand ${category}` : `Collapse ${category}`}
+          hitSlop={packingCategoryChevronHitSlop}
           onPress={onToggleCollapsed}
           style={styles.chevronButton}>
           <Feather

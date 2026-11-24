@@ -1,15 +1,10 @@
-import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import type { BottomTabBarProps } from 'expo-router/build/react-navigation/bottom-tabs/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
 import { useTheme } from '@/hooks/use-theme';
-
-type BottomTabBarProps = Parameters<
-  NonNullable<ComponentProps<typeof Tabs>['tabBar']>
->[0];
 
 type TabDefinition = {
   routeName: string;
@@ -23,7 +18,7 @@ const TABS: TabDefinition[] = [
   { routeName: 'profile', label: 'Profile', icon: 'user' },
 ];
 
-export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
+export function BottomTabBar({ state, navigateToTab }: BottomTabBarProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -42,14 +37,8 @@ export function BottomTabBar({ state, navigation }: BottomTabBarProps) {
         const isFocused = state.index === index;
 
         const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
-
-          if (!isFocused && !event.defaultPrevented) {
-            navigation.navigate(route.name, route.params);
+          if (!isFocused) {
+            navigateToTab(route.key);
           }
         };
 

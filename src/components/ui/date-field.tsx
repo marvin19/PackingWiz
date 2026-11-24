@@ -1,12 +1,11 @@
 import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, type ComponentRef } from 'react';
 import {
   Platform,
   Pressable,
   StyleSheet,
   View,
-  type View as ViewType,
 } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -75,7 +74,7 @@ function WebDateField({ label, value, onChange, minimumDate, maximumDate, requir
     themeRef.current = theme;
   }, [onChange, theme]);
 
-  const attachInput = useCallback((host: ViewType | null) => {
+  const attachInput = useCallback((host: ComponentRef<typeof View> | null) => {
     if (!host) {
       inputRef.current?.remove();
       inputRef.current = null;

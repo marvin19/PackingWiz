@@ -8,7 +8,12 @@ import {
   PACKING_ITEM_ACTION_SIZE,
   PACKING_ITEM_CARD_PADDING_HORIZONTAL,
 } from '@/features/packing/components/packing-list-layout';
+import { hitSlopToMinTouchTarget } from '@/lib/compact-touch-target';
 import { useTheme } from '@/hooks/use-theme';
+
+const PACKING_CHECKBOX_VISIBLE_SIZE = 28;
+const packingCheckboxHitSlop = hitSlopToMinTouchTarget(PACKING_CHECKBOX_VISIBLE_SIZE);
+const packingItemSettingsHitSlop = hitSlopToMinTouchTarget(PACKING_ITEM_ACTION_SIZE);
 
 export type PackingCheckboxIntent = 'packed' | 'purchased';
 
@@ -103,6 +108,7 @@ export function PackingItemRow({
             accessibilityRole="checkbox"
             accessibilityLabel={checkboxLabel}
             accessibilityState={{ checked: checkboxChecked }}
+            hitSlop={packingCheckboxHitSlop}
             onPress={() => onCheckboxPress(item.id)}
             style={[
               styles.checkButton,
@@ -241,6 +247,7 @@ export function PackingItemRow({
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={`Packing item settings for ${item.name}`}
+            hitSlop={packingItemSettingsHitSlop}
             onPress={() => onOpenSettings(item.id)}
             style={({ pressed }) => [
               styles.iconButton,

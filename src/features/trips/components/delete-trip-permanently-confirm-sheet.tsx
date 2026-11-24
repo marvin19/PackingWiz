@@ -8,8 +8,12 @@ import {
   DELETE_TRIP_PERMANENTLY_BODY,
   DELETE_TRIP_PERMANENTLY_TITLE,
 } from '@/features/trips/utils/trip-delete-display';
+import { hitSlopToMinTouchTarget } from '@/lib/compact-touch-target';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
+
+const DELETE_SHEET_CLOSE_VISIBLE_SIZE = 28;
+const deleteSheetCloseHitSlop = hitSlopToMinTouchTarget(DELETE_SHEET_CLOSE_VISIBLE_SIZE);
 
 type DeleteTripPermanentlyConfirmSheetProps = {
   visible: boolean;
@@ -56,6 +60,7 @@ export function DeleteTripPermanentlyConfirmSheet({
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Cancel permanent delete"
+              hitSlop={deleteSheetCloseHitSlop}
               onPress={onCancel}
               style={[styles.closeButton, { backgroundColor: theme.colors.muted }]}>
               <Feather name="x" size={16} color={theme.colors.foreground} />

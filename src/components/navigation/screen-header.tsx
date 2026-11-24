@@ -3,8 +3,12 @@ import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppText } from '@/components/ui/app-text';
+import { hitSlopToMinTouchTarget } from '@/lib/compact-touch-target';
 import { useTheme } from '@/hooks/use-theme';
 import { screenPaddingHorizontal } from '@/theme/spacing';
+
+const SCREEN_HEADER_BUTTON_VISIBLE_SIZE = 36;
+const screenHeaderButtonHitSlop = hitSlopToMinTouchTarget(SCREEN_HEADER_BUTTON_VISIBLE_SIZE);
 
 type ScreenHeaderProps = {
   title: string;
@@ -39,6 +43,7 @@ export function ScreenHeader({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Go back"
+          hitSlop={screenHeaderButtonHitSlop}
           onPress={onBack}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Feather name="chevron-left" size={24} color={theme.colors.foreground} />
@@ -55,6 +60,7 @@ export function ScreenHeader({
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={closeAccessibilityLabel}
+          hitSlop={screenHeaderButtonHitSlop}
           onPress={onClose}
           style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}>
           <Feather name="x" size={22} color={theme.colors.foreground} />

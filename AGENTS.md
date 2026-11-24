@@ -10,7 +10,7 @@ Operational guide for coding agents (Cursor, Codex, etc.) working in this reposi
 
 | Layer | Choice |
 |-------|--------|
-| App | React Native (Expo SDK **57**) |
+| App | React Native (Expo SDK **58**) |
 | Language | TypeScript |
 | Navigation | Expo Router (`src/app/`) |
 | Styling | React Native `StyleSheet` + semantic tokens in `src/theme/` |
@@ -19,7 +19,7 @@ Operational guide for coding agents (Cursor, Codex, etc.) working in this reposi
 | Backend | Supabase planned/opt-in; schema exists but not production-default |
 | Reference UI | `v0-prototype/` — **read-only reference, never modify** |
 
-**Expo docs:** read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing Expo-specific code.
+**Expo docs:** read the exact versioned docs at https://docs.expo.dev/versions/v58.0.0/ before writing Expo-specific code.
 
 **Do not introduce:** Next.js, shadcn, Tailwind, NativeWind, or other web-first UI stacks.
 
