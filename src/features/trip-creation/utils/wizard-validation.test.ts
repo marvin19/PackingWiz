@@ -1,5 +1,6 @@
 import { createDestinationFromText } from '@/domain/destination';
 import { parseDate } from '@/domain/dates';
+import { createDefaultNewTripDateRange } from '@/domain/new-trip-draft-dates';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { canProceedFromStepId } from '@/features/trip-creation/utils/wizard-validation';
@@ -35,5 +36,14 @@ describe('wizard destination date validation', () => {
     expect(canProceedFromStepId('destination', draftWithDates('2026-09-03', '2026-09-10'))).toBe(
       true,
     );
+  });
+
+  it('allows continue with default tomorrow return when destination is set', () => {
+    const draft = normalizeTripDraft({
+      ...createEmptyTripDraft(),
+      ...createDefaultNewTripDateRange(parseDate('2026-09-02')),
+      destination: createDestinationFromText('Tokyo'),
+    });
+    expect(canProceedFromStepId('destination', draft)).toBe(true);
   });
 });

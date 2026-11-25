@@ -4,6 +4,7 @@ import {
   setImportantEnabledForProfileStore,
   setImportantPromptDismissedForProfileStore,
 } from '@/domain/profile-important-items';
+import { withDefaultNewTripDatesIfUnset } from '@/domain/new-trip-draft-dates';
 import type { TripDraft } from '@/domain/trip-draft';
 import { createEmptyTripDraft } from '@/domain/trip-draft';
 import { applyTripDraftPatch } from '@/domain/trip-draft-naming';
@@ -48,7 +49,11 @@ export function cloneTripDraft(draft: TripDraft): TripDraft {
 
 export function createStoredTripDraft(overrides?: Partial<TripDraft>): StoredTripDraft {
   const id = createTripDraftId();
-  const draft = applyTripDraftPatch(createEmptyTripDraft(id), {
+  const base = createEmptyTripDraft(id);
+  const withOverrides = { ...base, ...overrides, id };
+  const dated = withDefaultNewTripDatesIfUnset(withOverrides);
+  const draft = applyTripDraftPatch(base, {
+    ...dated,
     ...overrides,
     id,
   });

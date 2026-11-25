@@ -1,4 +1,6 @@
+import { createDefaultNewTripDateRange } from '@/domain/new-trip-draft-dates';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
+import { applyTripDraftPatch } from '@/domain/trip-draft-naming';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
 import { canProceedFromStepId } from '@/features/trip-creation/utils/wizard-validation';
 import type { WizardStepId } from '@/features/trip-creation/utils/wizard-steps';
@@ -32,8 +34,16 @@ function draftContentEquals(left: TripDraft, right: TripDraft): boolean {
   );
 }
 
-export function isEmptyDraftContent(draft: TripDraft): boolean {
-  return draftContentEquals(draft, createEmptyTripDraft());
+function createPristineNewTripDraftBaseline(referenceDate: Date = new Date()): TripDraft {
+  return applyTripDraftPatch(createEmptyTripDraft(), createDefaultNewTripDateRange(referenceDate));
+}
+
+export function isEmptyDraftContent(draft: TripDraft, referenceDate: Date = new Date()): boolean {
+  if (draftContentEquals(draft, createEmptyTripDraft())) {
+    return true;
+  }
+
+  return draftContentEquals(draft, createPristineNewTripDraftBaseline(referenceDate));
 }
 
 export function isDraftInProgress(draft: TripDraft): boolean {

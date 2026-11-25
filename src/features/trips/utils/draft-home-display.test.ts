@@ -115,6 +115,8 @@ describe('draft wizard metadata', () => {
   it('builds accessibility labels from a custom trip name when set', () => {
     const stored = createStoredTripDraft({
       destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
+      startDate: '2027-06-01',
+      endDate: '2027-06-02',
     });
     stored.draft = applyTripDraftPatch(
       stored.draft,
@@ -122,7 +124,7 @@ describe('draft wizard metadata', () => {
     );
 
     expect(buildDraftCardAccessibilityLabel(stored)).toBe(
-      'Continue planning Hyttetur, Dates not added · 1 person',
+      'Continue planning Hyttetur, Jun 1–2 · 1 person',
     );
     expect(buildDraftDeleteAccessibilityLabel(stored)).toBe('Delete Hyttetur draft');
   });
