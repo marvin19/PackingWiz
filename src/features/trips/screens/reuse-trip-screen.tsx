@@ -15,7 +15,6 @@ import { AppText } from '@/components/ui/app-text';
 import { DateField } from '@/components/ui/date-field';
 import { PrimaryButton } from '@/components/ui/primary-button';
 import { SectionTitle } from '@/components/ui/section-title';
-import { parseDate } from '@/domain/dates';
 import { startOfLocalCalendarDay } from '@/domain/new-trip-date-validation';
 import { ReuseAddTravellerSheet } from '@/features/trips/components/reuse-add-traveller-sheet';
 import { ReuseChangesFromOriginal } from '@/features/trips/components/reuse-changes-from-original';
@@ -232,7 +231,6 @@ export function ReuseTripScreen() {
                 label="Return"
                 value={form.endDate}
                 onChange={(endDate) => patchForm({ endDate })}
-                minimumDate={form.startDate ? parseDate(form.startDate) : minimumStartDate}
               />
             </View>
             {validation.dateError ? (

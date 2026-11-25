@@ -1,6 +1,9 @@
-import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
+import DateTimePicker, {
+  DateTimePickerAndroid,
+  type DateTimePickerEvent,
+} from '@react-native-community/datetimepicker';
 import { Feather } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useRef, type ComponentRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentRef } from 'react';
 import {
   Platform,
   Pressable,
@@ -10,6 +13,7 @@ import {
 
 import { AppText } from '@/components/ui/app-text';
 import { formatDisplayDate, parseDate, toIsoDate } from '@/domain/dates';
+import { startOfLocalCalendarDay } from '@/domain/new-trip-date-validation';
 import { useTheme } from '@/hooks/use-theme';
 import type { ColorToken } from '@/theme/colors';
 
@@ -49,6 +53,31 @@ function DateFieldLabel({ label, required = false }: Pick<DateFieldProps, 'label
       </AppText>
     </View>
   );
+}
+
+function defaultPickerReferenceDate(minimumDate?: Date, maximumDate?: Date): Date {
+  const today = startOfLocalCalendarDay(new Date());
+  const candidate = minimumDate ? startOfLocalCalendarDay(minimumDate) : today;
+  if (maximumDate && candidate.getTime() > maximumDate.getTime()) {
+    return startOfLocalCalendarDay(maximumDate);
+  }
+  return candidate;
+}
+
+function shouldCommitPickerChange(event: DateTimePickerEvent, date: Date | undefined): date is Date {
+  if (!date) {
+    return false;
+  }
+
+  if (Platform.OS === 'android' && event.type === 'dismissed') {
+    return false;
+  }
+
+  if (Platform.OS === 'ios' && event.type === 'dismissed') {
+    return false;
+  }
+
+  return true;
 }
 
 export function DateField(props: DateFieldProps) {
@@ -152,10 +181,77 @@ function applyWebInputTheme(input: HTMLInputElement, colors: Record<ColorToken, 
 
 function IosDateField({ label, value, onChange, minimumDate, maximumDate, required = false }: DateFieldProps) {
   const theme = useTheme();
-  const pickerValue = useMemo(
-    () => (value ? parseDate(value) : new Date()),
-    [value],
+  const [emptyPickerVisible, setEmptyPickerVisible] = useState(false);
+
+  const referenceDate = useMemo(
+    () => defaultPickerReferenceDate(minimumDate, maximumDate),
+    [maximumDate, minimumDate],
   );
+
+  const pickerValue = useMemo(
+    () => (value ? parseDate(value) : referenceDate),
+    [referenceDate, value],
+  );
+
+  const handlePickerChange = useCallback(
+    (event: DateTimePickerEvent, date?: Date) => {
+      if (!shouldCommitPickerChange(event, date)) {
+        if (!value) {
+          setEmptyPickerVisible(false);
+        }
+        return;
+      }
+
+      const iso = toIsoDate(date);
+      if (iso !== value) {
+        onChange(iso);
+      }
+      if (!value) {
+        setEmptyPickerVisible(false);
+      }
+    },
+    [onChange, value],
+  );
+
+  if (!value) {
+    return (
+      <View style={styles.wrap}>
+        <DateFieldLabel label={label} required={required} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={dateFieldControlAccessibilityLabel(label, value, required)}
+          onPress={() => setEmptyPickerVisible(true)}
+          style={({ pressed }) => [
+            styles.button,
+            {
+              backgroundColor: theme.colors.card,
+              borderColor: theme.colors.border,
+            },
+            pressed && styles.pressed,
+          ]}>
+          <AppText
+            variant="bodySmall"
+            color="mutedForeground"
+            style={{ fontFamily: theme.fontFamilies.sans }}>
+            {formatDisplayDate(value)}
+          </AppText>
+          <Feather name="calendar" size={18} color={theme.colors.mutedForeground} />
+        </Pressable>
+        {emptyPickerVisible ? (
+          <DateTimePicker
+            value={pickerValue}
+            mode="date"
+            display="spinner"
+            minimumDate={minimumDate}
+            maximumDate={maximumDate}
+            accentColor={theme.colors.primary}
+            themeVariant="light"
+            onChange={handlePickerChange}
+          />
+        ) : null}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.wrap}>
@@ -177,7 +273,7 @@ function IosDateField({ label, value, onChange, minimumDate, maximumDate, requir
           maximumDate={maximumDate}
           accentColor={theme.colors.primary}
           themeVariant="light"
-          onValueChange={(_event, date) => onChange(toIsoDate(date))}
+          onChange={handlePickerChange}
           style={styles.iosCompactPicker}
         />
       </View>
@@ -188,9 +284,14 @@ function IosDateField({ label, value, onChange, minimumDate, maximumDate, requir
 function AndroidDateField({ label, value, onChange, minimumDate, maximumDate, required = false }: DateFieldProps) {
   const theme = useTheme();
 
+  const referenceDate = useMemo(
+    () => defaultPickerReferenceDate(minimumDate, maximumDate),
+    [maximumDate, minimumDate],
+  );
+
   const pickerValue = useMemo(
-    () => (value ? parseDate(value) : new Date()),
-    [value],
+    () => (value ? parseDate(value) : referenceDate),
+    [referenceDate, value],
   );
 
   const openPicker = useCallback(() => {
@@ -199,11 +300,17 @@ function AndroidDateField({ label, value, onChange, minimumDate, maximumDate, re
       mode: 'date',
       minimumDate,
       maximumDate,
-      onValueChange: (_event, date) => {
-        onChange(toIsoDate(date));
+      onChange: (event, date) => {
+        if (!shouldCommitPickerChange(event, date)) {
+          return;
+        }
+        const iso = toIsoDate(date);
+        if (iso !== value) {
+          onChange(iso);
+        }
       },
     });
-  }, [maximumDate, minimumDate, onChange, pickerValue]);
+  }, [maximumDate, minimumDate, onChange, pickerValue, value]);
 
   return (
     <View style={styles.wrap}>

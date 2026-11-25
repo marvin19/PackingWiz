@@ -1,4 +1,5 @@
 import { isEndBeforeStart } from '@/domain/dates';
+import { NEW_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE } from '@/domain/new-trip-date-validation';
 import type { Trip } from '@/domain/trip';
 import type { TripSharedDetailsUserEdit } from '@/domain/trip-edit';
 
@@ -9,7 +10,7 @@ export type EditTripDateValidationResult =
   | { ok: false; issue: EditTripDateValidationIssue };
 
 export const EDIT_TRIP_END_BEFORE_START_MESSAGE = 'Return date must be on or after departure.';
-export const EDIT_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE = 'Enter departure and return dates.';
+export const EDIT_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE = NEW_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE;
 
 /** Validates date range when editing an existing trip (past start dates allowed). */
 export function validateEditTripDateRange(

@@ -11,7 +11,7 @@ import {
 } from '@/domain/destination';
 import { EDIT_TRIP_DESTINATION_REQUIRED_MESSAGE } from '@/domain/edit-trip-shared-details-validation';
 import { formatTripDurationDays } from '@/domain/count-display';
-import { durationDays, parseDate } from '@/domain/dates';
+import { durationDays } from '@/domain/dates';
 import {
   getEditTripDateValidationMessage,
   validateEditTripDateRange,
@@ -148,13 +148,6 @@ export function DestinationStep({
           value={draft.endDate}
           onChange={(endDate) => onChange({ endDate })}
           required
-          minimumDate={
-            draft.startDate
-              ? parseDate(draft.startDate)
-              : isEditExisting
-                ? undefined
-                : minimumStartDate
-          }
         />
       </View>
 

@@ -1,6 +1,7 @@
 import type { Bag } from '@/domain/bag';
 import type { Destination } from '@/domain/destination';
 import { formatRange } from '@/domain/dates';
+import { createDefaultNewTripDateRange } from '@/domain/new-trip-draft-dates';
 import {
   getNewTripDateValidationMessage,
   validateNewTripDateRange,
@@ -68,12 +69,17 @@ export type ReuseTripValidation = {
   persistenceError: string | null;
 };
 
-export function createReuseFormStateFromTrip(sourceTrip: Trip): ReuseTripFormState {
+export function createReuseFormStateFromTrip(
+  sourceTrip: Trip,
+  referenceDate: Date = new Date(),
+): ReuseTripFormState {
+  const { startDate, endDate } = createDefaultNewTripDateRange(referenceDate);
+
   return {
     name: getTripName(sourceTrip),
     destination: { ...sourceTrip.destination },
-    startDate: '',
-    endDate: '',
+    startDate,
+    endDate,
     tripContext: [...sourceTrip.tripContext],
     accommodation: sourceTrip.accommodation,
     laundry: sourceTrip.laundry,

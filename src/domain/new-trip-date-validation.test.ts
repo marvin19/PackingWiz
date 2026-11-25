@@ -4,6 +4,7 @@ import type { TripSharedDetailsUserEdit } from '@/domain/trip-edit';
 import { parseDate } from '@/domain/dates';
 import {
   getNewTripDateValidationMessage,
+  NEW_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE,
   NEW_TRIP_START_DATE_PAST_MESSAGE,
   validateNewTripDateRange,
 } from '@/domain/new-trip-date-validation';
@@ -73,6 +74,9 @@ describe('validateNewTripDateRange', () => {
       ok: false,
       issue: 'incomplete',
     });
+    expect(
+      getNewTripDateValidationMessage(validateNewTripDateRange('', '2026-09-10', ref)),
+    ).toBe(NEW_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE);
   });
 });
 

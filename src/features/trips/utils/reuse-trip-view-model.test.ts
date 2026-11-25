@@ -4,6 +4,9 @@ import type { Trip } from '@/domain/trip';
 import { createDestinationFromText } from '@/domain/destination';
 import { normalizeTrip, primaryPackingListId, type TripLike } from '@/domain/trip-compatibility';
 import {
+  NEW_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE,
+} from '@/domain/new-trip-date-validation';
+import {
   buildReuseTripInput,
   createReuseFormStateFromTrip,
   getReuseSourceSummary,
@@ -82,12 +85,15 @@ function createFixtureTrip(): Trip {
 describe('reuse trip view model', () => {
   const referenceDate = new Date('2026-06-15T12:00:00');
 
-  it('prefills shared details and leaves dates empty with all travellers selected', () => {
+  it('prefills shared details with default local dates and all travellers selected', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(referenceDate);
     const trip = createFixtureTrip();
-    const form = createReuseFormStateFromTrip(trip);
+    const form = createReuseFormStateFromTrip(trip, referenceDate);
 
-    expect(form.startDate).toBe('');
-    expect(form.endDate).toBe('');
+    expect(form.startDate).toBe('2026-06-15');
+    expect(form.endDate).toBe('2026-06-16');
+    jest.useRealTimers();
     expect(form.destination.displayName).toBe('Tokyo');
     expect(form.tripContext).toEqual(['Business', 'Vacation']);
     expect(form.note).toBe('Window seat');
@@ -111,8 +117,14 @@ describe('reuse trip view model', () => {
     const trip = createFixtureTrip();
     const form = createReuseFormStateFromTrip(trip);
 
-    expect(validateReuseTripForm(form, referenceDate).canSubmit).toBe(false);
-    expect(validateReuseTripForm(form, referenceDate).dateError).toBeNull();
+    const seeded = createReuseFormStateFromTrip(trip, referenceDate);
+    expect(validateReuseTripForm(seeded, referenceDate).canSubmit).toBe(true);
+
+    const incomplete = { ...seeded, startDate: '', endDate: '2026-06-20' };
+    expect(validateReuseTripForm(incomplete, referenceDate).canSubmit).toBe(false);
+    expect(validateReuseTripForm(incomplete, referenceDate).dateError).toBe(
+      NEW_TRIP_INCOMPLETE_DATE_RANGE_MESSAGE,
+    );
 
     const withDates = {
       ...form,
