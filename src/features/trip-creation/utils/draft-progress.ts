@@ -1,4 +1,6 @@
 import { createDefaultNewTripDateRange } from '@/domain/new-trip-draft-dates';
+import { startOfLocalCalendarDay } from '@/domain/new-trip-date-validation';
+import type { StoredTripDraft } from '@/domain/trip-drafts-state';
 import { createEmptyTripDraft, type TripDraft } from '@/domain/trip-draft';
 import { applyTripDraftPatch } from '@/domain/trip-draft-naming';
 import { normalizeTripDraft } from '@/domain/trip-draft-profiles';
@@ -46,8 +48,26 @@ export function isEmptyDraftContent(draft: TripDraft, referenceDate: Date = new 
   return draftContentEquals(draft, createPristineNewTripDraftBaseline(referenceDate));
 }
 
-export function isDraftInProgress(draft: TripDraft): boolean {
-  return !isEmptyDraftContent(draft);
+/** Local calendar day when default trip dates were first applied for this stored draft. */
+export function resolveEmptyDraftBaselineDate(stored: StoredTripDraft): Date {
+  const timestamp = stored.createdAt?.trim() || stored.updatedAt?.trim();
+  if (timestamp) {
+    return startOfLocalCalendarDay(new Date(timestamp));
+  }
+
+  return startOfLocalCalendarDay(new Date());
+}
+
+export function isStoredDraftContentEmpty(stored: StoredTripDraft): boolean {
+  return isEmptyDraftContent(stored.draft, resolveEmptyDraftBaselineDate(stored));
+}
+
+export function isStoredDraftInProgress(stored: StoredTripDraft): boolean {
+  return !isStoredDraftContentEmpty(stored);
+}
+
+export function isDraftInProgress(draft: TripDraft, referenceDate: Date = new Date()): boolean {
+  return !isEmptyDraftContent(draft, referenceDate);
 }
 
 const REVIEW_REQUIRED_STEPS: WizardStepId[] = [

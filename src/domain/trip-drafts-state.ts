@@ -8,7 +8,7 @@ import { withDefaultNewTripDatesIfUnset } from '@/domain/new-trip-draft-dates';
 import type { TripDraft } from '@/domain/trip-draft';
 import { createEmptyTripDraft } from '@/domain/trip-draft';
 import { applyTripDraftPatch } from '@/domain/trip-draft-naming';
-import { isDraftInProgress } from '@/features/trip-creation/utils/draft-progress';
+import { isStoredDraftInProgress } from '@/features/trip-creation/utils/draft-progress';
 import { createUuid } from '@/lib/id';
 
 export function createTripDraftId(): string {
@@ -23,6 +23,8 @@ export interface StoredTripDraft {
   reachedSummary: boolean;
   /** Important master entries for draft-only packing profile ids. */
   draftImportantByProfileId: ImportantItemsByProfileId;
+  /** Stable creation time for default-date empty-draft baseline (not updated on touch). */
+  createdAt?: string;
   updatedAt: string;
 }
 
@@ -58,13 +60,15 @@ export function createStoredTripDraft(overrides?: Partial<TripDraft>): StoredTri
     id,
   });
 
+  const timestamp = new Date().toISOString();
   const stored: StoredTripDraft = {
     id,
     draft,
     wizardStep: 0,
     reachedSummary: false,
     draftImportantByProfileId: {},
-    updatedAt: new Date().toISOString(),
+    createdAt: timestamp,
+    updatedAt: timestamp,
   };
   assertStoredDraftIdentitiesMatch(stored);
   return stored;
@@ -87,7 +91,7 @@ export function assertStoredDraftExists(state: TripDraftsState, draftId: string)
 }
 
 export function listInProgressDrafts(state: TripDraftsState): StoredTripDraft[] {
-  return state.drafts.filter((entry) => isDraftInProgress(entry.draft));
+  return state.drafts.filter((entry) => isStoredDraftInProgress(entry));
 }
 
 /** Deterministic ordering for Home draft lists — most recently touched first. */
@@ -204,9 +208,11 @@ export function deleteDraftInState(state: TripDraftsState, draftId: string): Tri
 }
 
 function touchStoredDraft(stored: StoredTripDraft, patch: Partial<StoredTripDraft>): StoredTripDraft {
+  const createdAt = stored.createdAt ?? stored.updatedAt;
   return {
     ...stored,
     ...patch,
+    createdAt,
     updatedAt: new Date().toISOString(),
   };
 }
