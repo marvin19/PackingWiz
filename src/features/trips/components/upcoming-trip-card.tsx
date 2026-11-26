@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { ProgressBar } from '@/components/ui/progress-bar';
 import { AppText } from '@/components/ui/app-text';
 import { getTripSecondaryLocationLine } from '@/domain/trip-identity-display';
+import { TripIdentityLocationRow } from '@/features/trips/components/trip-identity-location-row';
 import { formatTripDurationDays } from '@/domain/count-display';
 import { durationDays, formatRange } from '@/domain/dates';
 import { formatTripPeopleCount, getTripPackingPeopleCount } from '@/domain/packing-list-display';
@@ -67,11 +68,13 @@ export function UpcomingTripCard({ trip, onPress }: UpcomingTripCardProps) {
             {tripName}
           </AppText>
           {locationLine ? (
-            <View style={styles.locationRow}>
-              <Feather name="map-pin" size={14} color="rgba(255,255,255,0.85)" />
-              <AppText variant="bodySmall" style={styles.countryText}>
-                {locationLine}
-              </AppText>
+            <View style={styles.locationSubtitle}>
+              <TripIdentityLocationRow
+                locationLine={locationLine}
+                pinColor="rgba(255,255,255,0.85)"
+                textStyle={styles.countryText}
+                numberOfLines={2}
+              />
             </View>
           ) : null}
         </View>
@@ -157,10 +160,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     lineHeight: 28,
   },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+  locationSubtitle: {
     marginTop: 2,
   },
   countryText: {

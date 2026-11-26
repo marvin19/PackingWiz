@@ -27,6 +27,68 @@ const baseFacts = {
 };
 
 describe('TripSummaryDetailsContent', () => {
+  it('shows trip identity hero with location pin on create Summary', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(
+        <TripSummaryDetailsContent
+          mode="create"
+          facts={{
+            ...baseFacts,
+            tripNameLabel: 'Festival in London',
+            tripIdentity: {
+              name: 'Festival in London',
+              title: 'Festival in London',
+              isTripNameUserEdited: true,
+              destination: createDestinationFromText('London', 'United Kingdom'),
+            },
+          }}
+          editHandlers={{
+            onEditTripName: jest.fn(),
+            onEditDestination: jest.fn(),
+          }}
+        />,
+      );
+    });
+
+    expect(tree!.root.findByProps({ name: 'map-pin', size: 14 })).toBeTruthy();
+    expect(tree!.root.findByProps({ children: 'London, United Kingdom' })).toBeTruthy();
+    expect(
+      tree!.root.findByProps({ accessibilityLabel: 'Festival in London, London, United Kingdom' }),
+    ).toBeTruthy();
+    expect(tree!.root.findAll((node) => node.props.name === 'map-pin')).toHaveLength(1);
+  });
+
+  it('shows no location pin when create identity has no subtitle', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(
+        <TripSummaryDetailsContent
+          mode="create"
+          facts={{
+            ...baseFacts,
+            tripNameLabel: 'Chamonix, France',
+            tripIdentity: {
+              name: 'Chamonix, France',
+              title: 'Chamonix, France',
+              isTripNameUserEdited: true,
+              destination: createDestinationFromText('Chamonix', 'France'),
+            },
+          }}
+          editHandlers={{
+            onEditTripName: jest.fn(),
+            onEditDestination: jest.fn(),
+          }}
+        />,
+      );
+    });
+
+    expect(tree!.root.findByProps({ accessibilityLabel: 'Chamonix, France' })).toBeTruthy();
+    expect(tree!.root.findAll((node) => node.props.name === 'map-pin')).toHaveLength(0);
+  });
+
   it('shows the Trip name block on create Summary when provided', () => {
     let tree: TestRenderer.ReactTestRenderer | undefined;
 
@@ -77,6 +139,7 @@ describe('TripSummaryDetailsContent', () => {
 
     expect(tree!.root.findByProps({ children: 'Hyttetur', variant: 'title' })).toBeTruthy();
     expect(tree!.root.findByProps({ children: 'Norefjell, Norway' })).toBeTruthy();
+    expect(tree!.root.findByProps({ name: 'map-pin' })).toBeTruthy();
     expect(tree!.root.findAllByProps({ title: 'Trip name' })).toHaveLength(1);
     expect(tree!.root.findByProps({ accessibilityLabel: 'Hyttetur, Norefjell, Norway' })).toBeTruthy();
   });

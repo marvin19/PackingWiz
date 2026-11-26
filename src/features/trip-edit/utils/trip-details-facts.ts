@@ -11,6 +11,7 @@ export function getTripDetailsFactsFromTrip(trip: Trip): TripSummaryDetailsFacts
       name: trip.name,
       title: trip.title,
       destination: trip.destination,
+      isTripNameUserEdited: trip.isTripNameUserEdited,
     },
     destinationLabel: getDestinationLabel(trip.destination),
     countryLabel: getDestinationCountryLabel(trip.destination),

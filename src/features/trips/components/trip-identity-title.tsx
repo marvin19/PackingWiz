@@ -1,4 +1,3 @@
-import { Feather } from '@expo/vector-icons';
 import { StyleSheet, View } from 'react-native';
 
 import { AppText } from '@/components/ui/app-text';
@@ -8,6 +7,7 @@ import {
 } from '@/domain/trip-identity-display';
 import type { Trip } from '@/domain/trip';
 import { getTripName } from '@/domain/trip-name';
+import { TripIdentityLocationRow } from '@/features/trips/components/trip-identity-location-row';
 import { useTheme } from '@/hooks/use-theme';
 import type { TypographyToken } from '@/theme/typography';
 
@@ -15,11 +15,10 @@ import type { TypographyToken } from '@/theme/typography';
 export type TripIdentityTitleLayout = 'inline' | 'stacked';
 
 type TripIdentityTitleProps = {
-  trip: Pick<Trip, 'name' | 'title' | 'destination'>;
+  trip: Pick<Trip, 'name' | 'title' | 'destination' | 'isTripNameUserEdited'>;
   layout?: TripIdentityTitleLayout;
   /** Override default line limit for the layout preset. */
   titleNumberOfLines?: number;
-  showLocationPin?: boolean;
 };
 
 const LAYOUT_PRESETS: Record<
@@ -42,7 +41,6 @@ export function TripIdentityTitle({
   trip,
   layout = 'stacked',
   titleNumberOfLines,
-  showLocationPin = false,
 }: TripIdentityTitleProps) {
   const theme = useTheme();
   const tripName = getTripName(trip);
@@ -65,30 +63,11 @@ export function TripIdentityTitle({
         {tripName}
       </AppText>
       {locationLine ? (
-        showLocationPin ? (
-          <View style={styles.locationRow}>
-            <Feather name="map-pin" size={14} color={theme.colors.mutedForeground} />
-            <AppText
-              variant="bodySmall"
-              color="mutedForeground"
-              numberOfLines={2}
-              ellipsizeMode="tail"
-              maxFontSizeMultiplier={1.2}
-              style={styles.locationTextInRow}>
-              {locationLine}
-            </AppText>
-          </View>
-        ) : (
-          <AppText
-            variant="bodySmall"
-            color="mutedForeground"
-            numberOfLines={2}
-            ellipsizeMode="tail"
-            maxFontSizeMultiplier={1.2}
-            style={styles.locationText}>
-            {locationLine}
-          </AppText>
-        )
+        <TripIdentityLocationRow
+          locationLine={locationLine}
+          pinColor={theme.colors.mutedForeground}
+          decorativeForScreenReader
+        />
       ) : null}
     </View>
   );
@@ -105,22 +84,5 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     minWidth: 0,
     width: '100%',
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 4,
-    minWidth: 0,
-  },
-  /** Standalone subtitle in the column layout — natural height (flex:1 collapses Text on iOS). */
-  locationText: {
-    alignSelf: 'stretch',
-    minWidth: 0,
-    flexShrink: 0,
-  },
-  /** Subtitle beside the map pin in a row — share remaining horizontal space. */
-  locationTextInRow: {
-    flex: 1,
-    minWidth: 0,
   },
 });

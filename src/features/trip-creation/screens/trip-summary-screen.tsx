@@ -17,6 +17,7 @@ import {
   type WizardStepKey,
 } from '@/features/trip-creation/utils/wizard-navigation';
 import { getPackingForLabel } from '@/features/trip-creation/utils/summary-labels';
+import { buildTripSummaryTripIdentityFromDraft } from '@/features/trip-creation/utils/trip-summary-identity';
 import { resolveLastWizardStepIndex } from '@/features/trip-creation/utils/wizard-steps';
 import { getTripSummaryDetailsScreenTitle } from '@/features/trip-edit/utils/trip-details-navigation';
 import { resolvePostCreatePackHref } from '@/domain/post-create-pack-navigation';
@@ -105,6 +106,7 @@ export function TripSummaryScreen() {
           mode="create"
           facts={{
             tripNameLabel,
+            tripIdentity: buildTripSummaryTripIdentityFromDraft(normalizedDraft),
             destinationLabel,
             countryLabel,
             startDate: normalizedDraft.startDate,

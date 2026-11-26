@@ -121,33 +121,48 @@ describe('TripIdentityTitle', () => {
       );
     });
 
+    expect(tree!.root.findByProps({ name: 'map-pin', size: 14 })).toBeTruthy();
     const location = tree!.root.findByProps({ children: destinationLine });
     expect(location.props.color).toBe('mutedForeground');
     const locationStyle = StyleSheet.flatten(location.props.style);
-    expect(locationStyle.flex).toBeUndefined();
-    expect(locationStyle.flexShrink).toBe(0);
+    expect(locationStyle.flex).toBe(1);
     expect(tree!.root.findByProps({ accessibilityLabel: `Kirsebærblomstring, ${destinationLine}` })).toBeTruthy();
   });
 
-  it('keeps map-pin row subtitle flexible horizontally', () => {
-    let tree: TestRenderer.ReactTestRenderer | undefined;
+  it('renders the location pin on inline and stacked layouts by default', () => {
+    let inlineTree: TestRenderer.ReactTestRenderer | undefined;
+    let stackedTree: TestRenderer.ReactTestRenderer | undefined;
 
     act(() => {
-      tree = TestRenderer.create(
+      inlineTree = TestRenderer.create(
         <TripIdentityTitle
-          showLocationPin
+          layout="inline"
           trip={{
-            name: 'Hyttetur',
-            title: 'Hyttetur',
-            destination: createDestinationFromText('Norefjell', 'Norway'),
+            name: 'Skiferie',
+            title: 'Skiferie',
+            destination: createDestinationFromText('Chamonix', 'France'),
+          }}
+        />,
+      );
+      stackedTree = TestRenderer.create(
+        <TripIdentityTitle
+          layout="stacked"
+          trip={{
+            name: 'Skiferie',
+            title: 'Skiferie',
+            destination: createDestinationFromText('Chamonix', 'France'),
           }}
         />,
       );
     });
 
-    const location = tree!.root.findByProps({ children: 'Norefjell, Norway' });
-    const locationStyle = StyleSheet.flatten(location.props.style);
-    expect(locationStyle.flex).toBe(1);
+    expect(inlineTree!.root.findByProps({ name: 'map-pin' })).toBeTruthy();
+    expect(stackedTree!.root.findByProps({ name: 'map-pin' })).toBeTruthy();
+    expect(
+      inlineTree!.root.find(
+        (node) => node.props.accessibilityElementsHidden === true,
+      ),
+    ).toBeTruthy();
   });
 
   it('stacked layout still renders a distinct destination subtitle', () => {
@@ -167,6 +182,7 @@ describe('TripIdentityTitle', () => {
     });
 
     expect(tree!.root.findByProps({ children: 'Tokyo & Kyoto, Japan' })).toBeTruthy();
+    expect(tree!.root.findByProps({ name: 'map-pin' })).toBeTruthy();
   });
 
   it('does not render a location row when destination is empty', () => {
@@ -187,5 +203,6 @@ describe('TripIdentityTitle', () => {
     expect(tree!.root.findByProps({ children: 'Mystery trip' })).toBeTruthy();
     expect(tree!.root.findByProps({ accessibilityLabel: 'Mystery trip' })).toBeTruthy();
     expect(tree!.root.findAllByProps({ color: 'mutedForeground' })).toHaveLength(0);
+    expect(tree!.root.findAll((node) => node.props.name === 'map-pin')).toHaveLength(0);
   });
 });

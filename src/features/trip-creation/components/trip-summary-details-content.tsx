@@ -23,8 +23,8 @@ import { Feather } from '@expo/vector-icons';
 export type TripSummaryDetailsFacts = {
   /** Proposed or committed trip title — shown on the Trip name card when set. */
   tripNameLabel?: string;
-  /** Existing Trip Details hub hero — name + destination identity. */
-  tripIdentity?: Pick<Trip, 'name' | 'title' | 'destination'>;
+  /** Trip identity hero — committed trips and creation Summary review. */
+  tripIdentity?: Pick<Trip, 'name' | 'title' | 'destination' | 'isTripNameUserEdited'>;
   destinationLabel: string;
   countryLabel: string;
   startDate: string;
@@ -69,12 +69,12 @@ export function TripSummaryDetailsContent({
   const accommodationIcon = getAccommodationIcon(facts.accommodation ?? 'hotel');
   const packingInIcon = getBagIcon('carryon');
   const isEditable = mode === 'existing' || mode === 'create';
-  const useIdentityHero = mode === 'existing' && facts.tripIdentity;
+  const useIdentityHero = Boolean(facts.tripIdentity);
 
   return (
     <>
       <View style={styles.hero}>
-        <View style={[styles.heroHeader, useIdentityHero && styles.heroHeaderTopAligned]}>
+        <View style={[styles.heroHeader, useIdentityHero ? styles.heroHeaderTopAligned : null]}>
           <View style={styles.heroCopy}>
             {useIdentityHero ? (
               <>

@@ -44,6 +44,7 @@ describe('getTripDetailsFactsFromTrip', () => {
       name: 'Hyttetur',
       title: 'Hyttetur',
       destination: trip.destination,
+      isTripNameUserEdited: trip.isTripNameUserEdited,
     });
   });
 });

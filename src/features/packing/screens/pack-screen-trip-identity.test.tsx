@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import { createDestinationFromText } from '@/domain/destination';
@@ -161,6 +162,31 @@ describe('PackScreen trip identity header (PW-TECH-001H-A)', () => {
     expect(locationNodes).toHaveLength(0);
   });
 
+  it('shows only the country when the trip title matches the place name', async () => {
+    mockTrip = createPackTrip({
+      name: 'Chamonix',
+      title: 'Chamonix',
+      isTripNameUserEdited: true,
+      destination: createDestinationFromText('Chamonix', 'France'),
+    });
+
+    let tree: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      tree = TestRenderer.create(<PackScreen />);
+    });
+
+    expect(
+      tree!.root.findByProps({
+        accessibilityLabel: 'Chamonix, France',
+        accessibilityRole: 'header',
+      }),
+    ).toBeTruthy();
+    expect(tree!.root.findByProps({ children: 'France' })).toBeTruthy();
+    expect(
+      tree!.root.findAll((node) => node.props.children === 'Chamonix, France' && node.props.color === 'mutedForeground'),
+    ).toHaveLength(0);
+  });
+
   it('does not duplicate text when the custom name equals the destination line', async () => {
     mockTrip = createPackTrip({
       name: 'Madrid',
@@ -180,5 +206,82 @@ describe('PackScreen trip identity header (PW-TECH-001H-A)', () => {
     );
     expect(destinationSubtitles).toHaveLength(0);
   });
+});
 
+describe('PackScreen trip identity header (PW-TECH-001H-C)', () => {
+  beforeEach(() => {
+    mockTrip = createPackTrip();
+  });
+
+  it('renders a map pin with the full destination subtitle', async () => {
+    let tree: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      tree = TestRenderer.create(<PackScreen />);
+    });
+
+    expect(tree!.root.findByProps({ name: 'map-pin', size: 14 })).toBeTruthy();
+    const subtitle = tree!.root.findByProps({ children: 'Tokyo & Kyoto, Japan' });
+    expect(StyleSheet.flatten(subtitle.props.style).flex).toBe(1);
+  });
+
+  it('renders a map pin with a country-only subtitle', async () => {
+    mockTrip = createPackTrip({
+      name: 'Chamonix',
+      title: 'Chamonix',
+      isTripNameUserEdited: true,
+      destination: createDestinationFromText('Chamonix', 'France'),
+    });
+
+    let tree: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      tree = TestRenderer.create(<PackScreen />);
+    });
+
+    expect(tree!.root.findByProps({ name: 'map-pin' })).toBeTruthy();
+    expect(tree!.root.findByProps({ children: 'France' })).toBeTruthy();
+  });
+
+  it('does not render an orphaned map pin when the subtitle is empty', async () => {
+    mockTrip = createPackTrip({
+      name: 'Chamonix, France',
+      title: 'Chamonix, France',
+      isTripNameUserEdited: true,
+      destination: createDestinationFromText('Chamonix', 'France'),
+    });
+
+    let tree: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      tree = TestRenderer.create(<PackScreen />);
+    });
+
+    expect(
+      tree!.root.findByProps({ accessibilityLabel: 'Chamonix, France', accessibilityRole: 'header' }),
+    ).toBeTruthy();
+    expect(tree!.root.findAll((node) => node.props.name === 'map-pin')).toHaveLength(0);
+  });
+
+  it('keeps the grouped accessibility label on the identity header', async () => {
+    mockTrip = createPackTrip({
+      name: 'Skiferie',
+      title: 'Skiferie',
+      isTripNameUserEdited: true,
+      destination: createDestinationFromText('Chamonix', 'France'),
+    });
+
+    let tree: TestRenderer.ReactTestRenderer;
+    await act(async () => {
+      tree = TestRenderer.create(<PackScreen />);
+    });
+
+    expect(
+      tree!.root.findByProps({
+        accessibilityRole: 'header',
+        accessibilityLabel: 'Skiferie, Chamonix, France',
+      }),
+    ).toBeTruthy();
+    const decorativeRow = tree!.root.find(
+      (node) => node.props.accessibilityElementsHidden === true && node.props.importantForAccessibility === 'no-hide-descendants',
+    );
+    expect(decorativeRow).toBeDefined();
+  });
 });
