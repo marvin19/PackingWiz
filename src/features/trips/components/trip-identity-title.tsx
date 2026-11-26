@@ -74,7 +74,7 @@ export function TripIdentityTitle({
               numberOfLines={2}
               ellipsizeMode="tail"
               maxFontSizeMultiplier={1.2}
-              style={styles.locationText}>
+              style={styles.locationTextInRow}>
               {locationLine}
             </AppText>
           </View>
@@ -112,7 +112,14 @@ const styles = StyleSheet.create({
     gap: 4,
     minWidth: 0,
   },
+  /** Standalone subtitle in the column layout — natural height (flex:1 collapses Text on iOS). */
   locationText: {
+    alignSelf: 'stretch',
+    minWidth: 0,
+    flexShrink: 0,
+  },
+  /** Subtitle beside the map pin in a row — share remaining horizontal space. */
+  locationTextInRow: {
     flex: 1,
     minWidth: 0,
   },

@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import TestRenderer, { act } from 'react-test-renderer';
 
 import { createDestinationFromText } from '@/domain/destination';
@@ -101,6 +102,71 @@ describe('TripIdentityTitle', () => {
     const title = tree!.root.findByProps({ children: longName });
     expect(title.props.variant).toBe('title');
     expect(title.props.numberOfLines).toBe(3);
+  });
+
+  it('renders inline composite destination without flex-collapsing subtitle styles (PW-TECH-001H-A)', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+    const destinationLine = 'Tokyo & Kyoto, Japan';
+
+    act(() => {
+      tree = TestRenderer.create(
+        <TripIdentityTitle
+          layout="inline"
+          trip={{
+            name: 'Kirsebærblomstring',
+            title: 'Kirsebærblomstring',
+            destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
+          }}
+        />,
+      );
+    });
+
+    const location = tree!.root.findByProps({ children: destinationLine });
+    expect(location.props.color).toBe('mutedForeground');
+    const locationStyle = StyleSheet.flatten(location.props.style);
+    expect(locationStyle.flex).toBeUndefined();
+    expect(locationStyle.flexShrink).toBe(0);
+    expect(tree!.root.findByProps({ accessibilityLabel: `Kirsebærblomstring, ${destinationLine}` })).toBeTruthy();
+  });
+
+  it('keeps map-pin row subtitle flexible horizontally', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(
+        <TripIdentityTitle
+          showLocationPin
+          trip={{
+            name: 'Hyttetur',
+            title: 'Hyttetur',
+            destination: createDestinationFromText('Norefjell', 'Norway'),
+          }}
+        />,
+      );
+    });
+
+    const location = tree!.root.findByProps({ children: 'Norefjell, Norway' });
+    const locationStyle = StyleSheet.flatten(location.props.style);
+    expect(locationStyle.flex).toBe(1);
+  });
+
+  it('stacked layout still renders a distinct destination subtitle', () => {
+    let tree: TestRenderer.ReactTestRenderer | undefined;
+
+    act(() => {
+      tree = TestRenderer.create(
+        <TripIdentityTitle
+          layout="stacked"
+          trip={{
+            name: 'Cherry blossom',
+            title: 'Cherry blossom',
+            destination: createDestinationFromText('Tokyo & Kyoto', 'Japan'),
+          }}
+        />,
+      );
+    });
+
+    expect(tree!.root.findByProps({ children: 'Tokyo & Kyoto, Japan' })).toBeTruthy();
   });
 
   it('does not render a location row when destination is empty', () => {
